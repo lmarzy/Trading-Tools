@@ -1,14 +1,3 @@
 {
-  "passcodes": [
-    {
-      "label": "user1",
-      "code": "758098",
-      "hash": "a3ec625b4b3a130e720e4077ad23522bd4687ac8eac9e0e0da8219b9dd3b8ca1"
-    },
-    {
-      "label": "user2",
-      "code": "785354",
-      "hash": "6287d5eef3578d0e5aa5f7aac8d28ae76d23fe33e98dbd5d7498022e6321f185"
-    }
-  ]
+  "passcodes": []
 }
