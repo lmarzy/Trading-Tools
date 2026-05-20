@@ -1,3 +1,9 @@
 {
-  "passcodes": []
+  "passcodes": [
+    {
+      "label": "marzy",
+      "code": "380802",
+      "hash": "fa3ddc4476a0c659a51a3738057391b6b7c447c9a8b51a08232c7ff4523a201e"
+    }
+  ]
 }
