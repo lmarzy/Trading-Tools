@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trade Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="auth-locked">
+    <section class="passcode-gate" id="passcodeGate" aria-label="Passcode required">
+      <form class="passcode-card" id="passcodeForm" autocomplete="off">
+        <p class="eyebrow">Private access</p>
+        <h1>Trading Tools</h1>
+        <label>
+          <span>Passcode</span>
+          <input
+            id="passcodeInput"
+            name="passcode"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="6"
+            placeholder="Enter 6 digit code"
+            required
+          />
+        </label>
+        <p class="passcode-error" id="passcodeError" role="alert"></p>
+        <button class="primary-button" type="submit">Unlock</button>
+      </form>
+    </section>
+    <main class="app-shell">
+      <div class="dashboard-frame">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Trading toolkit</p>
+          <h1>Trading Tools</h1>
+        </div>
+        <div class="topbar-actions">
+          <nav class="app-nav" aria-label="App tools">
+            <button class="nav-button active" type="button" data-view-target="trackerView">Trade Tracker</button>
+            <button class="nav-button" type="button" data-view-target="calculatorView">Position Size Calculator</button>
+          </nav>
+          <button class="ghost-button logout-button" type="button" id="logoutButton">Logout</button>
+        </div>
+      </header>
+
+      <section class="app-view active" id="trackerView">
+      <div class="view-header">
+        <h2>Trade Tracker</h2>
+        <div class="view-actions">
+          <button class="icon-button config-button" type="button" id="openConfigButton" aria-label="Configure trade inputs" title="Configure trade inputs">⚙</button>
+          <button class="primary-button top-action" type="button" id="openTradeModalButton">Add trade</button>
+        </div>
+      </div>
+      <section class="summary-grid" aria-label="Trading summary">
+        <article class="summary-tile">
+          <span>Total Trades</span>
+          <strong id="totalTrades">0</strong>
+          <div class="summary-split" id="summarySymbolSplit"></div>
+        </article>
+        <article class="summary-tile">
+          <span>Total Lots</span>
+          <strong id="totalLots">0.00</strong>
+        </article>
+        <article class="summary-tile">
+          <span>Wins</span>
+          <strong id="winsTotal">0</strong>
+        </article>
+        <article class="summary-tile">
+          <span>Losses</span>
+          <strong id="lossesTotal">0</strong>
+        </article>
+        <article class="summary-tile">
+          <span>Amount</span>
+          <strong id="amountTotal">0.00</strong>
+        </article>
+      </section>
+
+      <section class="weekly-panel" aria-label="Weekly trading summary">
+        <div class="weekly-heading">
+          <h2 id="weeklyTitle">This Week</h2>
+          <div class="weekly-controls">
+            <select id="weekRangeFilter" aria-label="Week range">
+              <option value="this">This Week</option>
+              <option value="last">Last Week</option>
+            </select>
+            <span id="weeklyRange">Monday - Friday</span>
+          </div>
+        </div>
+        <article class="weekly-total-card" id="weeklyTotalCard">
+          <div>
+            <span>Week Total</span>
+            <strong id="weeklyTotalAmount">0.00</strong>
+          </div>
+          <dl>
+            <div><dt>Trades</dt><dd id="weeklyTotalTrades">0</dd></div>
+            <div><dt>W/L</dt><dd id="weeklyTotalWinLoss">0/0</dd></div>
+          </dl>
+        </article>
+        <div class="weekly-grid" id="weeklyGrid"></div>
+      </section>
+
+      <section class="strategy-panel" aria-label="Strategy breakdown">
+        <div class="weekly-heading">
+          <h2>Strategy Breakdown</h2>
+        </div>
+        <div class="strategy-grid" id="strategyGrid"></div>
+      </section>
+
+      <dialog class="trade-modal" id="tradeModal">
+        <form class="trade-form" id="tradeForm" autocomplete="off">
+          <div class="form-heading">
+            <h2 id="formTitle">Add trade</h2>
+            <div class="modal-actions">
+              <button class="ghost-button hidden" type="button" id="cancelEditButton">Cancel edit</button>
+              <button class="icon-button" type="button" id="closeTradeModalButton" aria-label="Close form">Close</button>
+            </div>
+          </div>
+
+          <input type="hidden" id="tradeId" name="tradeId" />
+
+          <div class="field-row">
+            <label>
+              <span>Date</span>
+              <input id="tradeDate" name="tradeDate" type="date" required />
+            </label>
+            <label>
+              <span>Symbol</span>
+              <select id="symbol" name="symbol" required></select>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>Session</span>
+              <select id="session" name="session"></select>
+            </label>
+            <label>
+              <span>Account</span>
+              <select id="account" name="account"></select>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>Strategy</span>
+              <select id="strategy" name="strategy"></select>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>Lots</span>
+              <select id="lots" name="lots">
+                <option value="0.01">0.01</option>
+                <option value="0.02">0.02</option>
+                <option value="0.03">0.03</option>
+                <option value="0.04">0.04</option>
+                <option value="0.05">0.05</option>
+              </select>
+            </label>
+            <label>
+              <span>Lot multiplier</span>
+              <select id="lotMultiplier" name="lotMultiplier">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>Win / Loss</span>
+              <select id="outcome" name="outcome">
+                <option value="Pending">Pending</option>
+                <option value="Win">Win</option>
+                <option value="Loss">Loss</option>
+              </select>
+            </label>
+            <label>
+              <span>Amount</span>
+              <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
+            </label>
+          </div>
+
+          <label>
+            <span>Notes</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="Why you took it, what you learned..."></textarea>
+          </label>
+
+          <button class="primary-button" type="submit" id="submitButton">Add trade</button>
+        </form>
+      </dialog>
+
+      <dialog class="trade-modal" id="configModal">
+        <form class="trade-form config-form" id="configForm" autocomplete="off">
+          <div class="form-heading">
+            <h2>Configure inputs</h2>
+            <div class="modal-actions">
+              <button class="icon-button" type="button" id="closeConfigButton" aria-label="Close configuration">Close</button>
+            </div>
+          </div>
+
+          <p class="config-note">These inputs are saved on this browser and included in Backup Data, so each user can keep their own trading setup.</p>
+          <div class="config-grid" id="configGrid"></div>
+        </form>
+      </dialog>
+
+      <dialog class="trade-modal note-modal" id="noteModal">
+        <div class="trade-form note-viewer">
+          <div class="form-heading">
+            <h2>Trade note</h2>
+            <button class="icon-button" type="button" id="closeNoteButton" aria-label="Close note">Close</button>
+          </div>
+          <p id="noteModalText"></p>
+        </div>
+      </dialog>
+
+      <section class="workspace">
+        <section class="table-panel" aria-label="Trade table">
+          <div class="table-tools">
+            <label>
+              <span>Symbol</span>
+              <select id="symbolFilter">
+                <option value="All">All</option>
+              </select>
+            </label>
+            <label>
+              <span>Account</span>
+              <select id="accountFilter">
+                <option value="All">All</option>
+              </select>
+            </label>
+
+            <div class="toolbar-actions">
+              <button class="ghost-button" type="button" id="exportButton">Export CSV</button>
+              <button class="ghost-button" type="button" id="backupButton">Backup Data</button>
+              <button class="ghost-button" type="button" id="importButton">Restore Data</button>
+              <input class="file-input" id="importFileInput" type="file" accept="application/json,.json" />
+              <button class="danger-button" type="button" id="clearButton">Clear all</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Symbol</th>
+                  <th>Session</th>
+                  <th>Account</th>
+                  <th>Strategy</th>
+                  <th>Lots</th>
+                  <th>Multiplier</th>
+                  <th>Win / Loss</th>
+                  <th>Amount</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tradeTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="table-pagination" id="tablePagination">
+            <span id="paginationStatus">Showing 0 trades</span>
+            <div class="pagination-actions">
+              <button class="ghost-button" type="button" id="prevPageButton">Previous</button>
+              <button class="ghost-button" type="button" id="nextPageButton">Next</button>
+            </div>
+          </div>
+
+          <div class="empty-state hidden" id="emptyState">
+            <h2>No trades yet</h2>
+            <p>Add your first trade to start building your local journal.</p>
+          </div>
+        </section>
+      </section>
+      </section>
+
+      <section class="app-view" id="calculatorView" aria-label="Position Size Calculator">
+        <div class="view-header">
+          <h2>Position Size Calculator</h2>
+          <div class="view-actions">
+            <div class="calc-pill">Type: <strong>CFD</strong></div>
+            <div class="calc-pill">Rounding: <strong>0.01 lot</strong></div>
+          </div>
+        </div>
+
+        <div class="calculator-grid">
+          <div class="calculator-card calculator-inputs">
+            <div class="calculator-card-label">Parameters</div>
+
+            <div class="field-row">
+              <label>
+                <span>Account size</span>
+                <input id="calcAccount" type="number" min="0" step="0.01" placeholder="10,000" />
+                <small class="field-hint" id="hintCalcAccount"></small>
+              </label>
+              <label>
+                <span>Currency</span>
+                <select id="calcCurrency">
+                  <option value="£">GBP £</option>
+                  <option value="$">USD $</option>
+                  <option value="€">EUR €</option>
+                  <option value="¥">JPY ¥</option>
+                  <option value="A$">AUD</option>
+                  <option value="C$">CAD</option>
+                  <option value="CHF">CHF</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              <span>Risk method</span>
+              <div class="calc-toggle">
+                <button id="calcBtnPct" class="active" type="button"> % of account</button>
+                <button id="calcBtnAmt" type="button">Fixed amount</button>
+              </div>
+            </label>
+
+            <label>
+              <span id="calcRiskLabel">Risk %</span>
+              <input id="calcRiskVal" type="number" min="0" step="0.01" placeholder="e.g. 1" />
+              <small class="field-hint" id="hintCalcRisk"></small>
+            </label>
+
+            <div class="field-row">
+              <label>
+                <span>Stop loss (pts)</span>
+                <input id="calcSl" type="number" min="0" step="0.01" placeholder="e.g. 25" />
+                <small class="field-hint" id="hintCalcSl"></small>
+              </label>
+              <label>
+                <span class="label-with-help">
+                  Value / pt (1 lot)
+                  <button
+                    class="help-trigger"
+                    type="button"
+                    aria-label="What does Value per point mean?"
+                    aria-describedby="calcVppTooltip"
+                  >
+                    ?
+                  </button>
+                  <span class="help-tooltip" id="calcVppTooltip" role="tooltip">
+                    This is the money gained or lost when a 1.00 lot trade moves by 1 point. To find it, open your broker or trading platform, check the contract/specification details for the symbol, or use a tiny test calculation: note the P/L change for a 1 point move at 1.00 lot.
+                  </span>
+                </span>
+                <input id="calcVpp" type="number" min="0" step="0.01" placeholder="e.g. 10" />
+                <small class="field-hint" id="hintCalcVpp"></small>
+              </label>
+            </div>
+
+            <div class="calculator-actions">
+              <button class="primary-button" id="calcCalculateButton" type="button">Calculate</button>
+              <button class="ghost-button" id="calcResetButton" type="button">Reset</button>
+            </div>
+          </div>
+
+          <div class="calculator-stack">
+            <div class="calculator-card calculator-hero">
+              <div class="calculator-card-label">Position Size</div>
+              <div class="hero-number" id="calcHeroNum">-</div>
+              <div class="hero-unit" id="calcHeroUnit">Lots</div>
+              <div class="hero-sub">rounded down · nearest 0.01 lot</div>
+              <div id="calcBadge"><span class="badge pending">awaiting input</span></div>
+              <hr class="hero-divider" />
+              <div class="hero-raw">
+                <span>Raw -</span>
+                <strong id="calcRawVal">enter values above</strong>
+              </div>
+            </div>
+
+            <div class="calculator-card">
+              <div class="calculator-card-label">Risk Breakdown</div>
+              <div class="metrics-row">
+                <div class="metric">
+                  <span>Risk amount</span>
+                  <strong id="calcMRiskAmt">-</strong>
+                  <small id="calcMRiskSub">target</small>
+                </div>
+                <div class="metric">
+                  <span>Actual risk</span>
+                  <strong id="calcMActual">-</strong>
+                  <small>after rounding</small>
+                </div>
+                <div class="metric">
+                  <span>Value / point</span>
+                  <strong id="calcMVpp">-</strong>
+                  <small>at this size</small>
+                </div>
+                <div class="metric">
+                  <span>Risk %</span>
+                  <strong id="calcMPct">-</strong>
+                  <small>of account</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="calculator-card calculator-formula">
+            <div class="calculator-card-label">How It Works</div>
+            <div class="formula-inner">
+              <div class="formula-line">
+                <b>1</b>
+                <span>risk = account x (% / 100)<br />or use your fixed cash amount</span>
+              </div>
+              <div class="formula-line">
+                <b>2</b>
+                <span>size = risk / (stop pts x val/pt)<br />gives you exact lot size</span>
+              </div>
+              <div class="formula-line">
+                <b>3</b>
+                <span>rounded = floor(size x 100) / 100<br />always rounds down to 0.01</span>
+              </div>
+              <div class="formula-line">
+                <b>4</b>
+                <span>actual risk = rounded x stop x val/pt<br />true exposure after rounding</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

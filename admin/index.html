@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Tools Admin</title>
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body class="auth-locked admin-page">
+    <section class="passcode-gate" id="adminGate" aria-label="Admin passcode required">
+      <form class="passcode-card" id="adminLoginForm" autocomplete="off">
+        <p class="eyebrow">Admin access</p>
+        <h1>Trading Tools</h1>
+        <label>
+          <span>Admin passcode</span>
+          <input
+            id="adminPasscodeInput"
+            name="adminPasscode"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="10"
+            placeholder="Enter 10 digit code"
+            required
+          />
+        </label>
+        <p class="passcode-error" id="adminPasscodeError" role="alert"></p>
+        <button class="primary-button" type="submit">Unlock admin</button>
+      </form>
+    </section>
+
+    <main class="app-shell">
+      <div class="dashboard-frame">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Hidden admin</p>
+            <h1>Admin</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="primary-button admin-export-button" type="button" id="exportConfigButton">Export config.json</button>
+            <button class="ghost-button logout-button" type="button" id="adminLogoutButton">Logout</button>
+          </div>
+        </header>
+
+        <section class="admin-grid">
+          <section class="calculator-card">
+            <div class="calculator-card-label">User Passcodes</div>
+            <p class="config-note">Generate a simple 6 digit code for each user. Only the salted hash is exported.</p>
+            <div class="admin-passcode-row">
+              <input id="userLabelInput" type="text" placeholder="User label" />
+              <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
+            </div>
+            <div class="admin-passcode-table-wrap">
+              <table class="admin-passcode-table">
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Code</th>
+                    <th>Hash</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminPasscodeList"></tbody>
+              </table>
+            </div>
+            <p class="admin-empty-passcodes" id="adminEmptyPasscodes">No user passcodes generated yet.</p>
+          </section>
+        </section>
+
+        <p class="config-note admin-export-note">Export downloads <strong>config.json</strong>. Upload it to the hosted app so the main app can use the latest user passcodes.</p>
+      </div>
+    </main>
+
+    <script src="admin.js"></script>
+  </body>
+</html>
