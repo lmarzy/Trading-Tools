@@ -46,10 +46,15 @@ body.auth-locked {
   overflow: hidden;
 }
 
-body.auth-locked .app-shell {
+body.auth-locked .app-shell,
+body.admin-checking .app-shell {
   filter: blur(18px);
   pointer-events: none;
   user-select: none;
+}
+
+body.admin-checking {
+  overflow: hidden;
 }
 
 .passcode-gate {
@@ -66,6 +71,16 @@ body.auth-locked .app-shell {
 
 .passcode-gate[hidden] {
   display: none;
+}
+
+.admin-access-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 17, 17, 0.9);
 }
 
 .passcode-card {
@@ -120,6 +135,29 @@ body.auth-locked .app-shell {
   gap: 12px;
 }
 
+.save-status {
+  width: fit-content;
+  margin: 8px 0 0;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.save-status.saving {
+  border-color: rgba(200, 255, 79, 0.3);
+  color: var(--lime);
+}
+
+.save-status.pending {
+  border-color: rgba(255, 170, 72, 0.35);
+  color: #ffaa48;
+}
+
 .app-nav {
   display: flex;
   align-items: center;
@@ -150,13 +188,89 @@ body.auth-locked .app-shell {
   border-radius: 999px;
 }
 
-.logout-button {
-  min-height: 48px;
-  border-radius: 999px;
-}
-
 .app-view {
   display: none;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--lime);
+  font-weight: 900;
+}
+
+.user-menu-button:hover {
+  border-color: var(--line-hot);
+}
+
+.user-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 10;
+  width: 220px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.user-popover-heading {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.user-popover-heading span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.user-popover-heading strong {
+  color: var(--ink);
+}
+
+.user-popover-heading small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.user-popover-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-weight: 850;
+  text-align: left;
+  text-decoration: none;
+}
+
+.user-popover-link:hover {
+  background: var(--field);
+  color: var(--ink);
 }
 
 .app-view.active {
@@ -599,20 +713,39 @@ h2 {
 .table-tools {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   padding: 28px 36px;
   border-bottom: 1px solid var(--line);
 }
 
 .table-tools label {
-  min-width: 190px;
+  width: 124px;
+  min-width: 124px;
+  gap: 6px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.table-tools select {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 12px;
+  padding: 0 30px 0 12px;
+  font-size: 0.86rem;
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size:
+    5px 5px,
+    5px 5px;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
+  margin-left: auto;
   gap: 10px;
 }
 
@@ -681,6 +814,11 @@ tbody td:first-child {
 
 tbody td:last-child {
   border-radius: 0 18px 18px 0;
+}
+
+.table-message {
+  color: var(--muted-strong);
+  text-align: center;
 }
 
 .symbol-cell {
@@ -792,6 +930,12 @@ tbody td:last-child {
   gap: 10px;
 }
 
+.balance-config-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
 .config-pill {
   display: inline-flex;
   align-items: center;
@@ -829,65 +973,69 @@ tbody td:last-child {
   gap: 16px;
 }
 
-.admin-page .calculator-card {
-  display: grid;
+.admin-users-panel .table-tools {
+  align-items: stretch;
+  flex-direction: column;
   gap: 18px;
 }
 
 .admin-passcode-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 1.2fr) minmax(160px, 0.55fr) auto;
+  gap: 12px;
+  width: 100%;
 }
 
-.admin-export-button {
-  min-width: 180px;
-  border-radius: 999px;
+.admin-passcode-row input,
+.admin-passcode-row select {
+  height: 58px;
+  min-height: 58px;
+  border-radius: 16px;
+  padding: 15px 22px;
+  font-size: 1rem;
 }
 
-.admin-export-note {
-  margin-top: 16px;
-}
-
-.admin-passcode-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: 18px;
+.admin-passcode-row select {
+  background-position:
+    calc(100% - 23px) 50%,
+    calc(100% - 17px) 50%;
+  background-size:
+    6px 6px,
+    6px 6px;
+  padding-right: 46px;
 }
 
 .admin-passcode-table {
-  min-width: 760px;
-  border-spacing: 0;
+  min-width: 1180px;
+  border-spacing: 0 8px;
 }
 
 .admin-passcode-table th,
 .admin-passcode-table td {
-  padding: 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--field);
-}
-
-.admin-passcode-table tbody tr:last-child td {
-  border-bottom: 0;
+  padding: 10px 12px;
+  font-size: 0.84rem;
 }
 
 .admin-table-input {
-  height: 46px;
-  min-width: 170px;
-  padding: 10px 14px;
-  border-radius: 12px;
+  height: 36px;
+  min-height: 36px;
+  min-width: 132px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
 }
 
 .admin-code-cell {
   color: var(--lime);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 800;
+  vertical-align: middle;
 }
 
-.admin-code-cell {
+.admin-code-value {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .admin-copy-button {
@@ -898,16 +1046,75 @@ tbody td:last-child {
   font-size: 0.95rem;
 }
 
-.admin-hash-cell {
-  max-width: 280px;
+.admin-row-menu {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.admin-row-menu summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  list-style: none;
+  background: transparent;
   color: var(--muted-strong);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.74rem;
-  overflow-wrap: anywhere;
+  cursor: pointer;
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-row-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-row-menu summary:hover {
+  color: var(--lime);
+}
+
+.admin-row-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 12;
+  display: grid;
+  min-width: 138px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.admin-row-menu-panel button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: left;
+}
+
+.admin-row-menu-panel button:hover {
+  background: var(--field);
+  color: var(--ink);
+}
+
+.admin-row-menu-panel button.delete {
+  color: #f09a9a;
 }
 
 .admin-empty-passcodes {
-  margin: -6px 0 0;
+  margin: -12px 36px 32px;
   color: var(--muted-strong);
   font-weight: 800;
 }
@@ -1090,6 +1297,13 @@ button:disabled {
 .primary-button:hover {
   background: #d5ff73;
   transform: translateY(-1px);
+}
+
+.primary-button.is-loading,
+.ghost-button.is-loading,
+.danger-button.is-loading,
+.icon-button.is-loading {
+  pointer-events: none;
 }
 
 .top-action {
@@ -1567,6 +1781,17 @@ button:disabled {
     flex-direction: column;
   }
 
+  .user-menu,
+  .user-menu-button {
+    width: 100%;
+  }
+
+  .user-popover {
+    position: static;
+    width: 100%;
+    margin-top: 10px;
+  }
+
   .nav-button {
     width: 100%;
   }
@@ -1615,6 +1840,15 @@ button:disabled {
     padding: 22px;
   }
 
+  .admin-passcode-row {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .admin-empty-passcodes {
+    margin: -4px 22px 24px;
+  }
+
   .form-heading {
     align-items: stretch;
     flex-direction: column;
@@ -1625,7 +1859,6 @@ button:disabled {
   }
 
   .modal-actions button,
-  .table-tools label,
   .table-tools button,
   .table-pagination,
   .toolbar-actions {
@@ -1646,11 +1879,16 @@ button:disabled {
   }
 
   .toolbar-actions {
+    margin-left: 0;
     flex-direction: column;
   }
 
   .table-tools {
     align-items: stretch;
+  }
+
+  .table-tools label {
+    width: 100%;
   }
 
   .calculator-grid,

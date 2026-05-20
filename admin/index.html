@@ -6,27 +6,14 @@
     <title>Trading Tools Admin</title>
     <link rel="stylesheet" href="../styles.css" />
   </head>
-  <body class="auth-locked admin-page">
-    <section class="passcode-gate" id="adminGate" aria-label="Admin passcode required">
-      <form class="passcode-card" id="adminLoginForm" autocomplete="off">
+  <body class="admin-page admin-checking">
+    <section class="admin-access-panel hidden" id="adminGate" aria-label="Admin access required">
+      <div class="passcode-card">
         <p class="eyebrow">Admin access</p>
-        <h1>Trading Tools</h1>
-        <label>
-          <span>Admin passcode</span>
-          <input
-            id="adminPasscodeInput"
-            name="adminPasscode"
-            type="password"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            maxlength="10"
-            placeholder="Enter 10 digit code"
-            required
-          />
-        </label>
-        <p class="passcode-error" id="adminPasscodeError" role="alert"></p>
-        <button class="primary-button" type="submit">Unlock admin</button>
-      </form>
+        <h1>Access Required</h1>
+        <p class="config-note" id="adminAccessMessage">Log in from the main app with an admin account to access this page.</p>
+        <a class="primary-button" href="../index.html">Return to app</a>
+      </div>
     </section>
 
     <main class="app-shell">
@@ -37,26 +24,39 @@
             <h1>Admin</h1>
           </div>
           <div class="topbar-actions">
-            <button class="primary-button admin-export-button" type="button" id="exportConfigButton">Export config.json</button>
             <button class="ghost-button logout-button" type="button" id="adminLogoutButton">Logout</button>
           </div>
         </header>
 
         <section class="admin-grid">
-          <section class="calculator-card">
-            <div class="calculator-card-label">User Passcodes</div>
-            <p class="config-note">Generate a simple 6 digit code for each user. Only the salted hash is exported.</p>
-            <div class="admin-passcode-row">
-              <input id="userLabelInput" type="text" placeholder="User label" />
-              <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
+          <section class="table-panel admin-users-panel" aria-label="User passcodes table">
+            <div class="table-tools">
+              <div>
+                <div class="calculator-card-label">User Passcodes</div>
+              </div>
+              <div class="admin-passcode-row">
+                <input id="firstNameInput" type="text" placeholder="First name" />
+                <input id="lastNameInput" type="text" placeholder="Last name" />
+                <input id="emailInput" type="email" placeholder="Email" />
+                <select id="roleInput" aria-label="Role">
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
+              </div>
             </div>
-            <div class="admin-passcode-table-wrap">
+            <div class="table-wrap admin-passcode-table-wrap">
               <table class="admin-passcode-table">
                 <thead>
                   <tr>
-                    <th>Label</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
                     <th>Code</th>
-                    <th>Hash</th>
+                    <th>Created</th>
+                    <th>Last Login</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -66,11 +66,11 @@
             <p class="admin-empty-passcodes" id="adminEmptyPasscodes">No user passcodes generated yet.</p>
           </section>
         </section>
-
-        <p class="config-note admin-export-note">Export downloads <strong>config.json</strong>. Upload it to the hosted app so the main app can use the latest user passcodes.</p>
       </div>
     </main>
 
+    <script src="../supabase-config.js"></script>
+    <script src="../supabase-api.js"></script>
     <script src="admin.js"></script>
   </body>
 </html>

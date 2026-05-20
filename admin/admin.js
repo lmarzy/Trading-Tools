@@ -1,17 +1,18 @@
-const ADMIN_AUTH_STORAGE_KEY = "trade-tools:admin-unlocked";
-const ADMIN_PASSCODE_SALT = "trade-tools-admin-v1";
-const ADMIN_PASSCODE_HASH = "878a37ef51145c058bd5260799abf1048d5bb34ebb520e7c1fc2f7827e032bd7";
+const AUTH_STORAGE_KEY = "trade-tools:unlocked";
+const AUTH_ROLE_KEY = "trade-tools:unlocked-role";
+const AUTH_HASH_KEY = "trade-tools:unlocked-passcode-hash";
 const USER_PASSCODE_SALT = "trade-tools-v1";
+const PASSCODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ2346789";
 
 const adminGate = document.querySelector("#adminGate");
-const adminLoginForm = document.querySelector("#adminLoginForm");
-const adminPasscodeInput = document.querySelector("#adminPasscodeInput");
-const adminPasscodeError = document.querySelector("#adminPasscodeError");
-const userLabelInput = document.querySelector("#userLabelInput");
+const adminAccessMessage = document.querySelector("#adminAccessMessage");
+const firstNameInput = document.querySelector("#firstNameInput");
+const lastNameInput = document.querySelector("#lastNameInput");
+const emailInput = document.querySelector("#emailInput");
+const roleInput = document.querySelector("#roleInput");
 const generateUserCodeButton = document.querySelector("#generateUserCodeButton");
 const adminPasscodeList = document.querySelector("#adminPasscodeList");
 const adminEmptyPasscodes = document.querySelector("#adminEmptyPasscodes");
-const exportConfigButton = document.querySelector("#exportConfigButton");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
 
 const adminConfig = {
@@ -19,6 +20,45 @@ const adminConfig = {
 };
 
 let adminConfigLoaded = false;
+let currentAdminHash = sessionStorage.getItem(AUTH_HASH_KEY) || "";
+
+function setButtonLoading(button, isLoading, loadingText = "Loading...") {
+  if (!button) {
+    return;
+  }
+
+  if (isLoading) {
+    button.dataset.defaultText = button.textContent;
+    button.textContent = loadingText;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    return;
+  }
+
+  button.textContent = button.dataset.defaultText || button.textContent;
+  button.disabled = false;
+  button.classList.remove("is-loading");
+  delete button.dataset.defaultText;
+}
+
+function setNewUserFormLoading(isLoading) {
+  firstNameInput.disabled = isLoading;
+  lastNameInput.disabled = isLoading;
+  emailInput.disabled = isLoading;
+  roleInput.disabled = isLoading;
+  setButtonLoading(generateUserCodeButton, isLoading, "Generating...");
+  if (!isLoading) {
+    updateGenerateUserButtonState();
+  }
+}
+
+function renderTableMessage(message) {
+  adminPasscodeList.innerHTML = `
+    <tr>
+      <td class="table-message" colspan="9">${escapeHtml(message)}</td>
+    </tr>
+  `;
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -33,16 +73,6 @@ async function sha256(value) {
   const data = new TextEncoder().encode(value);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(hashBuffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function downloadFile(contents, filename, type) {
-  const blob = new Blob([contents], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 async function copyText(value) {
@@ -62,66 +92,117 @@ async function copyText(value) {
   textarea.remove();
 }
 
-function setAdminUnlocked() {
-  document.body.classList.remove("auth-locked");
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function setAdminUnlocked(adminHash) {
+  document.body.classList.remove("admin-checking");
   adminGate.setAttribute("hidden", "");
-  sessionStorage.setItem(ADMIN_AUTH_STORAGE_KEY, "true");
+  adminGate.classList.add("hidden");
+  currentAdminHash = adminHash || currentAdminHash;
+}
+
+async function callAdminUsers(action, user = {}) {
+  return callSupabaseFunction(
+    "admin-users",
+    { action, user },
+    { "x-admin-passcode-hash": currentAdminHash },
+  );
 }
 
 async function loadExistingConfig() {
-  if (adminConfigLoaded) {
+  if (adminConfigLoaded && adminConfig.passcodes.length) {
     return;
   }
 
+  renderTableMessage("Loading users...");
   try {
-    const response = await fetch(`../config.json?v=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) {
-      adminConfigLoaded = true;
-      return;
-    }
-
-    const savedConfig = await response.json();
-    if (Array.isArray(savedConfig.passcodes)) {
-      adminConfig.passcodes = savedConfig.passcodes
-        .filter((passcode) => passcode.label && passcode.hash)
-        .map((passcode) => ({
-          label: String(passcode.label),
-          code: passcode.code ? String(passcode.code) : "",
-          hash: String(passcode.hash),
-        }));
-    }
+    const result = await callAdminUsers("list");
+    adminConfig.passcodes = (result.users || []).map((user) => ({
+      id: user.id,
+      label: String(user.label),
+      firstName: user.first_name ? String(user.first_name) : "",
+      lastName: user.last_name ? String(user.last_name) : "",
+      email: user.email ? String(user.email) : "",
+      role: user.role === "admin" ? "admin" : "user",
+      code: user.passcode_code ? String(user.passcode_code) : "",
+      hash: String(user.passcode_hash || ""),
+      active: Boolean(user.active),
+      createdAt: user.created_at || "",
+      lastLoginAt: user.last_login_at || "",
+    }));
   } catch {
-    // File previews may block config loading. Hosted/local-server admin pages can load ../config.json.
+    adminAccessMessage.textContent = "Could not load admin users.";
   } finally {
     adminConfigLoaded = true;
     renderPasscodes();
   }
 }
 
-function initialiseAdminGate() {
-  if (sessionStorage.getItem(ADMIN_AUTH_STORAGE_KEY)) {
-    setAdminUnlocked();
-    loadExistingConfig();
-    return;
+async function initialiseAdminGate() {
+  const savedUser = sessionStorage.getItem(AUTH_STORAGE_KEY);
+  const savedRole = sessionStorage.getItem(AUTH_ROLE_KEY);
+  const savedAdminHash = sessionStorage.getItem(AUTH_HASH_KEY);
+
+  if (savedUser && savedRole === "admin" && savedAdminHash && /^[a-f0-9]{64}$/i.test(savedAdminHash)) {
+    try {
+      await callSupabaseFunction("login", { passcodeHash: savedAdminHash, role: "admin" });
+      setAdminUnlocked(savedAdminHash);
+      loadExistingConfig();
+      return;
+    } catch {
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_ROLE_KEY);
+      sessionStorage.removeItem(AUTH_HASH_KEY);
+    }
   }
 
-  document.body.classList.add("auth-locked");
+  document.body.classList.remove("admin-checking");
   adminGate.removeAttribute("hidden");
-  adminPasscodeInput.focus();
+  adminGate.classList.remove("hidden");
+  adminAccessMessage.textContent = savedUser
+    ? "This account does not have admin access."
+    : "Log in from the main app with an admin account to access this page.";
 }
 
 function logoutAdmin() {
-  sessionStorage.removeItem(ADMIN_AUTH_STORAGE_KEY);
-  document.body.classList.add("auth-locked");
-  adminGate.removeAttribute("hidden");
-  adminPasscodeInput.value = "";
-  adminPasscodeError.textContent = "";
-  adminPasscodeInput.focus();
+  setButtonLoading(adminLogoutButton, true, "Logging out...");
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_ROLE_KEY);
+  sessionStorage.removeItem(AUTH_HASH_KEY);
+  currentAdminHash = "";
+  adminConfigLoaded = false;
+  adminConfig.passcodes = [];
+  window.location.href = "../index.html";
 }
 
-function generateNumericCode(length = 6) {
-  const max = 10 ** length;
-  return String(crypto.getRandomValues(new Uint32Array(1))[0] % max).padStart(length, "0");
+function generatePasscode(length = 8) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return [...bytes].map((byte) => PASSCODE_CHARACTERS[byte % PASSCODE_CHARACTERS.length]).join("");
+}
+
+function hasRequiredNewUserDetails() {
+  return Boolean(firstNameInput.value.trim() && lastNameInput.value.trim() && emailInput.value.trim());
+}
+
+function updateGenerateUserButtonState() {
+  generateUserCodeButton.disabled = !hasRequiredNewUserDetails();
 }
 
 function renderPasscodes() {
@@ -134,27 +215,70 @@ function renderPasscodes() {
             <input
               class="admin-table-input"
               type="text"
-              value="${escapeHtml(passcode.label)}"
-              data-original-value="${escapeHtml(passcode.label)}"
-              aria-label="Edit passcode label"
-              data-passcode-action="label"
+              value="${escapeHtml(passcode.firstName || "")}"
+              data-original-value="${escapeHtml(passcode.firstName || "")}"
+              aria-label="Edit first name"
+              data-passcode-action="first-name"
               data-passcode-index="${index}"
             />
           </td>
-          <td class="admin-code-cell">
-            <span>${escapeHtml(passcode.code || "")}</span>
-            ${
-              passcode.code
-                ? `<button class="icon-button admin-copy-button" type="button" title="Copy code" aria-label="Copy code" data-passcode-action="copy" data-passcode-index="${index}">⧉</button>`
-                : ""
-            }
-          </td>
-          <td class="admin-hash-cell">${escapeHtml(passcode.hash)}</td>
           <td>
-            <div class="actions">
-              <button class="icon-button" type="button" data-passcode-action="save" data-passcode-index="${index}" disabled>Save</button>
-              <button class="icon-button delete" type="button" data-passcode-action="remove" data-passcode-index="${index}">Remove</button>
+            <input
+              class="admin-table-input"
+              type="text"
+              value="${escapeHtml(passcode.lastName || "")}"
+              data-original-value="${escapeHtml(passcode.lastName || "")}"
+              aria-label="Edit last name"
+              data-passcode-action="last-name"
+              data-passcode-index="${index}"
+            />
+          </td>
+          <td>
+            <input
+              class="admin-table-input"
+              type="email"
+              value="${escapeHtml(passcode.email || "")}"
+              data-original-value="${escapeHtml(passcode.email || "")}"
+              aria-label="Edit email"
+              data-passcode-action="email"
+              data-passcode-index="${index}"
+            />
+          </td>
+          <td>
+            <select class="admin-table-input" data-original-value="${escapeHtml(passcode.role || "user")}" data-passcode-action="role" data-passcode-index="${index}">
+              <option value="user" ${passcode.role !== "admin" ? "selected" : ""}>User</option>
+              <option value="admin" ${passcode.role === "admin" ? "selected" : ""}>Admin</option>
+            </select>
+          </td>
+          <td>
+            <select class="admin-table-input" data-original-value="${passcode.active ? "active" : "inactive"}" data-passcode-action="active" data-passcode-index="${index}">
+              <option value="active" ${passcode.active ? "selected" : ""}>Active</option>
+              <option value="inactive" ${!passcode.active ? "selected" : ""}>Inactive</option>
+            </select>
+          </td>
+          <td class="admin-code-cell">
+            <div class="admin-code-value">
+              <span>${escapeHtml(passcode.code || "")}</span>
+              ${
+                passcode.code
+                  ? `<button class="icon-button admin-copy-button" type="button" title="Copy code" aria-label="Copy code" data-passcode-action="copy" data-passcode-index="${index}">⧉</button>`
+                  : ""
+              }
             </div>
+          </td>
+          <td>${escapeHtml(formatDateTime(passcode.createdAt))}</td>
+          <td>${escapeHtml(formatDateTime(passcode.lastLoginAt))}</td>
+          <td>
+            <details class="admin-row-menu">
+              <summary aria-label="User actions">⋮</summary>
+              <div class="admin-row-menu-panel">
+                <button type="button" data-passcode-action="save" data-passcode-index="${index}" disabled>Save</button>
+                <button type="button" data-passcode-action="toggle-active" data-passcode-index="${index}">
+                  ${passcode.active ? "Disable" : "Enable"}
+                </button>
+                <button class="delete" type="button" data-passcode-action="remove" data-passcode-index="${index}">Remove</button>
+              </div>
+            </details>
           </td>
         </tr>
       `,
@@ -162,31 +286,59 @@ function renderPasscodes() {
     .join("");
 }
 
-adminLoginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  adminPasscodeError.textContent = "";
-
-  const inputHash = await sha256(`${ADMIN_PASSCODE_SALT}:${adminPasscodeInput.value.trim()}`);
-  if (inputHash !== ADMIN_PASSCODE_HASH) {
-    adminPasscodeInput.value = "";
-    adminPasscodeError.textContent = "Admin passcode not recognised.";
-    adminPasscodeInput.focus();
+generateUserCodeButton.addEventListener("click", async () => {
+  const firstName = firstNameInput.value.trim();
+  const lastName = lastNameInput.value.trim();
+  const email = emailInput.value.trim();
+  if (!firstName || !lastName || !email) {
+    updateGenerateUserButtonState();
     return;
   }
 
-  adminPasscodeInput.value = "";
-  setAdminUnlocked();
-  await loadExistingConfig();
-});
-
-generateUserCodeButton.addEventListener("click", async () => {
-  const label = userLabelInput.value.trim() || `User ${adminConfig.passcodes.length + 1}`;
-  const passcode = generateNumericCode();
+  const role = roleInput.value === "admin" ? "admin" : "user";
+  const label = [firstName, lastName].filter(Boolean).join(" ") || `User ${adminConfig.passcodes.length + 1}`;
+  const passcode = generatePasscode();
   const hash = await sha256(`${USER_PASSCODE_SALT}:${passcode}`);
 
-  adminConfig.passcodes.push({ label, code: passcode, hash });
-  userLabelInput.value = "";
-  renderPasscodes();
+  setNewUserFormLoading(true);
+  try {
+    const result = await callAdminUsers("create", {
+      firstName,
+      lastName,
+      email,
+      role,
+      label,
+      passcodeHash: hash,
+      passcodeCode: passcode,
+    });
+    adminConfig.passcodes.unshift({
+      id: result.user.id,
+      label: result.user.label,
+      firstName: result.user.first_name || firstName,
+      lastName: result.user.last_name || lastName,
+      email: result.user.email || email,
+      role: result.user.role || role,
+      code: result.user.passcode_code || passcode,
+      hash: result.user.passcode_hash || hash,
+      active: Boolean(result.user.active),
+      createdAt: result.user.created_at || "",
+      lastLoginAt: result.user.last_login_at || "",
+    });
+    firstNameInput.value = "";
+    lastNameInput.value = "";
+    emailInput.value = "";
+    roleInput.value = "user";
+    updateGenerateUserButtonState();
+    renderPasscodes();
+  } catch {
+    window.alert("Could not create that user. The code may already exist, so try generating another one.");
+  } finally {
+    setNewUserFormLoading(false);
+  }
+});
+
+[firstNameInput, lastNameInput, emailInput].forEach((input) => {
+  input.addEventListener("input", updateGenerateUserButtonState);
 });
 
 adminPasscodeList.addEventListener("click", async (event) => {
@@ -210,41 +362,147 @@ adminPasscodeList.addEventListener("click", async (event) => {
   }
 
   if (button.dataset.passcodeAction === "save") {
-    const input = button.closest("tr").querySelector("[data-passcode-action='label']");
-    passcode.label = input.value.trim() || "Untitled user";
-    input.value = passcode.label;
-    input.dataset.originalValue = passcode.label;
-    button.disabled = true;
-    button.textContent = "Saved";
-    window.setTimeout(() => {
-      button.textContent = "Save";
-    }, 1100);
+    const row = button.closest("tr");
+    const firstNameInput = row.querySelector("[data-passcode-action='first-name']");
+    const lastNameInput = row.querySelector("[data-passcode-action='last-name']");
+    const emailInput = row.querySelector("[data-passcode-action='email']");
+    const roleSelect = row.querySelector("[data-passcode-action='role']");
+    const activeSelect = row.querySelector("[data-passcode-action='active']");
+    const nextFirstName = firstNameInput.value.trim();
+    const nextLastName = lastNameInput.value.trim();
+    const nextEmail = emailInput.value.trim();
+    const nextRole = roleSelect.value === "admin" ? "admin" : "user";
+    const nextActive = activeSelect.value === "active";
+    const nextLabel = [nextFirstName, nextLastName].filter(Boolean).join(" ") || "Untitled user";
+    setButtonLoading(button, true, "Saving...");
+    try {
+      const result = await callAdminUsers("update", {
+        id: passcode.id,
+        firstName: nextFirstName,
+        lastName: nextLastName,
+        email: nextEmail,
+        role: nextRole,
+        label: nextLabel,
+        active: nextActive,
+      });
+      const savedUser = result.user || {};
+      passcode.label = savedUser.label || nextLabel;
+      passcode.firstName = savedUser.first_name || nextFirstName;
+      passcode.lastName = savedUser.last_name || nextLastName;
+      passcode.email = savedUser.email || "";
+      passcode.role = savedUser.role || nextRole;
+      passcode.active = Boolean(savedUser.active);
+      passcode.createdAt = savedUser.created_at || passcode.createdAt;
+      passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
+      firstNameInput.value = passcode.firstName;
+      firstNameInput.dataset.originalValue = passcode.firstName;
+      lastNameInput.value = passcode.lastName;
+      lastNameInput.dataset.originalValue = passcode.lastName;
+      emailInput.value = passcode.email;
+      emailInput.dataset.originalValue = passcode.email;
+      roleSelect.value = passcode.role;
+      roleSelect.dataset.originalValue = passcode.role;
+      activeSelect.value = passcode.active ? "active" : "inactive";
+      activeSelect.dataset.originalValue = activeSelect.value;
+      setButtonLoading(button, false);
+      button.disabled = true;
+      button.textContent = "Saved";
+      window.setTimeout(() => {
+        button.textContent = "Save";
+      }, 1100);
+    } catch {
+      window.alert("Could not save that user.");
+      setButtonLoading(button, false);
+      updateRowSaveState(row);
+    }
+  }
+
+  if (button.dataset.passcodeAction === "toggle-active") {
+    const row = button.closest("tr");
+    const firstNameInput = row.querySelector("[data-passcode-action='first-name']");
+    const lastNameInput = row.querySelector("[data-passcode-action='last-name']");
+    const emailInput = row.querySelector("[data-passcode-action='email']");
+    const roleSelect = row.querySelector("[data-passcode-action='role']");
+    const activeSelect = row.querySelector("[data-passcode-action='active']");
+    const nextActive = !passcode.active;
+    const nextFirstName = firstNameInput.value.trim();
+    const nextLastName = lastNameInput.value.trim();
+    const nextEmail = emailInput.value.trim();
+    const nextRole = roleSelect.value === "admin" ? "admin" : "user";
+    const nextLabel = [nextFirstName, nextLastName].filter(Boolean).join(" ") || "Untitled user";
+
+    setButtonLoading(button, true, nextActive ? "Enabling..." : "Disabling...");
+    try {
+      const result = await callAdminUsers("update", {
+        id: passcode.id,
+        firstName: nextFirstName,
+        lastName: nextLastName,
+        email: nextEmail,
+        role: nextRole,
+        label: nextLabel,
+        active: nextActive,
+      });
+      const savedUser = result.user || {};
+      passcode.label = savedUser.label || nextLabel;
+      passcode.firstName = savedUser.first_name || nextFirstName;
+      passcode.lastName = savedUser.last_name || nextLastName;
+      passcode.email = savedUser.email || "";
+      passcode.role = savedUser.role || nextRole;
+      passcode.active = Boolean(savedUser.active);
+      passcode.createdAt = savedUser.created_at || passcode.createdAt;
+      passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
+      renderPasscodes();
+    } catch {
+      window.alert(`Could not ${nextActive ? "enable" : "disable"} that user.`);
+      setButtonLoading(button, false);
+    }
   }
 
   if (button.dataset.passcodeAction === "remove") {
-    adminConfig.passcodes.splice(index, 1);
-    renderPasscodes();
+    const confirmed = window.confirm(
+      `Permanently remove ${passcode.label}?\n\nUsually it is safer to set the user to Inactive instead. This cannot be undone.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setButtonLoading(button, true, "Removing...");
+    try {
+      await callAdminUsers("delete", { id: passcode.id });
+      adminConfig.passcodes.splice(index, 1);
+      renderPasscodes();
+    } catch {
+      window.alert("Could not remove that user.");
+      setButtonLoading(button, false);
+    }
   }
 });
 
+function updateRowSaveState(row) {
+  const saveButton = row.querySelector("[data-passcode-action='save']");
+  const inputs = row.querySelectorAll(
+    "[data-passcode-action='first-name'], [data-passcode-action='last-name'], [data-passcode-action='email'], [data-passcode-action='role'], [data-passcode-action='active']",
+  );
+  saveButton.disabled = [...inputs].every((input) => input.value.trim() === input.dataset.originalValue);
+}
+
 adminPasscodeList.addEventListener("input", (event) => {
-  if (event.target.dataset.passcodeAction !== "label") {
+  if (!["first-name", "last-name", "email"].includes(event.target.dataset.passcodeAction)) {
     return;
   }
 
-  const row = event.target.closest("tr");
-  const saveButton = row.querySelector("[data-passcode-action='save']");
-  saveButton.disabled = event.target.value.trim() === event.target.dataset.originalValue;
+  updateRowSaveState(event.target.closest("tr"));
 });
 
-exportConfigButton.addEventListener("click", () => {
-  const exportConfig = {
-    passcodes: adminConfig.passcodes.map(({ label, code, hash }) => ({ label, code, hash })),
-  };
+adminPasscodeList.addEventListener("change", (event) => {
+  if (!["role", "active"].includes(event.target.dataset.passcodeAction)) {
+    return;
+  }
 
-  downloadFile(JSON.stringify(exportConfig, null, 2), "config.json", "application/json;charset=utf-8");
+  updateRowSaveState(event.target.closest("tr"));
 });
 
 adminLogoutButton.addEventListener("click", logoutAdmin);
 
+updateGenerateUserButtonState();
 initialiseAdminGate();

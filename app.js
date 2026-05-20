@@ -2,15 +2,17 @@ const STORAGE_KEY_PREFIX = "trade-tracker:simple-v2";
 const CONFIG_STORAGE_KEY_PREFIX = "trade-tools:user-config-v2";
 const AUTH_STORAGE_KEY = "trade-tools:unlocked";
 const AUTH_LABEL_KEY = "trade-tools:unlocked-label";
+const AUTH_EMAIL_KEY = "trade-tools:unlocked-email";
+const AUTH_ROLE_KEY = "trade-tools:unlocked-role";
+const AUTH_HASH_KEY = "trade-tools:unlocked-passcode-hash";
 const TABLE_PAGE_SIZE = 10;
 const PASSCODE_SALT = "trade-tools-v1";
-const PASSCODES = [];
-let remoteConfigError = "";
 
 const passcodeGate = document.querySelector("#passcodeGate");
 const passcodeForm = document.querySelector("#passcodeForm");
 const passcodeInput = document.querySelector("#passcodeInput");
 const passcodeError = document.querySelector("#passcodeError");
+const passcodeSubmitButton = passcodeForm.querySelector("button[type='submit']");
 
 const form = document.querySelector("#tradeForm");
 const tradeModal = document.querySelector("#tradeModal");
@@ -34,15 +36,21 @@ const paginationStatus = document.querySelector("#paginationStatus");
 const prevPageButton = document.querySelector("#prevPageButton");
 const nextPageButton = document.querySelector("#nextPageButton");
 const symbolFilter = document.querySelector("#symbolFilter");
+const sessionFilter = document.querySelector("#sessionFilter");
 const accountFilter = document.querySelector("#accountFilter");
+const strategyFilter = document.querySelector("#strategyFilter");
 const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
-const backupButton = document.querySelector("#backupButton");
-const importButton = document.querySelector("#importButton");
-const importFileInput = document.querySelector("#importFileInput");
 const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
 const logoutButton = document.querySelector("#logoutButton");
+const adminNavLink = document.querySelector("#adminNavLink");
+const userMenuButton = document.querySelector("#userMenuButton");
+const userPopover = document.querySelector("#userPopover");
+const userMenuName = document.querySelector("#userMenuName");
+const userMenuEmail = document.querySelector("#userMenuEmail");
+const userMenuRole = document.querySelector("#userMenuRole");
+const saveStatus = document.querySelector("#saveStatus");
 
 const totalTradesEl = document.querySelector("#totalTrades");
 const summarySymbolSplit = document.querySelector("#summarySymbolSplit");
@@ -59,19 +67,21 @@ const weeklyTotalTrades = document.querySelector("#weeklyTotalTrades");
 const weeklyTotalWinLoss = document.querySelector("#weeklyTotalWinLoss");
 const weekRangeFilter = document.querySelector("#weekRangeFilter");
 const strategyGrid = document.querySelector("#strategyGrid");
+const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
 
 const DEFAULT_CONFIG = {
   symbols: [],
   sessions: [],
   accounts: [],
   strategies: [],
+  accountBalances: {},
 };
 
 const CONFIG_FIELDS = [
   { key: "symbols", label: "Symbol", selectIds: ["symbol"], filterIds: ["symbolFilter"] },
-  { key: "sessions", label: "Session", selectIds: ["session"], filterIds: [] },
+  { key: "sessions", label: "Session", selectIds: ["session"], filterIds: ["sessionFilter"] },
   { key: "accounts", label: "Account", selectIds: ["account"], filterIds: ["accountFilter"] },
-  { key: "strategies", label: "Strategy", selectIds: ["strategy"], filterIds: [] },
+  { key: "strategies", label: "Strategy", selectIds: ["strategy"], filterIds: ["strategyFilter"] },
 ];
 
 let currentUserId = "";
@@ -83,14 +93,83 @@ let calculatorMode = "pct";
 let calculatorTouched = {};
 let failedPasscodeAttempts = 0;
 let currentTablePage = 1;
+let isHydratingUserState = false;
+let remoteSaveTimer = null;
+let saveStatusTimer = null;
 
-function setAppUnlocked(userId = sessionStorage.getItem(AUTH_STORAGE_KEY), userLabel = sessionStorage.getItem(AUTH_LABEL_KEY)) {
+function setButtonLoading(button, isLoading, loadingText = "Loading...") {
+  if (!button) {
+    return;
+  }
+
+  if (isLoading) {
+    button.dataset.defaultText = button.textContent;
+    button.textContent = loadingText;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    return;
+  }
+
+  button.textContent = button.dataset.defaultText || button.textContent;
+  button.disabled = false;
+  button.classList.remove("is-loading");
+  delete button.dataset.defaultText;
+}
+
+function setSaveStatus(status, message) {
+  if (!saveStatus) {
+    return;
+  }
+
+  window.clearTimeout(saveStatusTimer);
+  saveStatus.textContent = message;
+  saveStatus.className = `save-status ${status}`;
+
+  if (status === "saved") {
+    saveStatusTimer = window.setTimeout(() => {
+      saveStatus.textContent = "Saved";
+    }, 1600);
+  }
+}
+
+async function setAppUnlocked(
+  userId = sessionStorage.getItem(AUTH_STORAGE_KEY),
+  userLabel = sessionStorage.getItem(AUTH_LABEL_KEY),
+  userEmail = sessionStorage.getItem(AUTH_EMAIL_KEY),
+  userRole = sessionStorage.getItem(AUTH_ROLE_KEY),
+  passcodeHash = sessionStorage.getItem(AUTH_HASH_KEY),
+  refreshUser = true,
+) {
   document.body.classList.remove("auth-locked");
   passcodeGate.setAttribute("hidden", "");
   if (userId) {
+    if (refreshUser && passcodeHash && /^[a-f0-9]{64}$/i.test(passcodeHash)) {
+      try {
+        const result = await callSupabaseFunction("login", { passcodeHash });
+        if (result.user?.id === userId) {
+          userLabel = result.user.label || userLabel;
+          userEmail = result.user.email || "";
+          userRole = result.user.role || userRole;
+        }
+      } catch {
+        // Keep the local session usable if the profile refresh cannot complete.
+      }
+    }
+
     sessionStorage.setItem(AUTH_STORAGE_KEY, userId);
     sessionStorage.setItem(AUTH_LABEL_KEY, userLabel || userId);
-    loadUserState(userId, userLabel || userId);
+    sessionStorage.setItem(AUTH_EMAIL_KEY, userEmail || "");
+    sessionStorage.setItem(AUTH_ROLE_KEY, userRole || "user");
+    if (passcodeHash) {
+      sessionStorage.setItem(AUTH_HASH_KEY, passcodeHash);
+    }
+    currentUserLabel = userLabel || userId;
+    userMenuName.textContent = currentUserLabel;
+    userMenuEmail.textContent = userEmail || "";
+    userMenuRole.textContent = userRole === "admin" ? "Admin" : "User";
+    userMenuButton.textContent = getUserInitials(currentUserLabel);
+    adminNavLink.classList.toggle("hidden", userRole !== "admin");
+    await loadUserState(userId, userLabel || userId);
   }
 }
 
@@ -100,14 +179,35 @@ function setAppLocked() {
   passcodeInput.focus();
 }
 
-function logout() {
-  sessionStorage.removeItem(AUTH_STORAGE_KEY);
-  sessionStorage.removeItem(AUTH_LABEL_KEY);
-  currentUserId = "";
-  currentUserLabel = "";
-  passcodeInput.value = "";
-  passcodeError.textContent = "";
-  setAppLocked();
+async function logout() {
+  window.clearTimeout(remoteSaveTimer);
+  setButtonLoading(logoutButton, true, "Logging out...");
+  try {
+    await syncUserDataToSupabase();
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_LABEL_KEY);
+    sessionStorage.removeItem(AUTH_EMAIL_KEY);
+    sessionStorage.removeItem(AUTH_ROLE_KEY);
+    sessionStorage.removeItem(AUTH_HASH_KEY);
+    currentUserId = "";
+    currentUserLabel = "";
+    adminNavLink.classList.add("hidden");
+    userPopover.classList.add("hidden");
+    userMenuButton.setAttribute("aria-expanded", "false");
+    passcodeInput.value = "";
+    passcodeError.textContent = "";
+    setAppLocked();
+  } finally {
+    setButtonLoading(logoutButton, false);
+  }
+}
+
+function getUserInitials(name) {
+  const parts = String(name || "User")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return (parts[0]?.[0] || "U").toUpperCase();
 }
 
 async function sha256(value) {
@@ -117,17 +217,15 @@ async function sha256(value) {
   return [...new Uint8Array(hashBuffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function getMatchingPasscode(input) {
-  const inputHash = await sha256(`${PASSCODE_SALT}:${input}`);
-  return PASSCODES.find((passcode) => passcode.hash === inputHash);
-}
-
-function initialisePasscodeGate() {
+async function initialisePasscodeGate() {
   const unlockedUser = sessionStorage.getItem(AUTH_STORAGE_KEY);
   const unlockedLabel = sessionStorage.getItem(AUTH_LABEL_KEY);
+  const unlockedEmail = sessionStorage.getItem(AUTH_EMAIL_KEY);
+  const unlockedRole = sessionStorage.getItem(AUTH_ROLE_KEY);
+  const unlockedHash = sessionStorage.getItem(AUTH_HASH_KEY);
 
   if (unlockedUser) {
-    setAppUnlocked(unlockedUser, unlockedLabel);
+    await setAppUnlocked(unlockedUser, unlockedLabel, unlockedEmail, unlockedRole, unlockedHash);
     return;
   }
 
@@ -156,6 +254,7 @@ function saveTrades() {
   }
 
   localStorage.setItem(getUserStorageKey(STORAGE_KEY_PREFIX), JSON.stringify(trades));
+  scheduleSupabaseSave();
 }
 
 function loadConfig() {
@@ -170,6 +269,7 @@ function loadConfig() {
       sessions: normalizeOptions(savedConfig.sessions, DEFAULT_CONFIG.sessions),
       accounts: normalizeOptions(savedConfig.accounts, DEFAULT_CONFIG.accounts),
       strategies: normalizeOptions(savedConfig.strategies, DEFAULT_CONFIG.strategies),
+      accountBalances: normalizeAccountBalances(savedConfig.accountBalances, savedConfig.accounts),
     };
   } catch {
     return structuredClone(DEFAULT_CONFIG);
@@ -182,17 +282,72 @@ function saveConfig() {
   }
 
   localStorage.setItem(getUserStorageKey(CONFIG_STORAGE_KEY_PREFIX), JSON.stringify(appConfig));
+  scheduleSupabaseSave();
 }
 
-function loadUserState(userId, userLabel) {
+async function loadUserState(userId, userLabel) {
   currentUserId = userId;
   currentUserLabel = userLabel;
   trades = loadTrades();
   appConfig = loadConfig();
+  await hydrateUserStateFromSupabase();
   currentTablePage = 1;
   syncConfiguredInputs();
   resetForm();
   render();
+}
+
+async function hydrateUserStateFromSupabase() {
+  if (!window.callSupabaseFunction || !currentUserId) {
+    return;
+  }
+
+  try {
+    isHydratingUserState = true;
+    const remoteData = await callSupabaseFunction("get-user-data", { userId: currentUserId });
+    trades = Array.isArray(remoteData.trades) ? remoteData.trades : [];
+    appConfig = {
+      symbols: normalizeOptions(remoteData.config?.symbols, DEFAULT_CONFIG.symbols),
+      sessions: normalizeOptions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions),
+      accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
+      strategies: normalizeOptions(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
+      accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
+    };
+    localStorage.setItem(getUserStorageKey(STORAGE_KEY_PREFIX), JSON.stringify(trades));
+    localStorage.setItem(getUserStorageKey(CONFIG_STORAGE_KEY_PREFIX), JSON.stringify(appConfig));
+  } catch {
+    // Local cache keeps the app usable if Supabase is temporarily unavailable.
+  } finally {
+    isHydratingUserState = false;
+  }
+}
+
+function scheduleSupabaseSave() {
+  if (isHydratingUserState || !window.callSupabaseFunction || !currentUserId) {
+    return;
+  }
+
+  window.clearTimeout(remoteSaveTimer);
+  setSaveStatus("saving", "Saving...");
+  remoteSaveTimer = window.setTimeout(syncUserDataToSupabase, 450);
+}
+
+async function syncUserDataToSupabase() {
+  if (!currentUserId || !window.callSupabaseFunction) {
+    return;
+  }
+
+  try {
+    await callSupabaseFunction("save-user-data", {
+      userId: currentUserId,
+      config: appConfig,
+      trades,
+    });
+    setSaveStatus("saved", "Saved");
+  } catch {
+    setSaveStatus("pending", "Offline changes pending");
+    // The local copy remains saved; the next edit can retry the remote save.
+  }
 }
 
 function userConfigComplete() {
@@ -207,30 +362,13 @@ function normalizeOptions(options, fallback) {
   return uniqueOptions.length ? uniqueOptions : [...fallback];
 }
 
-async function loadRemoteAdminConfig() {
-  try {
-    remoteConfigError = "";
-    const response = await fetch(`./config.json?v=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) {
-      remoteConfigError = "Could not load config.json. Check that it exists in the app root.";
-      return;
-    }
-
-    const remoteConfig = await response.json();
-    if (Array.isArray(remoteConfig.passcodes) && remoteConfig.passcodes.length) {
-      PASSCODES.length = 0;
-      remoteConfig.passcodes.forEach((passcode) => {
-        if (passcode.label && passcode.hash) {
-          PASSCODES.push({ label: String(passcode.label), hash: String(passcode.hash) });
-        }
-      });
-    }
-  } catch {
-    remoteConfigError =
-      window.location.protocol === "file:"
-        ? "config.json cannot be loaded from file preview. Open the app from a hosted URL or local server."
-        : "Could not load config.json. Check that it exists in the app root.";
-  }
+function normalizeAccountBalances(balances = {}, accounts = []) {
+  const normalized = {};
+  normalizeOptions(accounts, DEFAULT_CONFIG.accounts).forEach((account) => {
+    const value = parseNumber(balances?.[account]);
+    normalized[account] = value > 0 ? String(value) : "";
+  });
+  return normalized;
 }
 
 function getDefaultOption(key) {
@@ -383,12 +521,16 @@ function formatShortDate(date) {
 
 function getFilteredTrades() {
   const selectedSymbol = symbolFilter.value;
+  const selectedSession = sessionFilter.value;
   const selectedAccount = accountFilter.value;
+  const selectedStrategy = strategyFilter.value;
 
   return trades.filter((trade) => {
     const matchesSymbol = selectedSymbol === "All" || trade.symbol === selectedSymbol;
+    const matchesSession = selectedSession === "All" || (trade.session || getDefaultOption("sessions")) === selectedSession;
     const matchesAccount = selectedAccount === "All" || (trade.account || getDefaultOption("accounts")) === selectedAccount;
-    return matchesSymbol && matchesAccount;
+    const matchesStrategy = selectedStrategy === "All" || (trade.strategy || getDefaultOption("strategies")) === selectedStrategy;
+    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy;
   });
 }
 
@@ -491,6 +633,31 @@ function renderStrategyBreakdown() {
   });
 }
 
+function renderAccountBalances() {
+  accountBalanceGrid.innerHTML = "";
+
+  appConfig.accounts.forEach((account) => {
+    const startingBalance = parseNumber(appConfig.accountBalances?.[account]);
+    const accountTrades = trades.filter((trade) => (trade.account || getDefaultOption("accounts")) === account);
+    const pnl = accountTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+    const hasBalance = startingBalance > 0;
+    const card = document.createElement("article");
+    card.className = `strategy-card ${pnl > 0 ? "profit" : pnl < 0 ? "loss" : "flat"}`;
+    card.innerHTML = `
+      <div>
+        <span>${escapeHtml(account)}</span>
+        <strong>${hasBalance ? formatSummaryAmount(startingBalance + pnl) : "Not set"}</strong>
+      </div>
+      <dl>
+        <div><dt>Starting</dt><dd>${hasBalance ? formatSummaryAmount(startingBalance) : "0.00"}</dd></div>
+        <div><dt>P/L</dt><dd>${formatSummaryAmount(pnl)}</dd></div>
+        <div><dt>Trades</dt><dd>${accountTrades.length}</dd></div>
+      </dl>
+    `;
+    accountBalanceGrid.appendChild(card);
+  });
+}
+
 function renderTable() {
   const visibleTrades = getFilteredTrades().slice().sort((a, b) => b.tradeDate.localeCompare(a.tradeDate));
   const totalPages = Math.max(1, Math.ceil(visibleTrades.length / TABLE_PAGE_SIZE));
@@ -552,6 +719,7 @@ function render() {
   renderSummary();
   renderWeeklySummary();
   renderStrategyBreakdown();
+  renderAccountBalances();
   renderTable();
 }
 
@@ -589,6 +757,38 @@ function renderConfig() {
     `;
     configGrid.appendChild(section);
   });
+
+  const balanceSection = document.createElement("section");
+  balanceSection.className = "config-section";
+  balanceSection.innerHTML = `
+    <div class="config-section-heading">
+      <h3>Starting Balances</h3>
+    </div>
+    <div class="balance-config-list">
+      ${
+        appConfig.accounts.length
+          ? appConfig.accounts
+              .map(
+                (account) => `
+                  <label>
+                    <span>${escapeHtml(account)}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value="${escapeHtml(appConfig.accountBalances?.[account] || "")}"
+                      placeholder="0.00"
+                      data-balance-account="${escapeHtml(account)}"
+                    />
+                  </label>
+                `,
+              )
+              .join("")
+          : '<span class="muted">Add accounts first.</span>'
+      }
+    </div>
+  `;
+  configGrid.appendChild(balanceSection);
 }
 
 function openConfigModal() {
@@ -617,6 +817,9 @@ function addConfigValue(key, value) {
   }
 
   appConfig[key] = [...appConfig[key], nextValue];
+  if (key === "accounts") {
+    appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
+  }
   saveConfig();
   syncConfiguredInputs();
   renderConfig();
@@ -630,7 +833,16 @@ function removeConfigValue(key, value) {
     return;
   }
 
+  const confirmed = window.confirm(`Remove "${value}" from your ${key} list?\n\nExisting trades will keep their saved value.`);
+  if (!confirmed) {
+    return;
+  }
+
   appConfig[key] = appConfig[key].filter((option) => option !== value);
+  if (key === "accounts") {
+    const { [value]: _removed, ...remainingBalances } = appConfig.accountBalances;
+    appConfig.accountBalances = remainingBalances;
+  }
   saveConfig();
   syncConfiguredInputs();
   renderConfig();
@@ -775,7 +987,9 @@ function deleteTrade(id) {
     return;
   }
 
-  const confirmed = window.confirm(`Delete ${trade.symbol} trade?`);
+  const confirmed = window.confirm(
+    `Delete this ${trade.symbol} trade from ${trade.tradeDate}?\n\nThis cannot be undone.`,
+  );
   if (!confirmed) {
     return;
   }
@@ -827,108 +1041,6 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
-function downloadFile(contents, filename, type) {
-  const blob = new Blob([contents], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function exportJsonBackup() {
-  const backup = {
-    app: "Trade Tracker",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    config: appConfig,
-    trades,
-  };
-
-  downloadFile(
-    JSON.stringify(backup, null, 2),
-    `trade-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`,
-    "application/json;charset=utf-8",
-  );
-}
-
-function normalizeImportedTrade(trade) {
-  return {
-    id: trade.id || crypto.randomUUID(),
-    tradeDate: trade.tradeDate || new Date().toISOString().slice(0, 10),
-    symbol: trade.symbol || getDefaultOption("symbols"),
-    session: trade.session || getDefaultOption("sessions"),
-    account: trade.account || getDefaultOption("accounts"),
-    strategy: trade.strategy || getDefaultOption("strategies"),
-    lots: trade.lots || "0.01",
-    lotMultiplier: trade.lotMultiplier || "1",
-    outcome: trade.outcome || "Pending",
-    amount: trade.amount || "",
-    notes: trade.notes || "",
-    createdAt: trade.createdAt || new Date().toISOString(),
-  };
-}
-
-function getTradesFromBackup(backup) {
-  if (Array.isArray(backup)) {
-    return backup;
-  }
-
-  if (backup && Array.isArray(backup.trades)) {
-    return backup.trades;
-  }
-
-  return null;
-}
-
-function importJsonBackup(file) {
-  const reader = new FileReader();
-
-  reader.addEventListener("load", () => {
-    try {
-      const parsed = JSON.parse(String(reader.result));
-      const importedTrades = getTradesFromBackup(parsed);
-
-      if (!importedTrades) {
-        window.alert("That file does not look like a Trade Tracker backup.");
-        return;
-      }
-
-      const confirmed = window.confirm(
-        `Import ${importedTrades.length} trades? This will replace the trades currently saved in this browser.`,
-      );
-
-      if (!confirmed) {
-        return;
-      }
-
-      trades = importedTrades.map(normalizeImportedTrade);
-      if (parsed && parsed.config) {
-        appConfig = {
-          symbols: normalizeOptions(parsed.config.symbols, DEFAULT_CONFIG.symbols),
-          sessions: normalizeOptions(parsed.config.sessions, DEFAULT_CONFIG.sessions),
-          accounts: normalizeOptions(parsed.config.accounts, DEFAULT_CONFIG.accounts),
-          strategies: normalizeOptions(parsed.config.strategies, DEFAULT_CONFIG.strategies),
-        };
-        saveConfig();
-        syncConfiguredInputs();
-      }
-      saveTrades();
-      resetForm();
-      currentTablePage = 1;
-      render();
-      window.alert("Backup imported successfully.");
-    } catch {
-      window.alert("Could not import that backup. Please choose a valid JSON file.");
-    } finally {
-      importFileInput.value = "";
-    }
-  });
-
-  reader.readAsText(file);
-}
-
 form.addEventListener("submit", (event) => {
   event.preventDefault();
 
@@ -976,7 +1088,15 @@ symbolFilter.addEventListener("change", () => {
   currentTablePage = 1;
   renderTable();
 });
+sessionFilter.addEventListener("change", () => {
+  currentTablePage = 1;
+  renderTable();
+});
 accountFilter.addEventListener("change", () => {
+  currentTablePage = 1;
+  renderTable();
+});
+strategyFilter.addEventListener("change", () => {
   currentTablePage = 1;
   renderTable();
 });
@@ -991,6 +1111,11 @@ openConfigButton.addEventListener("click", openConfigModal);
 closeConfigButton.addEventListener("click", closeConfigModal);
 closeNoteButton.addEventListener("click", closeNoteModal);
 logoutButton.addEventListener("click", logout);
+userMenuButton.addEventListener("click", () => {
+  const isOpen = !userPopover.classList.contains("hidden");
+  userPopover.classList.toggle("hidden", isOpen);
+  userMenuButton.setAttribute("aria-expanded", String(!isOpen));
+});
 prevPageButton.addEventListener("click", () => {
   currentTablePage = Math.max(1, currentTablePage - 1);
   renderTable();
@@ -1000,14 +1125,6 @@ nextPageButton.addEventListener("click", () => {
   renderTable();
 });
 exportButton.addEventListener("click", exportCsv);
-backupButton.addEventListener("click", exportJsonBackup);
-importButton.addEventListener("click", () => importFileInput.click());
-importFileInput.addEventListener("change", () => {
-  const [file] = importFileInput.files;
-  if (file) {
-    importJsonBackup(file);
-  }
-});
 
 configGrid.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-config-action]");
@@ -1028,7 +1145,7 @@ configGrid.addEventListener("click", (event) => {
 });
 
 configGrid.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" || event.target.tagName !== "INPUT") {
+  if (event.key !== "Enter" || event.target.tagName !== "INPUT" || event.target.dataset.balanceAccount) {
     return;
   }
 
@@ -1036,6 +1153,20 @@ configGrid.addEventListener("keydown", (event) => {
   const section = event.target.closest(".config-section");
   addConfigValue(section.dataset.configKey, event.target.value);
   event.target.value = "";
+});
+
+configGrid.addEventListener("input", (event) => {
+  const account = event.target.dataset.balanceAccount;
+  if (!account) {
+    return;
+  }
+
+  appConfig.accountBalances = {
+    ...appConfig.accountBalances,
+    [account]: event.target.value.trim(),
+  };
+  saveConfig();
+  renderAccountBalances();
 });
 
 configModal.addEventListener("click", (event) => {
@@ -1047,7 +1178,7 @@ configModal.addEventListener("click", (event) => {
 passcodeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const enteredPasscode = passcodeInput.value.trim();
+  const enteredPasscode = passcodeInput.value.trim().toUpperCase();
   passcodeError.textContent = "";
 
   if (!enteredPasscode) {
@@ -1055,31 +1186,49 @@ passcodeForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  if (!PASSCODES.length) {
+  if (!window.callSupabaseFunction) {
     passcodeError.textContent = "Invalid passcode.";
     return;
   }
 
-  if (failedPasscodeAttempts > 0) {
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, Math.min(failedPasscodeAttempts * 350, 1400));
-    });
-  }
+  setButtonLoading(passcodeSubmitButton, true, "Unlocking...");
+  passcodeInput.disabled = true;
 
-  const matchedPasscode = await getMatchingPasscode(enteredPasscode);
+  try {
+    if (failedPasscodeAttempts > 0) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, Math.min(failedPasscodeAttempts * 350, 1400));
+      });
+    }
 
-  if (!matchedPasscode) {
-    failedPasscodeAttempts += 1;
+    const inputHash = await sha256(`${PASSCODE_SALT}:${enteredPasscode}`);
+    let matchedUser = null;
+
+    if (window.callSupabaseFunction) {
+      try {
+        const result = await callSupabaseFunction("login", { passcodeHash: inputHash });
+        matchedUser = result.user;
+      } catch {
+        matchedUser = null;
+      }
+    }
+
+    if (!matchedUser) {
+      failedPasscodeAttempts += 1;
+      passcodeInput.value = "";
+      passcodeError.textContent = "Invalid passcode.";
+      passcodeInput.focus();
+      return;
+    }
+
+    failedPasscodeAttempts = 0;
     passcodeInput.value = "";
-    passcodeError.textContent = "Invalid passcode.";
-    passcodeInput.focus();
-    return;
+    await setAppUnlocked(matchedUser.id, matchedUser.label, matchedUser.email, matchedUser.role, inputHash, false);
+    maybeOpenConfigForNewUser();
+  } finally {
+    setButtonLoading(passcodeSubmitButton, false);
+    passcodeInput.disabled = false;
   }
-
-  failedPasscodeAttempts = 0;
-  passcodeInput.value = "";
-  setAppUnlocked(matchedPasscode.hash, matchedPasscode.label);
-  maybeOpenConfigForNewUser();
 });
 
 tradeModal.addEventListener("click", (event) => {
@@ -1103,7 +1252,9 @@ clearButton.addEventListener("click", () => {
     return;
   }
 
-  const confirmed = window.confirm("Clear every saved trade?");
+  const confirmed = window.confirm(
+    `Clear all ${trades.length} trades for this user?\n\nThis cannot be undone.`,
+  );
   if (!confirmed) {
     return;
   }
@@ -1363,18 +1514,29 @@ calcEl("calcCalculateButton").addEventListener("click", calculatePositionSize);
 calcEl("calcResetButton").addEventListener("click", resetCalculator);
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    userPopover.classList.add("hidden");
+    userMenuButton.setAttribute("aria-expanded", "false");
+  }
+
   if (event.key === "Enter" && calcEl("calculatorView").classList.contains("active")) {
     calculatePositionSize();
   }
 });
 
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".user-menu")) {
+    userPopover.classList.add("hidden");
+    userMenuButton.setAttribute("aria-expanded", "false");
+  }
+});
+
 async function initialiseApp() {
-  await loadRemoteAdminConfig();
   syncConfiguredInputs();
   resetForm();
   resetCalculator();
   render();
-  initialisePasscodeGate();
+  await initialisePasscodeGate();
   if (sessionStorage.getItem(AUTH_STORAGE_KEY)) {
     maybeOpenConfigForNewUser();
   }

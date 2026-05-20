@@ -17,10 +17,9 @@
             id="passcodeInput"
             name="passcode"
             type="password"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            maxlength="6"
-            placeholder="Enter 6 digit code"
+            autocapitalize="characters"
+            maxlength="8"
+            placeholder="Enter 8 character code"
             required
           />
         </label>
@@ -34,13 +33,26 @@
         <div>
           <p class="eyebrow">Trading toolkit</p>
           <h1>Trading Tools</h1>
+          <p class="save-status" id="saveStatus">Saved</p>
         </div>
         <div class="topbar-actions">
           <nav class="app-nav" aria-label="App tools">
             <button class="nav-button active" type="button" data-view-target="trackerView">Trade Tracker</button>
             <button class="nav-button" type="button" data-view-target="calculatorView">Position Size Calculator</button>
           </nav>
-          <button class="ghost-button logout-button" type="button" id="logoutButton">Logout</button>
+          <div class="user-menu">
+            <button class="user-menu-button" type="button" id="userMenuButton" aria-label="Open user menu" aria-expanded="false">U</button>
+            <div class="user-popover hidden" id="userPopover">
+              <div class="user-popover-heading">
+                <span>Signed in as</span>
+                <strong id="userMenuName">User</strong>
+                <small id="userMenuEmail"></small>
+                <small id="userMenuRole"></small>
+              </div>
+              <a class="user-popover-link hidden" id="adminNavLink" href="admin/">Admin</a>
+              <button class="user-popover-link" type="button" id="logoutButton">Logout</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -105,6 +117,13 @@
           <h2>Strategy Breakdown</h2>
         </div>
         <div class="strategy-grid" id="strategyGrid"></div>
+      </section>
+
+      <section class="strategy-panel" aria-label="Account balances">
+        <div class="weekly-heading">
+          <h2>Account Balances</h2>
+        </div>
+        <div class="strategy-grid" id="accountBalanceGrid"></div>
       </section>
 
       <dialog class="trade-modal" id="tradeModal">
@@ -202,7 +221,7 @@
             </div>
           </div>
 
-          <p class="config-note">These inputs are saved on this browser and included in Backup Data, so each user can keep their own trading setup.</p>
+          <p class="config-note">These inputs are saved to your account, so each user can keep their own trading setup.</p>
           <div class="config-grid" id="configGrid"></div>
         </form>
       </dialog>
@@ -227,17 +246,26 @@
               </select>
             </label>
             <label>
+              <span>Session</span>
+              <select id="sessionFilter">
+                <option value="All">All</option>
+              </select>
+            </label>
+            <label>
               <span>Account</span>
               <select id="accountFilter">
+                <option value="All">All</option>
+              </select>
+            </label>
+            <label>
+              <span>Strategy</span>
+              <select id="strategyFilter">
                 <option value="All">All</option>
               </select>
             </label>
 
             <div class="toolbar-actions">
               <button class="ghost-button" type="button" id="exportButton">Export CSV</button>
-              <button class="ghost-button" type="button" id="backupButton">Backup Data</button>
-              <button class="ghost-button" type="button" id="importButton">Restore Data</button>
-              <input class="file-input" id="importFileInput" type="file" accept="application/json,.json" />
               <button class="danger-button" type="button" id="clearButton">Clear all</button>
             </div>
           </div>
@@ -425,6 +453,8 @@
       </div>
     </main>
 
+    <script src="supabase-config.js"></script>
+    <script src="supabase-api.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

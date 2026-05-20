@@ -1,0 +1,11 @@
+[functions.login]
+verify_jwt = false
+
+[functions.get-user-data]
+verify_jwt = false
+
+[functions.save-user-data]
+verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false
