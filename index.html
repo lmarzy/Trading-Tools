@@ -60,6 +60,12 @@
       <div class="view-header">
         <h2>Trade Tracker</h2>
         <div class="view-actions">
+          <label class="dashboard-filter">
+            <span>Account</span>
+            <select id="dashboardAccountFilter">
+              <option value="All">All accounts</option>
+            </select>
+          </label>
           <button class="icon-button config-button" type="button" id="openConfigButton" aria-label="Configure trade inputs" title="Configure trade inputs">⚙</button>
           <button class="primary-button top-action" type="button" id="openTradeModalButton">Add trade</button>
         </div>
@@ -86,6 +92,34 @@
       </section>
       <section class="market-summary-grid hidden" id="marketSummaryGrid" aria-label="Market type summary"></section>
 
+      <section class="strategy-panel" aria-label="Account balances">
+        <div class="weekly-heading">
+          <h2>Account Balances</h2>
+        </div>
+        <div class="account-balance-grid" id="accountBalanceGrid"></div>
+      </section>
+
+      <section class="equity-panel" aria-label="Equity curve">
+        <div class="weekly-heading">
+          <h2>Equity Curve</h2>
+        </div>
+        <div class="equity-chart" id="equityChart"></div>
+        <div class="equity-stats">
+          <div><span>Current P/L</span><strong id="equityCurrent">0.00</strong></div>
+          <div><span>High Point</span><strong id="equityHigh">0.00</strong></div>
+          <div><span>Low Point</span><strong id="equityLow">0.00</strong></div>
+          <div><span>Closed Trades</span><strong id="equityTrades">0</strong></div>
+        </div>
+      </section>
+
+      <section class="analytics-panel" aria-label="Trading analytics">
+        <div class="weekly-heading">
+          <h2>Analytics</h2>
+        </div>
+        <div class="analytics-grid" id="analyticsGrid"></div>
+        <div class="analytics-breakdowns" id="analyticsBreakdowns"></div>
+      </section>
+
       <section class="weekly-panel" aria-label="Weekly trading summary">
         <div class="weekly-heading">
           <h2 id="weeklyTitle">This Week</h2>
@@ -110,18 +144,45 @@
         <div class="weekly-grid" id="weeklyGrid"></div>
       </section>
 
+      <section class="monthly-panel" aria-label="Monthly trading calendar">
+        <div class="weekly-heading">
+          <h2 id="monthlyTitle">Monthly View</h2>
+          <div class="weekly-controls">
+            <select id="monthRangeFilter" aria-label="Month range">
+              <option value="this">This Month</option>
+              <option value="last">Last Month</option>
+            </select>
+            <span id="monthlyRange">Month</span>
+          </div>
+        </div>
+        <article class="weekly-total-card" id="monthlyTotalCard">
+          <div>
+            <span>Month Total</span>
+            <strong id="monthlyTotalAmount">0.00</strong>
+          </div>
+          <dl>
+            <div><dt>Trades</dt><dd id="monthlyTotalTrades">0</dd></div>
+            <div><dt>W/L</dt><dd id="monthlyTotalWinLoss">0/0</dd></div>
+          </dl>
+        </article>
+        <div class="monthly-weekdays" aria-hidden="true">
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
+          <span>Sun</span>
+          <span>Total</span>
+        </div>
+        <div class="monthly-grid" id="monthlyGrid"></div>
+      </section>
+
       <section class="strategy-panel" aria-label="Strategy breakdown">
         <div class="weekly-heading">
           <h2>Strategy Breakdown</h2>
         </div>
         <div class="strategy-grid" id="strategyGrid"></div>
-      </section>
-
-      <section class="strategy-panel" aria-label="Account balances">
-        <div class="weekly-heading">
-          <h2>Account Balances</h2>
-        </div>
-        <div class="strategy-grid" id="accountBalanceGrid"></div>
       </section>
 
       <dialog class="trade-modal" id="tradeModal">
@@ -234,6 +295,28 @@
             </div>
           </section>
 
+          <section class="form-section">
+            <h3>Discipline</h3>
+            <div class="discipline-options">
+              <label class="toggle-option">
+                <input id="followedPlan" name="followedPlan" type="checkbox" />
+                <span>Followed plan</span>
+              </label>
+              <label class="toggle-option">
+                <input id="enteredEarly" name="enteredEarly" type="checkbox" />
+                <span>Entered early</span>
+              </label>
+              <label class="toggle-option">
+                <input id="movedSl" name="movedSl" type="checkbox" />
+                <span>Moved SL</span>
+              </label>
+              <label class="toggle-option">
+                <input id="overtraded" name="overtraded" type="checkbox" />
+                <span>Overtraded</span>
+              </label>
+            </div>
+          </section>
+
           <details class="notes-disclosure" id="notesDisclosure">
             <summary>Add note</summary>
             <label>
@@ -255,7 +338,6 @@
             </div>
           </div>
 
-          <p class="config-note">These inputs are saved to your account, so each user can keep their own trading setup.</p>
           <div class="config-grid" id="configGrid"></div>
         </form>
       </dialog>
@@ -324,6 +406,7 @@
                   <th>Size</th>
                   <th>Win / Loss</th>
                   <th>Amount</th>
+                  <th>Discipline</th>
                   <th>Notes</th>
                   <th>Actions</th>
                 </tr>

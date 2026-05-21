@@ -64,6 +64,14 @@ const summarySizeTiles = document.querySelector("#summarySizeTiles");
 const winsTotalEl = document.querySelector("#winsTotal");
 const lossesTotalEl = document.querySelector("#lossesTotal");
 const amountTotalEl = document.querySelector("#amountTotal");
+const dashboardAccountFilter = document.querySelector("#dashboardAccountFilter");
+const equityChart = document.querySelector("#equityChart");
+const equityCurrent = document.querySelector("#equityCurrent");
+const equityHigh = document.querySelector("#equityHigh");
+const equityLow = document.querySelector("#equityLow");
+const equityTrades = document.querySelector("#equityTrades");
+const analyticsGrid = document.querySelector("#analyticsGrid");
+const analyticsBreakdowns = document.querySelector("#analyticsBreakdowns");
 const weeklyGrid = document.querySelector("#weeklyGrid");
 const weeklyTitle = document.querySelector("#weeklyTitle");
 const weeklyRange = document.querySelector("#weeklyRange");
@@ -72,6 +80,14 @@ const weeklyTotalAmount = document.querySelector("#weeklyTotalAmount");
 const weeklyTotalTrades = document.querySelector("#weeklyTotalTrades");
 const weeklyTotalWinLoss = document.querySelector("#weeklyTotalWinLoss");
 const weekRangeFilter = document.querySelector("#weekRangeFilter");
+const monthlyTitle = document.querySelector("#monthlyTitle");
+const monthlyRange = document.querySelector("#monthlyRange");
+const monthlyGrid = document.querySelector("#monthlyGrid");
+const monthlyTotalCard = document.querySelector("#monthlyTotalCard");
+const monthlyTotalAmount = document.querySelector("#monthlyTotalAmount");
+const monthlyTotalTrades = document.querySelector("#monthlyTotalTrades");
+const monthlyTotalWinLoss = document.querySelector("#monthlyTotalWinLoss");
+const monthRangeFilter = document.querySelector("#monthRangeFilter");
 const strategyGrid = document.querySelector("#strategyGrid");
 const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
 const marketSummaryGrid = document.querySelector("#marketSummaryGrid");
@@ -93,6 +109,12 @@ const CONFIG_FIELDS = [
 ];
 
 const MARKET_TYPE_OPTIONS = ["CFD", "Futures"];
+const DISCIPLINE_RULES = [
+  { key: "followedPlan", label: "Followed plan", positive: true },
+  { key: "enteredEarly", label: "Entered early" },
+  { key: "movedSl", label: "Moved SL" },
+  { key: "overtraded", label: "Overtraded" },
+];
 
 let currentUserId = "";
 let currentUserLabel = "";
@@ -367,6 +389,13 @@ function userConfigComplete() {
   return CONFIG_FIELDS.every((field) => appConfig[field.key].length > 0) && appConfig.marketTypes.length > 0;
 }
 
+function updateAddTradeAvailability() {
+  const isComplete = userConfigComplete();
+  openTradeModalButton.disabled = !isComplete;
+  openTradeModalButton.title = isComplete ? "Add trade" : "Complete your trade config before adding trades";
+  openTradeModalButton.setAttribute("aria-disabled", String(!isComplete));
+}
+
 function normalizeOptions(options, fallback) {
   const cleaned = Array.isArray(options)
     ? options.map((option) => String(option).trim()).filter(Boolean)
@@ -441,9 +470,11 @@ function syncConfiguredInputs() {
       populateSelect(document.querySelector(`#${id}`), appConfig[field.key], true);
     });
   });
+  populateSelect(dashboardAccountFilter, appConfig.accounts, true);
   populateSelect(marketTypeInput, appConfig.marketTypes);
   populateSelect(marketTypeFilter, appConfig.marketTypes, true);
   syncMarketTypeField();
+  updateAddTradeAvailability();
 }
 
 function parseNumber(value) {
@@ -511,8 +542,7 @@ function getTradeMarketType(trade) {
 
 function formatTradeSize(trade) {
   if (getTradeSizeType(trade) === "Contracts") {
-    const contracts = getTradeContracts(trade);
-    return `${contracts} ${contracts === 1 ? "contract" : "contracts"}`;
+    return String(getTradeContracts(trade));
   }
 
   return formatLots(getTradeLots(trade));
@@ -575,6 +605,46 @@ function formatShortDate(date) {
   }).format(date);
 }
 
+function formatMonthLabel(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getMonthDays(date = new Date(), offsetMonths = 0) {
+  const target = new Date(date.getFullYear(), date.getMonth() + offsetMonths, 1);
+  const year = target.getFullYear();
+  const month = target.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1);
+  const mondayOffset = (firstDay.getDay() + 6) % 7;
+  const days = [];
+
+  for (let index = 0; index < mondayOffset; index += 1) {
+    days.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dayDate = new Date(year, month, day);
+    days.push({
+      date: dayDate,
+      day,
+      key: toDateKey(dayDate),
+    });
+  }
+
+  while (days.length % 7 !== 0) {
+    days.push(null);
+  }
+
+  return {
+    label: formatMonthLabel(target),
+    days,
+    keys: new Set(days.filter(Boolean).map((day) => day.key)),
+  };
+}
+
 function getFilteredTrades() {
   const selectedSymbol = symbolFilter.value;
   const selectedSession = sessionFilter.value;
@@ -592,12 +662,22 @@ function getFilteredTrades() {
   });
 }
 
+function getDashboardTrades() {
+  const selectedAccount = dashboardAccountFilter.value;
+  if (selectedAccount === "All") {
+    return trades;
+  }
+
+  return trades.filter((trade) => (trade.account || getDefaultOption("accounts")) === selectedAccount);
+}
+
 function renderSummary() {
-  const totalLots = trades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
-  const totalContracts = trades.reduce((sum, trade) => sum + getTradeContracts(trade), 0);
-  const wins = trades.filter((trade) => trade.outcome === "Win").length;
-  const losses = trades.filter((trade) => trade.outcome === "Loss").length;
-  const amount = trades.reduce((sum, trade) => {
+  const dashboardTrades = getDashboardTrades();
+  const totalLots = dashboardTrades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
+  const totalContracts = dashboardTrades.reduce((sum, trade) => sum + getTradeContracts(trade), 0);
+  const wins = dashboardTrades.filter((trade) => trade.outcome === "Win").length;
+  const losses = dashboardTrades.filter((trade) => trade.outcome === "Loss").length;
+  const amount = dashboardTrades.reduce((sum, trade) => {
     if (trade.outcome === "Win") {
       return sum + parseNumber(trade.amount);
     }
@@ -609,10 +689,10 @@ function renderSummary() {
     return sum;
   }, 0);
 
-  totalTradesEl.textContent = String(trades.length);
+  totalTradesEl.textContent = String(dashboardTrades.length);
   summarySymbolSplit.innerHTML = "";
   appConfig.symbols.forEach((symbol) => {
-    const count = trades.filter((trade) => trade.symbol === symbol).length;
+    const count = dashboardTrades.filter((trade) => trade.symbol === symbol).length;
     const item = document.createElement("b");
     item.innerHTML = `${escapeHtml(symbol)} <em>${count}</em>`;
     summarySymbolSplit.appendChild(item);
@@ -621,7 +701,7 @@ function renderSummary() {
   winsTotalEl.textContent = String(wins);
   lossesTotalEl.textContent = String(losses);
   amountTotalEl.textContent = formatSummaryAmount(amount);
-  amountTotalEl.className = amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "";
+  amountTotalEl.className = amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "amount-flat";
   renderMarketSummaries();
 }
 
@@ -663,7 +743,7 @@ function renderMarketSummaries() {
   }
 
   appConfig.marketTypes.forEach((marketType) => {
-    const marketTrades = trades.filter((trade) => getTradeMarketType(trade) === marketType);
+    const marketTrades = getDashboardTrades().filter((trade) => getTradeMarketType(trade) === marketType);
     const wins = marketTrades.filter((trade) => trade.outcome === "Win").length;
     const losses = marketTrades.filter((trade) => trade.outcome === "Loss").length;
     const lots = marketTrades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
@@ -688,11 +768,244 @@ function renderMarketSummaries() {
   });
 }
 
+function renderEquityCurve() {
+  const closedTrades = getDashboardTrades()
+    .filter((trade) => trade.outcome === "Win" || trade.outcome === "Loss")
+    .slice()
+    .sort((a, b) => {
+      const dateSort = (a.tradeDate || "").localeCompare(b.tradeDate || "");
+      return dateSort || (a.createdAt || "").localeCompare(b.createdAt || "");
+    });
+
+  let runningTotal = 0;
+  const points = closedTrades.map((trade, index) => {
+    runningTotal += getTradeAmount(trade);
+    return {
+      index,
+      date: trade.tradeDate,
+      value: runningTotal,
+    };
+  });
+
+  const values = [0, ...points.map((point) => point.value)];
+  const current = points.length ? points[points.length - 1].value : 0;
+  const high = Math.max(...values);
+  const low = Math.min(...values);
+
+  equityCurrent.textContent = formatSummaryAmount(current);
+  equityCurrent.className = current > 0 ? "amount-win" : current < 0 ? "amount-loss" : "";
+  equityHigh.textContent = formatSummaryAmount(high);
+  equityLow.textContent = formatSummaryAmount(low);
+  equityTrades.textContent = String(closedTrades.length);
+
+  if (!points.length) {
+    equityChart.innerHTML = `
+      <div class="equity-empty">
+        <strong>No closed trades yet</strong>
+        <span>Mark trades as Win or Loss to build your curve.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const width = 960;
+  const height = 280;
+  const padding = 28;
+  const range = high - low || 1;
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const chartPoints = [{ index: -1, date: "", value: 0 }, ...points];
+  const maxIndex = Math.max(1, chartPoints.length - 1);
+  const coordinates = chartPoints.map((point, index) => {
+    const x = padding + (index / maxIndex) * plotWidth;
+    const y = padding + ((high - point.value) / range) * plotHeight;
+    return { ...point, x, y };
+  });
+  const linePath = coordinates.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const areaPath = `${linePath} L ${coordinates[coordinates.length - 1].x.toFixed(2)} ${height - padding} L ${padding} ${height - padding} Z`;
+  const zeroY = padding + ((high - 0) / range) * plotHeight;
+  const finalPoint = coordinates[coordinates.length - 1];
+  const resultClass = current > 0 ? "profit" : current < 0 ? "loss" : "flat";
+
+  equityChart.innerHTML = `
+    <svg class="equity-svg ${resultClass}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Cumulative profit and loss equity curve">
+      <defs>
+        <linearGradient id="equityFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="currentColor" stop-opacity="0.24" />
+          <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <line class="equity-grid-line" x1="${padding}" x2="${width - padding}" y1="${padding}" y2="${padding}" />
+      <line class="equity-grid-line" x1="${padding}" x2="${width - padding}" y1="${height / 2}" y2="${height / 2}" />
+      <line class="equity-grid-line" x1="${padding}" x2="${width - padding}" y1="${height - padding}" y2="${height - padding}" />
+      <line class="equity-zero-line" x1="${padding}" x2="${width - padding}" y1="${zeroY.toFixed(2)}" y2="${zeroY.toFixed(2)}" />
+      <path class="equity-area" d="${areaPath}" />
+      <path class="equity-line" d="${linePath}" />
+      <circle class="equity-point" cx="${finalPoint.x.toFixed(2)}" cy="${finalPoint.y.toFixed(2)}" r="6" />
+    </svg>
+    <div class="equity-axis">
+      <span>${escapeHtml(points[0].date || "Start")}</span>
+      <span>${escapeHtml(points[points.length - 1].date || "Latest")}</span>
+    </div>
+  `;
+}
+
+function getClosedTrades() {
+  return getDashboardTrades().filter((trade) => trade.outcome === "Win" || trade.outcome === "Loss");
+}
+
+function summarizeTradeSet(tradeSet) {
+  const wins = tradeSet.filter((trade) => trade.outcome === "Win");
+  const losses = tradeSet.filter((trade) => trade.outcome === "Loss");
+  const grossProfit = wins.reduce((sum, trade) => sum + parseNumber(trade.amount), 0);
+  const grossLoss = losses.reduce((sum, trade) => sum + parseNumber(trade.amount), 0);
+  const net = grossProfit - grossLoss;
+
+  return {
+    total: tradeSet.length,
+    wins: wins.length,
+    losses: losses.length,
+    grossProfit,
+    grossLoss,
+    net,
+    winRate: tradeSet.length ? (wins.length / tradeSet.length) * 100 : 0,
+    averageWin: wins.length ? grossProfit / wins.length : 0,
+    averageLoss: losses.length ? grossLoss / losses.length : 0,
+    profitFactor: grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0,
+  };
+}
+
+function formatPercent(value) {
+  return `${formatLots(value)}%`;
+}
+
+function formatProfitFactor(value) {
+  if (value === Infinity) {
+    return "∞";
+  }
+
+  return formatLots(value);
+}
+
+function getDailyClosedSummaries(closedTrades) {
+  const daily = new Map();
+  closedTrades.forEach((trade) => {
+    if (!trade.tradeDate) {
+      return;
+    }
+
+    daily.set(trade.tradeDate, (daily.get(trade.tradeDate) || 0) + getTradeAmount(trade));
+  });
+
+  return [...daily.entries()].map(([date, amount]) => ({ date, amount }));
+}
+
+function renderAnalyticsBreakdown(title, items) {
+  const rows = items
+    .map(
+      (item) => `
+        <div class="analytics-row ${item.net > 0 ? "profit" : item.net < 0 ? "loss" : "flat"}">
+          <span>${escapeHtml(item.label)}</span>
+          <b>${formatSummaryAmount(item.net)}</b>
+          <small>${item.total} trades · ${formatPercent(item.winRate)}</small>
+        </div>
+      `,
+    )
+    .join("");
+
+  return `
+    <article class="analytics-breakdown-card">
+      <h3>${escapeHtml(title)}</h3>
+      ${rows || '<p class="analytics-empty">No closed trades yet.</p>'}
+    </article>
+  `;
+}
+
+function getBreakdownItems(closedTrades, key, options = []) {
+  const labels = options.length ? options : [...new Set(closedTrades.map((trade) => trade[key]).filter(Boolean))];
+  return labels
+    .map((label) => {
+      const summary = summarizeTradeSet(closedTrades.filter((trade) => (trade[key] || "") === label));
+      return { label, ...summary };
+    })
+    .filter((item) => item.total > 0)
+    .sort((a, b) => b.net - a.net);
+}
+
+function renderAnalytics() {
+  const closedTrades = getClosedTrades();
+  const summary = summarizeTradeSet(closedTrades);
+  const daily = getDailyClosedSummaries(closedTrades);
+  const bestDay = daily.length ? daily.reduce((best, day) => (day.amount > best.amount ? day : best), daily[0]) : null;
+  const worstDay = daily.length ? daily.reduce((worst, day) => (day.amount < worst.amount ? day : worst), daily[0]) : null;
+  const dashboardTrades = getDashboardTrades();
+  const disciplineTrades = dashboardTrades.filter(hasTradeDiscipline);
+  const allDisciplineScores = disciplineTrades.map((trade) => getDisciplineScore(trade));
+  const averageDiscipline = allDisciplineScores.length
+    ? allDisciplineScores.reduce((sum, score) => sum + score, 0) / allDisciplineScores.length
+    : 0;
+
+  const metricCards = [
+    { label: "Win Rate", value: formatPercent(summary.winRate), tone: summary.winRate >= 50 ? "profit" : summary.total ? "loss" : "flat" },
+    { label: "Average Win", value: formatSummaryAmount(summary.averageWin), tone: summary.averageWin > 0 ? "profit" : "flat" },
+    { label: "Average Loss", value: formatSummaryAmount(summary.averageLoss), tone: summary.averageLoss > 0 ? "loss" : "flat" },
+    { label: "Profit Factor", value: formatProfitFactor(summary.profitFactor), tone: summary.profitFactor >= 1 ? "profit" : summary.total ? "loss" : "flat" },
+    { label: "Best Day", value: bestDay ? formatSummaryAmount(bestDay.amount) : "0.00", detail: bestDay?.date || "-", tone: bestDay?.amount > 0 ? "profit" : "flat" },
+    { label: "Worst Day", value: worstDay ? formatSummaryAmount(worstDay.amount) : "0.00", detail: worstDay?.date || "-", tone: worstDay?.amount < 0 ? "loss" : "flat" },
+    { label: "Discipline", value: `${formatLots(averageDiscipline)}/4`, detail: `${disciplineTrades.length} tracked`, tone: averageDiscipline >= 3 ? "profit" : averageDiscipline >= 2 ? "flat" : disciplineTrades.length ? "loss" : "flat" },
+  ];
+
+  analyticsGrid.innerHTML = metricCards
+    .map(
+      (metric) => `
+        <article class="analytics-card ${metric.tone}">
+          <span>${metric.label}</span>
+          <strong>${metric.value}</strong>
+          ${metric.detail ? `<small>${escapeHtml(metric.detail)}</small>` : ""}
+        </article>
+      `,
+    )
+    .join("");
+
+  analyticsBreakdowns.innerHTML = [
+    renderAnalyticsBreakdown("By Symbol", getBreakdownItems(closedTrades, "symbol", appConfig.symbols)),
+    renderAnalyticsBreakdown("By Session", getBreakdownItems(closedTrades, "session", appConfig.sessions)),
+    renderAnalyticsBreakdown("By Account", getBreakdownItems(closedTrades, "account", appConfig.accounts)),
+    renderAnalyticsBreakdown("By Strategy", getBreakdownItems(closedTrades, "strategy", appConfig.strategies)),
+    renderDisciplineAnalytics(),
+  ].join("");
+}
+
+function renderDisciplineAnalytics() {
+  const disciplineTrades = getDashboardTrades().filter(hasTradeDiscipline);
+  const totalTrades = disciplineTrades.length;
+  const rows = DISCIPLINE_RULES.map((rule) => {
+    const count = disciplineTrades.filter((trade) => Boolean(getTradeDiscipline(trade)[rule.key])).length;
+    const percentage = totalTrades ? (count / totalTrades) * 100 : 0;
+    const rowClass = rule.positive ? "profit" : count ? "loss" : "flat";
+    return `
+      <div class="analytics-row ${rowClass}">
+        <span>${escapeHtml(rule.label)}</span>
+        <b>${count}</b>
+        <small>${formatPercent(percentage)} of trades</small>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <article class="analytics-breakdown-card">
+      <h3>Discipline</h3>
+      ${totalTrades ? rows : '<p class="analytics-empty">No trades tracked yet.</p>'}
+    </article>
+  `;
+}
+
 function renderWeeklySummary() {
   const isLastWeek = weekRangeFilter.value === "last";
   const weekdays = getWeekdays(new Date(), isLastWeek ? -1 : 0);
   const weekdayKeys = new Set(weekdays.map((day) => day.key));
-  const weeklyTrades = trades.filter((trade) => weekdayKeys.has(trade.tradeDate));
+  const dashboardTrades = getDashboardTrades();
+  const weeklyTrades = dashboardTrades.filter((trade) => weekdayKeys.has(trade.tradeDate));
   const weeklyWins = weeklyTrades.filter((trade) => trade.outcome === "Win").length;
   const weeklyLosses = weeklyTrades.filter((trade) => trade.outcome === "Loss").length;
   const weeklyAmount = weeklyTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
@@ -707,7 +1020,7 @@ function renderWeeklySummary() {
   weeklyGrid.innerHTML = "";
 
   weekdays.forEach((day) => {
-    const dayTrades = trades.filter((trade) => trade.tradeDate === day.key);
+    const dayTrades = dashboardTrades.filter((trade) => trade.tradeDate === day.key);
     const wins = dayTrades.filter((trade) => trade.outcome === "Win").length;
     const losses = dayTrades.filter((trade) => trade.outcome === "Loss").length;
     const amount = dayTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
@@ -730,11 +1043,82 @@ function renderWeeklySummary() {
   });
 }
 
+function renderMonthlyView() {
+  const isLastMonth = monthRangeFilter.value === "last";
+  const month = getMonthDays(new Date(), isLastMonth ? -1 : 0);
+  const dashboardTrades = getDashboardTrades();
+  const monthTrades = dashboardTrades.filter((trade) => month.keys.has(trade.tradeDate));
+  const monthWins = monthTrades.filter((trade) => trade.outcome === "Win").length;
+  const monthLosses = monthTrades.filter((trade) => trade.outcome === "Loss").length;
+  const monthAmount = monthTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+  const resultClass = monthAmount > 0 ? "profit" : monthAmount < 0 ? "loss" : "flat";
+
+  monthlyTitle.textContent = isLastMonth ? "Last Month" : "This Month";
+  monthlyRange.textContent = month.label;
+  monthlyTotalCard.className = `weekly-total-card ${resultClass}`;
+  monthlyTotalAmount.textContent = formatSummaryAmount(monthAmount);
+  monthlyTotalTrades.textContent = String(monthTrades.length);
+  monthlyTotalWinLoss.textContent = `${monthWins}/${monthLosses}`;
+  monthlyGrid.innerHTML = "";
+
+  for (let index = 0; index < month.days.length; index += 7) {
+    const weekDays = month.days.slice(index, index + 7);
+    const weekKeys = new Set(weekDays.filter(Boolean).map((day) => day.key));
+    const weekTrades = dashboardTrades.filter((trade) => weekKeys.has(trade.tradeDate));
+    const weekWins = weekTrades.filter((trade) => trade.outcome === "Win").length;
+    const weekLosses = weekTrades.filter((trade) => trade.outcome === "Loss").length;
+    const weekAmount = weekTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+    const weekClass = weekAmount > 0 ? "profit" : weekAmount < 0 ? "loss" : "flat";
+
+    weekDays.forEach((day) => {
+      const cell = document.createElement("article");
+      if (!day) {
+        cell.className = "monthly-day empty";
+        monthlyGrid.appendChild(cell);
+        return;
+      }
+
+      const dayTrades = dashboardTrades.filter((trade) => trade.tradeDate === day.key);
+      const wins = dayTrades.filter((trade) => trade.outcome === "Win").length;
+      const losses = dayTrades.filter((trade) => trade.outcome === "Loss").length;
+      const amount = dayTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+      const dayClass = amount > 0 ? "profit" : amount < 0 ? "loss" : "flat";
+      const hasTrades = dayTrades.length > 0;
+
+      cell.className = `monthly-day ${dayClass} ${hasTrades ? "has-trades" : ""}`;
+      cell.innerHTML = `
+        <div>
+          <span>${day.day}</span>
+          <strong>${formatSummaryAmount(amount)}</strong>
+        </div>
+        <dl>
+          <div><dt>Trades</dt><dd>${dayTrades.length}</dd></div>
+          <div><dt>W/L</dt><dd>${wins}/${losses}</dd></div>
+        </dl>
+      `;
+      monthlyGrid.appendChild(cell);
+    });
+
+    const totalCell = document.createElement("article");
+    totalCell.className = `monthly-week-total ${weekClass}`;
+    totalCell.innerHTML = `
+      <span>Week Total</span>
+      <strong>${formatSummaryAmount(weekAmount)}</strong>
+      <dl>
+        <div><dt>Trades</dt><dd>${weekTrades.length}</dd></div>
+        <div><dt>W/L</dt><dd>${weekWins}/${weekLosses}</dd></div>
+      </dl>
+    `;
+    monthlyGrid.appendChild(totalCell);
+  }
+}
+
 function renderStrategyBreakdown() {
   strategyGrid.innerHTML = "";
+  const dashboardTrades = getDashboardTrades();
 
   appConfig.strategies.forEach((strategy) => {
-    const strategyTrades = trades.filter((trade) => trade.strategy === strategy);
+    const strategyTrades = dashboardTrades.filter((trade) => trade.strategy === strategy);
     const wins = strategyTrades.filter((trade) => trade.outcome === "Win").length;
     const losses = strategyTrades.filter((trade) => trade.outcome === "Loss").length;
     const amount = strategyTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
@@ -758,14 +1142,16 @@ function renderStrategyBreakdown() {
 
 function renderAccountBalances() {
   accountBalanceGrid.innerHTML = "";
+  const selectedAccount = dashboardAccountFilter.value;
+  const accounts = selectedAccount === "All" ? appConfig.accounts : appConfig.accounts.filter((account) => account === selectedAccount);
 
-  appConfig.accounts.forEach((account) => {
+  accounts.forEach((account) => {
     const startingBalance = parseNumber(appConfig.accountBalances?.[account]);
-    const accountTrades = trades.filter((trade) => (trade.account || getDefaultOption("accounts")) === account);
+    const accountTrades = getDashboardTrades().filter((trade) => (trade.account || getDefaultOption("accounts")) === account);
     const pnl = accountTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
     const hasBalance = startingBalance > 0;
     const card = document.createElement("article");
-    card.className = `strategy-card ${pnl > 0 ? "profit" : pnl < 0 ? "loss" : "flat"}`;
+    card.className = `account-balance-card ${pnl > 0 ? "profit" : pnl < 0 ? "loss" : "flat"}`;
     card.innerHTML = `
       <div>
         <span>${escapeHtml(account)}</span>
@@ -808,6 +1194,7 @@ function renderTable() {
         <td class="${trade.outcome === "Win" ? "amount-win" : trade.outcome === "Loss" ? "amount-loss" : "muted"}">
           ${formatAmount(trade.amount)}
         </td>
+        <td>${renderDisciplineBadge(trade)}</td>
         <td class="notes-cell">
           ${
             hasNote
@@ -840,8 +1227,12 @@ function renderTable() {
 }
 
 function render() {
+  updateAddTradeAvailability();
   renderSummary();
+  renderEquityCurve();
+  renderAnalytics();
   renderWeeklySummary();
+  renderMonthlyView();
   renderStrategyBreakdown();
   renderAccountBalances();
   renderTable();
@@ -1005,6 +1396,45 @@ function getOutcomeClass(outcome) {
   return (outcome || "Pending").toLowerCase();
 }
 
+function getTradeDiscipline(trade) {
+  return trade.discipline && typeof trade.discipline === "object" ? trade.discipline : {};
+}
+
+function hasTradeDiscipline(trade) {
+  return Boolean(trade.discipline && typeof trade.discipline === "object");
+}
+
+function getDisciplineScore(trade) {
+  if (!hasTradeDiscipline(trade)) {
+    return null;
+  }
+
+  const discipline = getTradeDiscipline(trade);
+  let score = 0;
+
+  if (discipline.followedPlan) {
+    score += 1;
+  }
+
+  ["enteredEarly", "movedSl", "overtraded"].forEach((key) => {
+    if (!discipline[key]) {
+      score += 1;
+    }
+  });
+
+  return score;
+}
+
+function renderDisciplineBadge(trade) {
+  const score = getDisciplineScore(trade);
+  if (score === null) {
+    return '<span class="badge pending">-</span>';
+  }
+
+  const className = score >= 4 ? "win" : score >= 2 ? "open" : "loss";
+  return `<span class="badge ${className}">${score}/4</span>`;
+}
+
 function updateModalScrollLock() {
   const hasOpenModal = [tradeModal, configModal, noteModal].some((modal) => modal.open);
   document.body.classList.toggle("modal-open", hasOpenModal);
@@ -1093,6 +1523,12 @@ function readForm() {
     contracts: form.contracts.value,
     outcome: form.outcome.value,
     amount: form.amount.value,
+    discipline: {
+      followedPlan: form.followedPlan.checked,
+      enteredEarly: form.enteredEarly.checked,
+      movedSl: form.movedSl.checked,
+      overtraded: form.overtraded.checked,
+    },
     notes: form.notes.value.trim(),
     createdAt: existingId
       ? trades.find((trade) => trade.id === existingId)?.createdAt
@@ -1135,6 +1571,9 @@ function resetForm() {
   syncSizeFields();
   form.outcome.value = "Pending";
   form.amount.value = "";
+  DISCIPLINE_RULES.forEach((rule) => {
+    form[rule.key].checked = false;
+  });
   form.notes.value = "";
   notesDisclosure.open = false;
   formTitle.textContent = "Add trade";
@@ -1162,6 +1601,10 @@ function startEdit(id) {
   syncSizeFields();
   form.outcome.value = trade.outcome || "Pending";
   form.amount.value = trade.amount || "";
+  const discipline = getTradeDiscipline(trade);
+  DISCIPLINE_RULES.forEach((rule) => {
+    form[rule.key].checked = Boolean(discipline[rule.key]);
+  });
   form.notes.value = trade.notes;
   notesDisclosure.open = Boolean(trade.notes);
   formTitle.textContent = "Edit trade";
@@ -1203,23 +1646,36 @@ function exportCsv() {
       "Total Lots",
       "Win / Loss",
       "Amount",
+      "Discipline Score",
+      "Followed Plan",
+      "Entered Early",
+      "Moved SL",
+      "Overtraded",
       "Notes",
     ],
-    ...trades.map((trade) => [
-      trade.tradeDate,
-      trade.symbol,
-      getTradeMarketType(trade),
-      trade.session || getDefaultOption("sessions"),
-      trade.account || getDefaultOption("accounts"),
-      trade.strategy,
-      getTradeSizeType(trade),
-      trade.lots,
-      trade.contracts || "",
-      formatLots(getTradeLots(trade)),
-      trade.outcome || "Pending",
-      trade.amount || "",
-      trade.notes,
-    ]),
+    ...trades.map((trade) => {
+      const discipline = getTradeDiscipline(trade);
+      return [
+        trade.tradeDate,
+        trade.symbol,
+        getTradeMarketType(trade),
+        trade.session || getDefaultOption("sessions"),
+        trade.account || getDefaultOption("accounts"),
+        trade.strategy,
+        getTradeSizeType(trade),
+        trade.lots,
+        trade.contracts || "",
+        formatLots(getTradeLots(trade)),
+        trade.outcome || "Pending",
+        trade.amount || "",
+        getDisciplineScore(trade) === null ? "" : `${getDisciplineScore(trade)}/4`,
+        discipline.followedPlan ? "Yes" : "No",
+        discipline.enteredEarly ? "Yes" : "No",
+        discipline.movedSl ? "Yes" : "No",
+        discipline.overtraded ? "Yes" : "No",
+        trade.notes,
+      ];
+    }),
   ];
 
   const csv = rows
@@ -1297,10 +1753,17 @@ marketTypeFilter.addEventListener("change", () => {
   currentTablePage = 1;
   renderTable();
 });
+dashboardAccountFilter.addEventListener("change", render);
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
 weekRangeFilter.addEventListener("change", renderWeeklySummary);
+monthRangeFilter.addEventListener("change", renderMonthlyView);
 cancelEditButton.addEventListener("click", resetForm);
 openTradeModalButton.addEventListener("click", () => {
+  if (!userConfigComplete()) {
+    openConfigModal();
+    return;
+  }
+
   resetForm();
   openTradeModal();
 });
