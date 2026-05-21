@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse({
-      config: data?.config_json || { symbols: [], sessions: [], accounts: [], strategies: [], accountBalances: {} },
+      config: data?.config_json || { symbols: [], sessions: [], accounts: [], strategies: [], marketTypes: [], accountBalances: {} },
       trades: data?.trades_json || [],
       updatedAt: data?.updated_at || null,
     });

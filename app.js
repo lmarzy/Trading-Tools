@@ -22,6 +22,11 @@ const submitButton = document.querySelector("#submitButton");
 const cancelEditButton = document.querySelector("#cancelEditButton");
 const openTradeModalButton = document.querySelector("#openTradeModalButton");
 const closeTradeModalButton = document.querySelector("#closeTradeModalButton");
+const marketTypeInput = document.querySelector("#marketType");
+const marketTypeField = document.querySelector("#marketTypeField");
+const lotsField = document.querySelector("#lotsField");
+const contractsField = document.querySelector("#contractsField");
+const notesDisclosure = document.querySelector("#notesDisclosure");
 const configModal = document.querySelector("#configModal");
 const configGrid = document.querySelector("#configGrid");
 const openConfigButton = document.querySelector("#openConfigButton");
@@ -39,6 +44,7 @@ const symbolFilter = document.querySelector("#symbolFilter");
 const sessionFilter = document.querySelector("#sessionFilter");
 const accountFilter = document.querySelector("#accountFilter");
 const strategyFilter = document.querySelector("#strategyFilter");
+const marketTypeFilter = document.querySelector("#marketTypeFilter");
 const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
 const navButtons = document.querySelectorAll("[data-view-target]");
@@ -54,7 +60,7 @@ const saveStatus = document.querySelector("#saveStatus");
 
 const totalTradesEl = document.querySelector("#totalTrades");
 const summarySymbolSplit = document.querySelector("#summarySymbolSplit");
-const totalLotsEl = document.querySelector("#totalLots");
+const summarySizeTiles = document.querySelector("#summarySizeTiles");
 const winsTotalEl = document.querySelector("#winsTotal");
 const lossesTotalEl = document.querySelector("#lossesTotal");
 const amountTotalEl = document.querySelector("#amountTotal");
@@ -68,12 +74,14 @@ const weeklyTotalWinLoss = document.querySelector("#weeklyTotalWinLoss");
 const weekRangeFilter = document.querySelector("#weekRangeFilter");
 const strategyGrid = document.querySelector("#strategyGrid");
 const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
+const marketSummaryGrid = document.querySelector("#marketSummaryGrid");
 
 const DEFAULT_CONFIG = {
   symbols: [],
   sessions: [],
   accounts: [],
   strategies: [],
+  marketTypes: [],
   accountBalances: {},
 };
 
@@ -84,12 +92,15 @@ const CONFIG_FIELDS = [
   { key: "strategies", label: "Strategy", selectIds: ["strategy"], filterIds: ["strategyFilter"] },
 ];
 
+const MARKET_TYPE_OPTIONS = ["CFD", "Futures"];
+
 let currentUserId = "";
 let currentUserLabel = "";
 let trades = [];
 let appConfig = structuredClone(DEFAULT_CONFIG);
 let editingTradeId = "";
 let calculatorMode = "pct";
+let calculatorMarketType = "CFD";
 let calculatorTouched = {};
 let failedPasscodeAttempts = 0;
 let currentTablePage = 1;
@@ -269,6 +280,7 @@ function loadConfig() {
       sessions: normalizeOptions(savedConfig.sessions, DEFAULT_CONFIG.sessions),
       accounts: normalizeOptions(savedConfig.accounts, DEFAULT_CONFIG.accounts),
       strategies: normalizeOptions(savedConfig.strategies, DEFAULT_CONFIG.strategies),
+      marketTypes: normalizeMarketTypes(savedConfig.marketTypes),
       accountBalances: normalizeAccountBalances(savedConfig.accountBalances, savedConfig.accounts),
     };
   } catch {
@@ -311,6 +323,7 @@ async function hydrateUserStateFromSupabase() {
       sessions: normalizeOptions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
       strategies: normalizeOptions(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
+      marketTypes: normalizeMarketTypes(remoteData.config?.marketTypes),
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
     };
     localStorage.setItem(getUserStorageKey(STORAGE_KEY_PREFIX), JSON.stringify(trades));
@@ -351,7 +364,7 @@ async function syncUserDataToSupabase() {
 }
 
 function userConfigComplete() {
-  return CONFIG_FIELDS.every((field) => appConfig[field.key].length > 0);
+  return CONFIG_FIELDS.every((field) => appConfig[field.key].length > 0) && appConfig.marketTypes.length > 0;
 }
 
 function normalizeOptions(options, fallback) {
@@ -360,6 +373,13 @@ function normalizeOptions(options, fallback) {
     : [];
   const uniqueOptions = [...new Set(cleaned)];
   return uniqueOptions.length ? uniqueOptions : [...fallback];
+}
+
+function normalizeMarketTypes(options) {
+  const cleaned = Array.isArray(options)
+    ? options.map((option) => String(option).trim()).filter((option) => MARKET_TYPE_OPTIONS.includes(option))
+    : [];
+  return [...new Set(cleaned)];
 }
 
 function normalizeAccountBalances(balances = {}, accounts = []) {
@@ -373,6 +393,10 @@ function normalizeAccountBalances(balances = {}, accounts = []) {
 
 function getDefaultOption(key) {
   return appConfig[key][0] || DEFAULT_CONFIG[key][0] || "";
+}
+
+function getDefaultMarketType() {
+  return appConfig.marketTypes[0] || "";
 }
 
 function createOption(value) {
@@ -417,6 +441,9 @@ function syncConfiguredInputs() {
       populateSelect(document.querySelector(`#${id}`), appConfig[field.key], true);
     });
   });
+  populateSelect(marketTypeInput, appConfig.marketTypes);
+  populateSelect(marketTypeFilter, appConfig.marketTypes, true);
+  syncMarketTypeField();
 }
 
 function parseNumber(value) {
@@ -459,7 +486,36 @@ function truncateText(value, maxLength = 56) {
 }
 
 function getTradeLots(trade) {
-  return parseNumber(trade.lots) * parseNumber(trade.lotMultiplier);
+  if (getTradeSizeType(trade) === "Contracts") {
+    return 0;
+  }
+
+  return parseNumber(trade.lots) * parseNumber(trade.lotMultiplier || "1");
+}
+
+function getTradeContracts(trade) {
+  return getTradeSizeType(trade) === "Contracts" ? parseNumber(trade.contracts) : 0;
+}
+
+function getTradeSizeType(trade) {
+  if (trade.sizeType) {
+    return trade.sizeType === "contracts" ? "Contracts" : "Lots";
+  }
+
+  return getTradeMarketType(trade) === "Futures" ? "Contracts" : "Lots";
+}
+
+function getTradeMarketType(trade) {
+  return trade.marketType || getDefaultMarketType() || "CFD";
+}
+
+function formatTradeSize(trade) {
+  if (getTradeSizeType(trade) === "Contracts") {
+    const contracts = getTradeContracts(trade);
+    return `${contracts} ${contracts === 1 ? "contract" : "contracts"}`;
+  }
+
+  return formatLots(getTradeLots(trade));
 }
 
 function getTradeAmount(trade) {
@@ -524,18 +580,21 @@ function getFilteredTrades() {
   const selectedSession = sessionFilter.value;
   const selectedAccount = accountFilter.value;
   const selectedStrategy = strategyFilter.value;
+  const selectedMarket = marketTypeFilter.value;
 
   return trades.filter((trade) => {
     const matchesSymbol = selectedSymbol === "All" || trade.symbol === selectedSymbol;
     const matchesSession = selectedSession === "All" || (trade.session || getDefaultOption("sessions")) === selectedSession;
     const matchesAccount = selectedAccount === "All" || (trade.account || getDefaultOption("accounts")) === selectedAccount;
     const matchesStrategy = selectedStrategy === "All" || (trade.strategy || getDefaultOption("strategies")) === selectedStrategy;
-    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy;
+    const matchesMarket = selectedMarket === "All" || getTradeMarketType(trade) === selectedMarket;
+    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy && matchesMarket;
   });
 }
 
 function renderSummary() {
   const totalLots = trades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
+  const totalContracts = trades.reduce((sum, trade) => sum + getTradeContracts(trade), 0);
   const wins = trades.filter((trade) => trade.outcome === "Win").length;
   const losses = trades.filter((trade) => trade.outcome === "Loss").length;
   const amount = trades.reduce((sum, trade) => {
@@ -558,11 +617,75 @@ function renderSummary() {
     item.innerHTML = `${escapeHtml(symbol)} <em>${count}</em>`;
     summarySymbolSplit.appendChild(item);
   });
-  totalLotsEl.textContent = formatLots(totalLots);
+  renderSizeSummaryTiles(totalLots, totalContracts);
   winsTotalEl.textContent = String(wins);
   lossesTotalEl.textContent = String(losses);
   amountTotalEl.textContent = formatSummaryAmount(amount);
   amountTotalEl.className = amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "";
+  renderMarketSummaries();
+}
+
+function renderSizeSummaryTiles(totalLots, totalContracts) {
+  const enabledSizeTypes = new Set(
+    appConfig.marketTypes.map((marketType) => (marketType === "Futures" ? "contracts" : "lots")),
+  );
+
+  if (!enabledSizeTypes.size) {
+    enabledSizeTypes.add("lots");
+  }
+
+  summarySizeTiles.innerHTML = "";
+  if (appConfig.marketTypes.length > 1) {
+    return;
+  }
+
+  if (enabledSizeTypes.has("lots")) {
+    summarySizeTiles.insertAdjacentHTML(
+      "beforeend",
+      `<article class="summary-tile"><span>Total Size (lots)</span><strong>${formatLots(totalLots)}</strong></article>`,
+    );
+  }
+
+  if (enabledSizeTypes.has("contracts")) {
+    summarySizeTiles.insertAdjacentHTML(
+      "beforeend",
+      `<article class="summary-tile"><span>Total Size (contracts)</span><strong>${totalContracts}</strong></article>`,
+    );
+  }
+}
+
+function renderMarketSummaries() {
+  marketSummaryGrid.classList.toggle("hidden", appConfig.marketTypes.length < 2);
+  marketSummaryGrid.innerHTML = "";
+
+  if (appConfig.marketTypes.length < 2) {
+    return;
+  }
+
+  appConfig.marketTypes.forEach((marketType) => {
+    const marketTrades = trades.filter((trade) => getTradeMarketType(trade) === marketType);
+    const wins = marketTrades.filter((trade) => trade.outcome === "Win").length;
+    const losses = marketTrades.filter((trade) => trade.outcome === "Loss").length;
+    const lots = marketTrades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
+    const contracts = marketTrades.reduce((sum, trade) => sum + getTradeContracts(trade), 0);
+    const amount = marketTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+    const sizeLabel = marketType === "Futures" ? "Contracts" : "Lots";
+    const sizeValue = marketType === "Futures" ? String(contracts) : formatLots(lots);
+    const card = document.createElement("article");
+    card.className = `market-summary-card ${amount > 0 ? "profit" : amount < 0 ? "loss" : "flat"}`;
+    card.innerHTML = `
+      <div>
+        <span>${escapeHtml(marketType)}</span>
+        <strong>${marketTrades.length}</strong>
+      </div>
+      <dl>
+        <div><dt>${sizeLabel}</dt><dd>${sizeValue}</dd></div>
+        <div><dt>W/L</dt><dd>${wins}/${losses}</dd></div>
+        <div><dt>Amount</dt><dd>${formatSummaryAmount(amount)}</dd></div>
+      </dl>
+    `;
+    marketSummaryGrid.appendChild(card);
+  });
 }
 
 function renderWeeklySummary() {
@@ -675,11 +798,12 @@ function renderTable() {
       row.innerHTML = `
         <td>${trade.tradeDate}</td>
         <td class="symbol-cell">${escapeHtml(trade.symbol)}</td>
+        <td>${escapeHtml(getTradeMarketType(trade))}</td>
         <td>${escapeHtml(trade.session || getDefaultOption("sessions"))}</td>
         <td>${escapeHtml(trade.account || getDefaultOption("accounts"))}</td>
         <td>${escapeHtml(trade.strategy || "-")}</td>
-        <td>${formatLots(parseNumber(trade.lots))}</td>
-        <td>${escapeHtml(trade.lotMultiplier)}</td>
+        <td>${getTradeSizeType(trade)}</td>
+        <td>${formatTradeSize(trade)}</td>
         <td><span class="badge ${getOutcomeClass(trade.outcome)}">${escapeHtml(trade.outcome || "Pending")}</span></td>
         <td class="${trade.outcome === "Win" ? "amount-win" : trade.outcome === "Loss" ? "amount-loss" : "muted"}">
           ${formatAmount(trade.amount)}
@@ -725,6 +849,25 @@ function render() {
 
 function renderConfig() {
   configGrid.innerHTML = "";
+
+  const marketSection = document.createElement("section");
+  marketSection.className = "config-section";
+  marketSection.innerHTML = `
+    <div class="config-section-heading">
+      <h3>Market Types</h3>
+    </div>
+    <div class="market-type-config">
+      ${MARKET_TYPE_OPTIONS.map(
+        (marketType) => `
+          <label class="toggle-option">
+            <input type="checkbox" value="${marketType}" data-market-type-toggle ${appConfig.marketTypes.includes(marketType) ? "checked" : ""} />
+            <span>${marketType}</span>
+          </label>
+        `,
+      ).join("")}
+    </div>
+  `;
+  configGrid.appendChild(marketSection);
 
   CONFIG_FIELDS.forEach((field) => {
     const section = document.createElement("section");
@@ -793,15 +936,11 @@ function renderConfig() {
 
 function openConfigModal() {
   renderConfig();
-  if (typeof configModal.showModal === "function") {
-    configModal.showModal();
-  } else {
-    configModal.setAttribute("open", "");
-  }
+  openDialog(configModal);
 }
 
 function closeConfigModal() {
-  configModal.close();
+  closeDialog(configModal);
 }
 
 function maybeOpenConfigForNewUser() {
@@ -843,6 +982,8 @@ function removeConfigValue(key, value) {
     const { [value]: _removed, ...remainingBalances } = appConfig.accountBalances;
     appConfig.accountBalances = remainingBalances;
   }
+  if (key === "symbols") {
+  }
   saveConfig();
   syncConfiguredInputs();
   renderConfig();
@@ -864,18 +1005,33 @@ function getOutcomeClass(outcome) {
   return (outcome || "Pending").toLowerCase();
 }
 
-function openTradeModal() {
-  if (typeof tradeModal.showModal === "function") {
-    tradeModal.showModal();
+function updateModalScrollLock() {
+  const hasOpenModal = [tradeModal, configModal, noteModal].some((modal) => modal.open);
+  document.body.classList.toggle("modal-open", hasOpenModal);
+}
+
+function openDialog(modal) {
+  if (typeof modal.showModal === "function") {
+    modal.showModal();
   } else {
-    tradeModal.setAttribute("open", "");
+    modal.setAttribute("open", "");
   }
 
+  updateModalScrollLock();
+}
+
+function closeDialog(modal) {
+  modal.close();
+  updateModalScrollLock();
+}
+
+function openTradeModal() {
+  openDialog(tradeModal);
   form.tradeDate.focus();
 }
 
 function closeTradeModal() {
-  tradeModal.close();
+  closeDialog(tradeModal);
   resetForm();
 }
 
@@ -886,15 +1042,29 @@ function openNoteModal(id) {
   }
 
   noteModalText.textContent = trade.notes;
-  if (typeof noteModal.showModal === "function") {
-    noteModal.showModal();
-  } else {
-    noteModal.setAttribute("open", "");
-  }
+  openDialog(noteModal);
 }
 
 function closeNoteModal() {
-  noteModal.close();
+  closeDialog(noteModal);
+}
+
+function syncSizeFields() {
+  const isContracts = marketTypeInput.value === "Futures";
+  lotsField.classList.toggle("hidden", isContracts);
+  contractsField.classList.toggle("hidden", !isContracts);
+}
+
+function syncMarketTypeField() {
+  const hasMultipleMarkets = appConfig.marketTypes.length > 1;
+  marketTypeField.classList.toggle("hidden", !hasMultipleMarkets);
+  if (!hasMultipleMarkets) {
+    marketTypeInput.value = getDefaultMarketType();
+  }
+}
+
+function syncSizeFromMarket() {
+  syncSizeFields();
 }
 
 function escapeHtml(value) {
@@ -916,8 +1086,11 @@ function readForm() {
     session: form.session.value,
     account: form.account.value,
     strategy: form.strategy.value,
+    marketType: form.marketType.value || getDefaultMarketType(),
+    sizeType: (form.marketType.value || getDefaultMarketType()) === "Futures" ? "contracts" : "lots",
     lots: form.lots.value,
-    lotMultiplier: form.lotMultiplier.value,
+    lotMultiplier: "1",
+    contracts: form.contracts.value,
     outcome: form.outcome.value,
     amount: form.amount.value,
     notes: form.notes.value.trim(),
@@ -928,8 +1101,16 @@ function readForm() {
 }
 
 function validateTrade(trade) {
-  if (!trade.tradeDate || !trade.symbol || !trade.session || !trade.account || !trade.lots || !trade.lotMultiplier) {
-    return "Date, symbol, session, account, lots, and lot multiplier are required.";
+  if (!trade.tradeDate || !trade.symbol || !trade.session || !trade.account || !trade.marketType) {
+    return "Date, symbol, session, account, and market type are required.";
+  }
+
+  if (trade.sizeType === "contracts" && !trade.contracts) {
+    return "Contracts are required.";
+  }
+
+  if ((trade.sizeType || "lots") === "lots" && !trade.lots) {
+    return "Lots are required.";
   }
 
   if ((trade.outcome === "Win" || trade.outcome === "Loss") && !trade.amount) {
@@ -947,11 +1128,15 @@ function resetForm() {
   form.session.value = getDefaultOption("sessions");
   form.account.value = getDefaultOption("accounts");
   form.strategy.value = getDefaultOption("strategies");
+  form.marketType.value = getDefaultMarketType();
+  syncMarketTypeField();
   form.lots.value = "0.01";
-  form.lotMultiplier.value = "1";
+  form.contracts.value = "1";
+  syncSizeFields();
   form.outcome.value = "Pending";
   form.amount.value = "";
   form.notes.value = "";
+  notesDisclosure.open = false;
   formTitle.textContent = "Add trade";
   submitButton.textContent = "Add trade";
   cancelEditButton.classList.add("hidden");
@@ -970,11 +1155,15 @@ function startEdit(id) {
   preserveOption(form.session, trade.session || getDefaultOption("sessions"));
   preserveOption(form.account, trade.account || getDefaultOption("accounts"));
   preserveOption(form.strategy, trade.strategy || getDefaultOption("strategies"));
-  form.lots.value = trade.lots;
-  form.lotMultiplier.value = trade.lotMultiplier;
+  preserveOption(form.marketType, getTradeMarketType(trade));
+  syncMarketTypeField();
+  form.lots.value = formatLots(getTradeLots(trade));
+  form.contracts.value = trade.contracts || "1";
+  syncSizeFields();
   form.outcome.value = trade.outcome || "Pending";
   form.amount.value = trade.amount || "";
   form.notes.value = trade.notes;
+  notesDisclosure.open = Boolean(trade.notes);
   formTitle.textContent = "Edit trade";
   submitButton.textContent = "Save changes";
   cancelEditButton.classList.remove("hidden");
@@ -1004,11 +1193,13 @@ function exportCsv() {
     [
       "Date",
       "Symbol",
+      "Market",
       "Session",
       "Account",
       "Strategy",
+      "Size Type",
       "Lots",
-      "Lot Multiplier",
+      "Contracts",
       "Total Lots",
       "Win / Loss",
       "Amount",
@@ -1017,11 +1208,13 @@ function exportCsv() {
     ...trades.map((trade) => [
       trade.tradeDate,
       trade.symbol,
+      getTradeMarketType(trade),
       trade.session || getDefaultOption("sessions"),
       trade.account || getDefaultOption("accounts"),
       trade.strategy,
+      getTradeSizeType(trade),
       trade.lots,
-      trade.lotMultiplier,
+      trade.contracts || "",
       formatLots(getTradeLots(trade)),
       trade.outcome || "Pending",
       trade.amount || "",
@@ -1062,7 +1255,7 @@ form.addEventListener("submit", (event) => {
   resetForm();
   currentTablePage = 1;
   render();
-  tradeModal.close();
+  closeDialog(tradeModal);
 });
 
 tableBody.addEventListener("click", (event) => {
@@ -1100,6 +1293,11 @@ strategyFilter.addEventListener("change", () => {
   currentTablePage = 1;
   renderTable();
 });
+marketTypeFilter.addEventListener("change", () => {
+  currentTablePage = 1;
+  renderTable();
+});
+marketTypeInput.addEventListener("change", syncSizeFromMarket);
 weekRangeFilter.addEventListener("change", renderWeeklySummary);
 cancelEditButton.addEventListener("click", resetForm);
 openTradeModalButton.addEventListener("click", () => {
@@ -1144,6 +1342,19 @@ configGrid.addEventListener("click", (event) => {
   }
 });
 
+configGrid.addEventListener("change", (event) => {
+  if (!event.target.matches("[data-market-type-toggle]")) {
+    return;
+  }
+
+  const selected = [...configGrid.querySelectorAll("[data-market-type-toggle]:checked")].map((input) => input.value);
+  appConfig.marketTypes = normalizeMarketTypes(selected);
+  saveConfig();
+  syncConfiguredInputs();
+  resetForm();
+  render();
+});
+
 configGrid.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.target.tagName !== "INPUT" || event.target.dataset.balanceAccount) {
     return;
@@ -1151,6 +1362,9 @@ configGrid.addEventListener("keydown", (event) => {
 
   event.preventDefault();
   const section = event.target.closest(".config-section");
+  if (!section?.dataset.configKey) {
+    return;
+  }
   addConfigValue(section.dataset.configKey, event.target.value);
   event.target.value = "";
 });
@@ -1247,6 +1461,10 @@ noteModal.addEventListener("click", (event) => {
   }
 });
 
+[tradeModal, configModal, noteModal].forEach((modal) => {
+  modal.addEventListener("close", updateModalScrollLock);
+});
+
 clearButton.addEventListener("click", () => {
   if (!trades.length) {
     return;
@@ -1290,6 +1508,42 @@ function calcFormat(value, decimals = 2) {
 
 function calcSymbol() {
   return calcEl("calcCurrency").value.split(" ")[0];
+}
+
+function getCalculatorUnit() {
+  return calculatorMarketType === "Futures" ? "Contracts" : "Lots";
+}
+
+function getCalculatorUnitSingular() {
+  return calculatorMarketType === "Futures" ? "contract" : "lot";
+}
+
+function getCalculatorRoundingLabel() {
+  return calculatorMarketType === "Futures" ? "1 contract" : "0.01 lot";
+}
+
+function roundCalculatorSize(raw) {
+  return calculatorMarketType === "Futures" ? Math.floor(raw) : Math.floor(raw * 100) / 100;
+}
+
+function formatCalculatorSize(value) {
+  return calcFormat(value, calculatorMarketType === "Futures" ? 0 : 2);
+}
+
+function syncCalculatorMarketType() {
+  calculatorMarketType = calcEl("calcMarketType").value === "Futures" ? "Futures" : "CFD";
+  const unit = getCalculatorUnit();
+  const singular = getCalculatorUnitSingular();
+  calcEl("calcTypePill").textContent = calculatorMarketType;
+  calcEl("calcRoundingPill").textContent = getCalculatorRoundingLabel();
+  calcEl("calcVppLabel").textContent = `Value / pt (1 ${singular})`;
+  calcEl("calcHeroUnit").textContent = unit;
+  calcEl("calcHeroSub").textContent = `rounded down · nearest ${getCalculatorRoundingLabel()}`;
+  calcEl("calcVppTooltip").textContent =
+    calculatorMarketType === "Futures"
+      ? "This is the money gained or lost when 1 contract moves by 1 point. To find it, check the futures contract specification for the tick or point value, or confirm it in your trading platform's contract details."
+      : "This is the money gained or lost when a 1.00 lot trade moves by 1 point. To find it, open your broker or trading platform, check the contract/specification details for the symbol, or use a tiny test calculation: note the P/L change for a 1 point move at 1.00 lot.";
+  calcEl("calcVpp").disabled = false;
 }
 
 function setCalculatorHint(id, type, message) {
@@ -1394,6 +1648,12 @@ function validateCalculatorInputs() {
   return valid;
 }
 
+function touchCalculatorInputs() {
+  ["calcAccount", "calcRiskVal", "calcSl", "calcVpp"].forEach((id) => {
+    calculatorTouched[id] = true;
+  });
+}
+
 function setCalculatorMode(mode) {
   calculatorMode = mode;
   calcEl("calcBtnPct").classList.toggle("active", mode === "pct");
@@ -1422,6 +1682,7 @@ function clearCalculatorResults() {
 }
 
 function calculatePositionSize() {
+  syncCalculatorMarketType();
   validateCalculatorInputs();
 
   const account = calcNumber(calcEl("calcAccount").value);
@@ -1440,6 +1701,8 @@ function calculatePositionSize() {
   }
 
   if (
+    !Number.isFinite(account) ||
+    account <= 0 ||
     !Number.isFinite(riskAmount) ||
     riskAmount <= 0 ||
     !Number.isFinite(stopLoss) ||
@@ -1452,20 +1715,33 @@ function calculatePositionSize() {
   }
 
   const raw = riskAmount / (stopLoss * valuePerPoint);
-  const rounded = Math.floor(raw * 100) / 100;
+  const rounded = roundCalculatorSize(raw);
   const actual = rounded * stopLoss * valuePerPoint;
   const valueAtSize = rounded * valuePerPoint;
   const actualPct = Number.isFinite(account) && account > 0 ? (actual / account) * 100 : NaN;
+  const minimumContractRisk = stopLoss * valuePerPoint;
+  const minimumContractPct =
+    calculatorMarketType === "Futures" && Number.isFinite(account) && account > 0
+      ? (minimumContractRisk / account) * 100
+      : NaN;
 
-  calcEl("calcHeroNum").textContent = calcFormat(rounded, 2);
+  calcEl("calcHeroNum").textContent = formatCalculatorSize(rounded);
   calcEl("calcHeroNum").classList.add("active");
   calcEl("calcHeroUnit").classList.add("active");
-  calcEl("calcRawVal").textContent = `${calcFormat(raw, 3)} lots`;
+  calcEl("calcRawVal").textContent = `${calcFormat(raw, 3)} ${getCalculatorUnit().toLowerCase()}`;
   calcEl("calcMRiskAmt").textContent = `${currency}${calcFormat(riskAmount)}`;
   calcEl("calcMRiskSub").textContent = Number.isFinite(actualPct) ? `${calcFormat(actualPct, 2)}% of account` : "target";
   calcEl("calcMActual").textContent = `${currency}${calcFormat(actual)}`;
   calcEl("calcMVpp").textContent = `${currency}${calcFormat(valueAtSize, 2)}`;
   calcEl("calcMPct").textContent = Number.isFinite(actualPct) ? `${calcFormat(actualPct, 2)}%` : "-";
+
+  if (calculatorMarketType === "Futures" && rounded === 0 && raw > 0) {
+    calcEl("calcMRiskSub").textContent = "target is below 1 contract";
+    calcEl("calcBadge").innerHTML = `<span class="badge open">Below 1 contract · 1 risks ${currency}${calcFormat(minimumContractRisk)}${
+      Number.isFinite(minimumContractPct) ? ` (${calcFormat(minimumContractPct, 2)}%)` : ""
+    }</span>`;
+    return;
+  }
 
   if (Number.isFinite(actualPct)) {
     const outcomeClass = actualPct <= 2 ? "win" : actualPct <= 5 ? "open" : "loss";
@@ -1492,6 +1768,8 @@ function resetCalculator() {
   setCalculatorHint("hintCalcSl", "", "");
   setCalculatorHint("hintCalcVpp", "", "");
   calcEl("calcCurrency").value = "£";
+  calcEl("calcMarketType").value = "CFD";
+  syncCalculatorMarketType();
   setCalculatorMode("pct");
   clearCalculatorResults();
 }
@@ -1508,9 +1786,13 @@ function resetCalculator() {
 });
 
 calcEl("calcCurrency").addEventListener("change", calculatePositionSize);
+calcEl("calcMarketType").addEventListener("change", calculatePositionSize);
 calcEl("calcBtnPct").addEventListener("click", () => setCalculatorMode("pct"));
 calcEl("calcBtnAmt").addEventListener("click", () => setCalculatorMode("amt"));
-calcEl("calcCalculateButton").addEventListener("click", calculatePositionSize);
+calcEl("calcCalculateButton").addEventListener("click", () => {
+  touchCalculatorInputs();
+  calculatePositionSize();
+});
 calcEl("calcResetButton").addEventListener("click", resetCalculator);
 
 document.addEventListener("keydown", (event) => {
@@ -1520,6 +1802,7 @@ document.addEventListener("keydown", (event) => {
   }
 
   if (event.key === "Enter" && calcEl("calculatorView").classList.contains("active")) {
+    touchCalculatorInputs();
     calculatePositionSize();
   }
 });

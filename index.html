@@ -70,10 +70,7 @@
           <strong id="totalTrades">0</strong>
           <div class="summary-split" id="summarySymbolSplit"></div>
         </article>
-        <article class="summary-tile">
-          <span>Total Lots</span>
-          <strong id="totalLots">0.00</strong>
-        </article>
+        <div class="summary-size-tiles" id="summarySizeTiles"></div>
         <article class="summary-tile">
           <span>Wins</span>
           <strong id="winsTotal">0</strong>
@@ -87,6 +84,7 @@
           <strong id="amountTotal">0.00</strong>
         </article>
       </section>
+      <section class="market-summary-grid hidden" id="marketSummaryGrid" aria-label="Market type summary"></section>
 
       <section class="weekly-panel" aria-label="Weekly trading summary">
         <div class="weekly-heading">
@@ -138,75 +136,111 @@
 
           <input type="hidden" id="tradeId" name="tradeId" />
 
-          <div class="field-row">
-            <label>
-              <span>Date</span>
-              <input id="tradeDate" name="tradeDate" type="date" required />
-            </label>
-            <label>
-              <span>Symbol</span>
-              <select id="symbol" name="symbol" required></select>
-            </label>
-          </div>
+          <section class="form-section">
+            <h3>Trade</h3>
+            <div class="field-row compact-three">
+              <label>
+                <span>Date</span>
+                <input id="tradeDate" name="tradeDate" type="date" required />
+              </label>
+              <label>
+                <span>Symbol</span>
+                <select id="symbol" name="symbol" required></select>
+              </label>
+              <label>
+                <span>Session</span>
+                <select id="session" name="session"></select>
+              </label>
+            </div>
+            <div class="field-row compact-three">
+              <label id="marketTypeField">
+                <span>Market type</span>
+                <select id="marketType" name="marketType">
+                  <option value="CFD">CFD</option>
+                  <option value="Futures">Futures</option>
+                </select>
+              </label>
+              <label>
+                <span>Account</span>
+                <select id="account" name="account"></select>
+              </label>
+              <label>
+                <span>Strategy</span>
+                <select id="strategy" name="strategy"></select>
+              </label>
+            </div>
+          </section>
 
-          <div class="field-row">
-            <label>
-              <span>Session</span>
-              <select id="session" name="session"></select>
-            </label>
-            <label>
-              <span>Account</span>
-              <select id="account" name="account"></select>
-            </label>
-          </div>
+          <section class="form-section">
+            <h3>Size</h3>
+            <div class="field-row single-field-row">
+              <label id="lotsField">
+                <span>Lots</span>
+                <select id="lots" name="lots">
+                  <option value="0.01">0.01</option>
+                  <option value="0.02">0.02</option>
+                  <option value="0.03">0.03</option>
+                  <option value="0.04">0.04</option>
+                  <option value="0.05">0.05</option>
+                  <option value="0.06">0.06</option>
+                  <option value="0.07">0.07</option>
+                  <option value="0.08">0.08</option>
+                  <option value="0.09">0.09</option>
+                  <option value="0.10">0.10</option>
+                  <option value="0.20">0.20</option>
+                  <option value="0.30">0.30</option>
+                  <option value="0.40">0.40</option>
+                  <option value="0.50">0.50</option>
+                  <option value="0.60">0.60</option>
+                  <option value="0.70">0.70</option>
+                  <option value="0.80">0.80</option>
+                  <option value="0.90">0.90</option>
+                  <option value="1.00">1.00</option>
+                </select>
+              </label>
+              <label id="contractsField" class="hidden">
+                <span>Contracts</span>
+                <select id="contracts" name="contracts">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </label>
+            </div>
+          </section>
 
-          <div class="field-row">
-            <label>
-              <span>Strategy</span>
-              <select id="strategy" name="strategy"></select>
-            </label>
-          </div>
+          <section class="form-section">
+            <h3>Result</h3>
+            <div class="field-row">
+              <label>
+                <span>Result</span>
+                <select id="outcome" name="outcome">
+                  <option value="Pending">Pending</option>
+                  <option value="Win">Win</option>
+                  <option value="Loss">Loss</option>
+                </select>
+              </label>
+              <label>
+                <span>Amount</span>
+                <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
+              </label>
+            </div>
+          </section>
 
-          <div class="field-row">
+          <details class="notes-disclosure" id="notesDisclosure">
+            <summary>Add note</summary>
             <label>
-              <span>Lots</span>
-              <select id="lots" name="lots">
-                <option value="0.01">0.01</option>
-                <option value="0.02">0.02</option>
-                <option value="0.03">0.03</option>
-                <option value="0.04">0.04</option>
-                <option value="0.05">0.05</option>
-              </select>
+              <span>Notes</span>
+              <textarea id="notes" name="notes" rows="3" placeholder="Why you took it, what you learned..."></textarea>
             </label>
-            <label>
-              <span>Lot multiplier</span>
-              <select id="lotMultiplier" name="lotMultiplier">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="field-row">
-            <label>
-              <span>Win / Loss</span>
-              <select id="outcome" name="outcome">
-                <option value="Pending">Pending</option>
-                <option value="Win">Win</option>
-                <option value="Loss">Loss</option>
-              </select>
-            </label>
-            <label>
-              <span>Amount</span>
-              <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
-            </label>
-          </div>
-
-          <label>
-            <span>Notes</span>
-            <textarea id="notes" name="notes" rows="3" placeholder="Why you took it, what you learned..."></textarea>
-          </label>
+          </details>
 
           <button class="primary-button" type="submit" id="submitButton">Add trade</button>
         </form>
@@ -263,6 +297,12 @@
                 <option value="All">All</option>
               </select>
             </label>
+            <label>
+              <span>Market</span>
+              <select id="marketTypeFilter">
+                <option value="All">All</option>
+              </select>
+            </label>
 
             <div class="toolbar-actions">
               <button class="ghost-button" type="button" id="exportButton">Export CSV</button>
@@ -276,11 +316,12 @@
                 <tr>
                   <th>Date</th>
                   <th>Symbol</th>
+                  <th>Market</th>
                   <th>Session</th>
                   <th>Account</th>
                   <th>Strategy</th>
-                  <th>Lots</th>
-                  <th>Multiplier</th>
+                  <th>Size Type</th>
+                  <th>Size</th>
                   <th>Win / Loss</th>
                   <th>Amount</th>
                   <th>Notes</th>
@@ -311,8 +352,8 @@
         <div class="view-header">
           <h2>Position Size Calculator</h2>
           <div class="view-actions">
-            <div class="calc-pill">Type: <strong>CFD</strong></div>
-            <div class="calc-pill">Rounding: <strong>0.01 lot</strong></div>
+            <div class="calc-pill">Type: <strong id="calcTypePill">CFD</strong></div>
+            <div class="calc-pill">Rounding: <strong id="calcRoundingPill">0.01 lot</strong></div>
           </div>
         </div>
 
@@ -341,6 +382,14 @@
             </div>
 
             <label>
+              <span>Market type</span>
+              <select id="calcMarketType">
+                <option value="CFD">CFD / Lots</option>
+                <option value="Futures">Futures / Contracts</option>
+              </select>
+            </label>
+
+            <label>
               <span>Risk method</span>
               <div class="calc-toggle">
                 <button id="calcBtnPct" class="active" type="button"> % of account</button>
@@ -362,7 +411,7 @@
               </label>
               <label>
                 <span class="label-with-help">
-                  Value / pt (1 lot)
+                  <span id="calcVppLabel">Value / pt (1 lot)</span>
                   <button
                     class="help-trigger"
                     type="button"
@@ -391,7 +440,7 @@
               <div class="calculator-card-label">Position Size</div>
               <div class="hero-number" id="calcHeroNum">-</div>
               <div class="hero-unit" id="calcHeroUnit">Lots</div>
-              <div class="hero-sub">rounded down · nearest 0.01 lot</div>
+              <div class="hero-sub" id="calcHeroSub">rounded down · nearest 0.01 lot</div>
               <div id="calcBadge"><span class="badge pending">awaiting input</span></div>
               <hr class="hero-divider" />
               <div class="hero-raw">

@@ -46,6 +46,10 @@ body.auth-locked {
   overflow: hidden;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 body.auth-locked .app-shell,
 body.admin-checking .app-shell {
   filter: blur(18px);
@@ -335,9 +339,71 @@ h2 {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.summary-size-tiles {
+  display: contents;
+}
+
+.market-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.market-summary-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+}
+
+.market-summary-card > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.market-summary-card span,
+.market-summary-card dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.market-summary-card strong {
+  color: var(--lime);
+  font-family: Impact, "Arial Narrow", "Franklin Gothic Condensed", system-ui, sans-serif;
+  font-size: 2.35rem;
+  line-height: 0.9;
+}
+
+.market-summary-card dl {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr 0.9fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.market-summary-card dl div {
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--field);
+}
+
+.market-summary-card dd {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-weight: 900;
 }
 
 .summary-tile {
@@ -845,9 +911,9 @@ tbody td:last-child {
 
 .trade-form {
   display: grid;
-  gap: 22px;
+  gap: 16px;
   max-height: min(940px, calc(100vh - 36px));
-  padding: 36px;
+  padding: 30px;
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 24px;
@@ -934,6 +1000,32 @@ tbody td:last-child {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+}
+
+.market-type-config {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.toggle-option {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--field-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.toggle-option input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--lime);
 }
 
 .config-pill {
@@ -1266,7 +1358,69 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: start;
-  gap: 14px;
+  gap: 12px;
+}
+
+.field-row.compact-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field-row.single-field-row {
+  grid-template-columns: 1fr;
+}
+
+.form-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--field);
+}
+
+.form-section h3 {
+  margin: 0;
+  color: var(--muted);
+  font-family: Impact, "Arial Narrow", "Franklin Gothic Condensed", system-ui, sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trade-form label {
+  gap: 7px;
+}
+
+.trade-form input,
+.trade-form select,
+.trade-form textarea {
+  min-height: 46px;
+  border-radius: 12px;
+  padding: 11px 14px;
+}
+
+.notes-disclosure {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--field);
+}
+
+.notes-disclosure summary {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.notes-disclosure summary:hover {
+  color: var(--lime);
+}
+
+.notes-disclosure label {
+  padding: 0 14px 14px;
 }
 
 .primary-button,
@@ -1588,11 +1742,17 @@ button:disabled {
 }
 
 .calculator-inputs label {
-  grid-template-rows: auto 58px 16px;
+  grid-template-rows: 30px 58px 16px;
+}
+
+.calculator-inputs label > span:first-child {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
 }
 
 .calculator-inputs label:has(.calc-toggle) {
-  grid-template-rows: auto 58px;
+  grid-template-rows: 30px 58px;
 }
 
 .calc-toggle {
@@ -1742,6 +1902,11 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .market-summary-grid,
+  .market-summary-card dl {
+    grid-template-columns: 1fr;
+  }
+
   .strategy-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1809,8 +1974,11 @@ button:disabled {
   }
 
   .summary-grid,
+  .market-summary-grid,
+  .market-summary-card dl,
   .weekly-grid,
   .strategy-grid,
+  .market-type-config,
   .config-add-row,
   .weekly-total-card,
   .weekly-total-card dl,

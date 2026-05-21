@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     const { error } = await supabase.from("user_data").upsert(
       {
         user_id: userId,
-        config_json: config || { symbols: [], sessions: [], accounts: [], strategies: [], accountBalances: {} },
+        config_json: config || { symbols: [], sessions: [], accounts: [], strategies: [], marketTypes: [], accountBalances: {} },
         trades_json: trades || [],
         updated_at: new Date().toISOString(),
       },
