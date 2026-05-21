@@ -1,2 +1,5 @@
 # macOS-specific files
 .DS_Store
+
+# Supabase local CLI metadata
+supabase/.temp/

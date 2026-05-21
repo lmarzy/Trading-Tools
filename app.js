@@ -1,5 +1,3 @@
-const STORAGE_KEY_PREFIX = "trade-tracker:simple-v2";
-const CONFIG_STORAGE_KEY_PREFIX = "trade-tools:user-config-v2";
 const AUTH_STORAGE_KEY = "trade-tools:unlocked";
 const AUTH_LABEL_KEY = "trade-tools:unlocked-label";
 const AUTH_EMAIL_KEY = "trade-tools:unlocked-email";
@@ -7,6 +5,7 @@ const AUTH_ROLE_KEY = "trade-tools:unlocked-role";
 const AUTH_HASH_KEY = "trade-tools:unlocked-passcode-hash";
 const TABLE_PAGE_SIZE = 10;
 const PASSCODE_SALT = "trade-tools-v1";
+const PASSCODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ2346789";
 
 const passcodeGate = document.querySelector("#passcodeGate");
 const passcodeForm = document.querySelector("#passcodeForm");
@@ -34,6 +33,16 @@ const closeConfigButton = document.querySelector("#closeConfigButton");
 const noteModal = document.querySelector("#noteModal");
 const noteModalText = document.querySelector("#noteModalText");
 const closeNoteButton = document.querySelector("#closeNoteButton");
+const resetPasscodeModal = document.querySelector("#resetPasscodeModal");
+const resetPasscodeForm = document.querySelector("#resetPasscodeForm");
+const closeResetPasscodeButton = document.querySelector("#closeResetPasscodeButton");
+const currentPasscodeInput = document.querySelector("#currentPasscodeInput");
+const resetPasscodeError = document.querySelector("#resetPasscodeError");
+const resetPasscodeButton = document.querySelector("#resetPasscodeButton");
+const resetPasscodeVerifyStep = document.querySelector("#resetPasscodeVerifyStep");
+const resetPasscodeResultStep = document.querySelector("#resetPasscodeResultStep");
+const newPasscodeDisplay = document.querySelector("#newPasscodeDisplay");
+const confirmResetPasscodeButton = document.querySelector("#confirmResetPasscodeButton");
 const tableBody = document.querySelector("#tradeTableBody");
 const emptyState = document.querySelector("#emptyState");
 const tablePagination = document.querySelector("#tablePagination");
@@ -51,6 +60,7 @@ const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
 const logoutButton = document.querySelector("#logoutButton");
 const adminNavLink = document.querySelector("#adminNavLink");
+const openResetPasscodeButton = document.querySelector("#openResetPasscodeButton");
 const userMenuButton = document.querySelector("#userMenuButton");
 const userPopover = document.querySelector("#userPopover");
 const userMenuName = document.querySelector("#userMenuName");
@@ -72,22 +82,18 @@ const equityLow = document.querySelector("#equityLow");
 const equityTrades = document.querySelector("#equityTrades");
 const analyticsGrid = document.querySelector("#analyticsGrid");
 const analyticsBreakdowns = document.querySelector("#analyticsBreakdowns");
-const weeklyGrid = document.querySelector("#weeklyGrid");
-const weeklyTitle = document.querySelector("#weeklyTitle");
-const weeklyRange = document.querySelector("#weeklyRange");
-const weeklyTotalCard = document.querySelector("#weeklyTotalCard");
-const weeklyTotalAmount = document.querySelector("#weeklyTotalAmount");
-const weeklyTotalTrades = document.querySelector("#weeklyTotalTrades");
-const weeklyTotalWinLoss = document.querySelector("#weeklyTotalWinLoss");
-const weekRangeFilter = document.querySelector("#weekRangeFilter");
-const monthlyTitle = document.querySelector("#monthlyTitle");
-const monthlyRange = document.querySelector("#monthlyRange");
-const monthlyGrid = document.querySelector("#monthlyGrid");
-const monthlyTotalCard = document.querySelector("#monthlyTotalCard");
-const monthlyTotalAmount = document.querySelector("#monthlyTotalAmount");
-const monthlyTotalTrades = document.querySelector("#monthlyTotalTrades");
-const monthlyTotalWinLoss = document.querySelector("#monthlyTotalWinLoss");
-const monthRangeFilter = document.querySelector("#monthRangeFilter");
+const performanceTitle = document.querySelector("#performanceTitle");
+const performanceWeekMode = document.querySelector("#performanceWeekMode");
+const performanceMonthMode = document.querySelector("#performanceMonthMode");
+const performancePeriodSelect = document.querySelector("#performancePeriodSelect");
+const performanceRange = document.querySelector("#performanceRange");
+const performanceTotalCard = document.querySelector("#performanceTotalCard");
+const performanceTotalLabel = document.querySelector("#performanceTotalLabel");
+const performanceTotalAmount = document.querySelector("#performanceTotalAmount");
+const performanceTotalTrades = document.querySelector("#performanceTotalTrades");
+const performanceTotalWinLoss = document.querySelector("#performanceTotalWinLoss");
+const performanceWeekdays = document.querySelector("#performanceWeekdays");
+const performanceGrid = document.querySelector("#performanceGrid");
 const strategyGrid = document.querySelector("#strategyGrid");
 const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
 const marketSummaryGrid = document.querySelector("#marketSummaryGrid");
@@ -129,6 +135,7 @@ let currentTablePage = 1;
 let isHydratingUserState = false;
 let remoteSaveTimer = null;
 let saveStatusTimer = null;
+let performanceMode = "week";
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -265,20 +272,8 @@ async function initialisePasscodeGate() {
   setAppLocked();
 }
 
-function getUserStorageKey(prefix) {
-  return `${prefix}:${encodeURIComponent(currentUserId)}`;
-}
-
 function loadTrades() {
-  if (!currentUserId) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(localStorage.getItem(getUserStorageKey(STORAGE_KEY_PREFIX))) || [];
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 function saveTrades() {
@@ -286,28 +281,11 @@ function saveTrades() {
     return;
   }
 
-  localStorage.setItem(getUserStorageKey(STORAGE_KEY_PREFIX), JSON.stringify(trades));
   scheduleSupabaseSave();
 }
 
 function loadConfig() {
-  if (!currentUserId) {
-    return structuredClone(DEFAULT_CONFIG);
-  }
-
-  try {
-    const savedConfig = JSON.parse(localStorage.getItem(getUserStorageKey(CONFIG_STORAGE_KEY_PREFIX))) || {};
-    return {
-      symbols: normalizeOptions(savedConfig.symbols, DEFAULT_CONFIG.symbols),
-      sessions: normalizeOptions(savedConfig.sessions, DEFAULT_CONFIG.sessions),
-      accounts: normalizeOptions(savedConfig.accounts, DEFAULT_CONFIG.accounts),
-      strategies: normalizeOptions(savedConfig.strategies, DEFAULT_CONFIG.strategies),
-      marketTypes: normalizeMarketTypes(savedConfig.marketTypes),
-      accountBalances: normalizeAccountBalances(savedConfig.accountBalances, savedConfig.accounts),
-    };
-  } catch {
-    return structuredClone(DEFAULT_CONFIG);
-  }
+  return structuredClone(DEFAULT_CONFIG);
 }
 
 function saveConfig() {
@@ -315,7 +293,6 @@ function saveConfig() {
     return;
   }
 
-  localStorage.setItem(getUserStorageKey(CONFIG_STORAGE_KEY_PREFIX), JSON.stringify(appConfig));
   scheduleSupabaseSave();
 }
 
@@ -348,10 +325,8 @@ async function hydrateUserStateFromSupabase() {
       marketTypes: normalizeMarketTypes(remoteData.config?.marketTypes),
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
     };
-    localStorage.setItem(getUserStorageKey(STORAGE_KEY_PREFIX), JSON.stringify(trades));
-    localStorage.setItem(getUserStorageKey(CONFIG_STORAGE_KEY_PREFIX), JSON.stringify(appConfig));
   } catch {
-    // Local cache keeps the app usable if Supabase is temporarily unavailable.
+    setSaveStatus("pending", "Could not load saved data");
   } finally {
     isHydratingUserState = false;
   }
@@ -381,7 +356,6 @@ async function syncUserDataToSupabase() {
     setSaveStatus("saved", "Saved");
   } catch {
     setSaveStatus("pending", "Offline changes pending");
-    // The local copy remains saved; the next edit can retry the remote save.
   }
 }
 
@@ -639,10 +613,44 @@ function getMonthDays(date = new Date(), offsetMonths = 0) {
   }
 
   return {
+    date: target,
     label: formatMonthLabel(target),
     days,
     keys: new Set(days.filter(Boolean).map((day) => day.key)),
   };
+}
+
+function getMonthDaysFromValue(value) {
+  const [year, month] = String(value || "").split("-").map(Number);
+  if (!year || !month) {
+    return getMonthDays();
+  }
+
+  return getMonthDays(new Date(year, month - 1, 1), 0);
+}
+
+function monthValueFromDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getAvailableMonthOptions() {
+  const monthValues = new Set([monthValueFromDate(new Date())]);
+  trades.forEach((trade) => {
+    const date = parseTradeDate(trade.tradeDate);
+    if (date) {
+      monthValues.add(monthValueFromDate(date));
+    }
+  });
+
+  return [...monthValues]
+    .sort((a, b) => b.localeCompare(a))
+    .map((value) => {
+      const [year, month] = value.split("-").map(Number);
+      return {
+        value,
+        label: formatMonthLabel(new Date(year, month - 1, 1)),
+      };
+    });
 }
 
 function getFilteredTrades() {
@@ -1000,8 +1008,50 @@ function renderDisciplineAnalytics() {
   `;
 }
 
+function syncPerformanceControls() {
+  performanceWeekMode.classList.toggle("active", performanceMode === "week");
+  performanceMonthMode.classList.toggle("active", performanceMode === "month");
+  performanceWeekdays.classList.toggle("hidden", performanceMode !== "month");
+  performanceGrid.className = performanceMode === "month" ? "monthly-grid" : "weekly-grid";
+
+  const currentValue = performancePeriodSelect.value;
+  performancePeriodSelect.innerHTML = "";
+
+  if (performanceMode === "week") {
+    [
+      ["this", "This Week"],
+      ["last", "Last Week"],
+    ].forEach(([value, label]) => {
+      performancePeriodSelect.appendChild(createOption(label));
+      performancePeriodSelect.lastElementChild.value = value;
+    });
+    performancePeriodSelect.value = currentValue === "last" ? "last" : "this";
+    return;
+  }
+
+  getAvailableMonthOptions().forEach((option) => {
+    const element = createOption(option.label);
+    element.value = option.value;
+    performancePeriodSelect.appendChild(element);
+  });
+
+  if ([...performancePeriodSelect.options].some((option) => option.value === currentValue)) {
+    performancePeriodSelect.value = currentValue;
+  }
+}
+
+function renderPerformanceCalendar() {
+  syncPerformanceControls();
+  if (performanceMode === "month") {
+    renderMonthlyView();
+    return;
+  }
+
+  renderWeeklySummary();
+}
+
 function renderWeeklySummary() {
-  const isLastWeek = weekRangeFilter.value === "last";
+  const isLastWeek = performancePeriodSelect.value === "last";
   const weekdays = getWeekdays(new Date(), isLastWeek ? -1 : 0);
   const weekdayKeys = new Set(weekdays.map((day) => day.key));
   const dashboardTrades = getDashboardTrades();
@@ -1011,13 +1061,14 @@ function renderWeeklySummary() {
   const weeklyAmount = weeklyTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
   const weeklyResultClass = weeklyAmount > 0 ? "profit" : weeklyAmount < 0 ? "loss" : "flat";
 
-  weeklyTitle.textContent = isLastWeek ? "Last Week" : "This Week";
-  weeklyRange.textContent = `${formatShortDate(weekdays[0].date)} - ${formatShortDate(weekdays[4].date)}`;
-  weeklyTotalCard.className = `weekly-total-card ${weeklyResultClass}`;
-  weeklyTotalAmount.textContent = formatSummaryAmount(weeklyAmount);
-  weeklyTotalTrades.textContent = String(weeklyTrades.length);
-  weeklyTotalWinLoss.textContent = `${weeklyWins}/${weeklyLosses}`;
-  weeklyGrid.innerHTML = "";
+  performanceTitle.textContent = isLastWeek ? "Last Week" : "This Week";
+  performanceRange.textContent = `${formatShortDate(weekdays[0].date)} - ${formatShortDate(weekdays[4].date)}`;
+  performanceTotalLabel.textContent = "Week Total";
+  performanceTotalCard.className = `weekly-total-card ${weeklyResultClass}`;
+  performanceTotalAmount.textContent = formatSummaryAmount(weeklyAmount);
+  performanceTotalTrades.textContent = String(weeklyTrades.length);
+  performanceTotalWinLoss.textContent = `${weeklyWins}/${weeklyLosses}`;
+  performanceGrid.innerHTML = "";
 
   weekdays.forEach((day) => {
     const dayTrades = dashboardTrades.filter((trade) => trade.tradeDate === day.key);
@@ -1039,13 +1090,12 @@ function renderWeeklySummary() {
         <div><dt>W/L</dt><dd>${wins}/${losses}</dd></div>
       </dl>
     `;
-    weeklyGrid.appendChild(card);
+    performanceGrid.appendChild(card);
   });
 }
 
 function renderMonthlyView() {
-  const isLastMonth = monthRangeFilter.value === "last";
-  const month = getMonthDays(new Date(), isLastMonth ? -1 : 0);
+  const month = getMonthDaysFromValue(performancePeriodSelect.value);
   const dashboardTrades = getDashboardTrades();
   const monthTrades = dashboardTrades.filter((trade) => month.keys.has(trade.tradeDate));
   const monthWins = monthTrades.filter((trade) => trade.outcome === "Win").length;
@@ -1053,13 +1103,14 @@ function renderMonthlyView() {
   const monthAmount = monthTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
   const resultClass = monthAmount > 0 ? "profit" : monthAmount < 0 ? "loss" : "flat";
 
-  monthlyTitle.textContent = isLastMonth ? "Last Month" : "This Month";
-  monthlyRange.textContent = month.label;
-  monthlyTotalCard.className = `weekly-total-card ${resultClass}`;
-  monthlyTotalAmount.textContent = formatSummaryAmount(monthAmount);
-  monthlyTotalTrades.textContent = String(monthTrades.length);
-  monthlyTotalWinLoss.textContent = `${monthWins}/${monthLosses}`;
-  monthlyGrid.innerHTML = "";
+  performanceTitle.textContent = "Monthly View";
+  performanceRange.textContent = month.label;
+  performanceTotalLabel.textContent = "Month Total";
+  performanceTotalCard.className = `weekly-total-card ${resultClass}`;
+  performanceTotalAmount.textContent = formatSummaryAmount(monthAmount);
+  performanceTotalTrades.textContent = String(monthTrades.length);
+  performanceTotalWinLoss.textContent = `${monthWins}/${monthLosses}`;
+  performanceGrid.innerHTML = "";
 
   for (let index = 0; index < month.days.length; index += 7) {
     const weekDays = month.days.slice(index, index + 7);
@@ -1074,7 +1125,7 @@ function renderMonthlyView() {
       const cell = document.createElement("article");
       if (!day) {
         cell.className = "monthly-day empty";
-        monthlyGrid.appendChild(cell);
+        performanceGrid.appendChild(cell);
         return;
       }
 
@@ -1096,7 +1147,7 @@ function renderMonthlyView() {
           <div><dt>W/L</dt><dd>${wins}/${losses}</dd></div>
         </dl>
       `;
-      monthlyGrid.appendChild(cell);
+      performanceGrid.appendChild(cell);
     });
 
     const totalCell = document.createElement("article");
@@ -1109,7 +1160,7 @@ function renderMonthlyView() {
         <div><dt>W/L</dt><dd>${weekWins}/${weekLosses}</dd></div>
       </dl>
     `;
-    monthlyGrid.appendChild(totalCell);
+    performanceGrid.appendChild(totalCell);
   }
 }
 
@@ -1231,8 +1282,7 @@ function render() {
   renderSummary();
   renderEquityCurve();
   renderAnalytics();
-  renderWeeklySummary();
-  renderMonthlyView();
+  renderPerformanceCalendar();
   renderStrategyBreakdown();
   renderAccountBalances();
   renderTable();
@@ -1436,7 +1486,7 @@ function renderDisciplineBadge(trade) {
 }
 
 function updateModalScrollLock() {
-  const hasOpenModal = [tradeModal, configModal, noteModal].some((modal) => modal.open);
+  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal].some((modal) => modal.open);
   document.body.classList.toggle("modal-open", hasOpenModal);
 }
 
@@ -1477,6 +1527,79 @@ function openNoteModal(id) {
 
 function closeNoteModal() {
   closeDialog(noteModal);
+}
+
+function resetPasscodeFlow() {
+  currentPasscodeInput.value = "";
+  resetPasscodeError.textContent = "";
+  newPasscodeDisplay.textContent = "";
+  resetPasscodeVerifyStep.classList.remove("hidden");
+  resetPasscodeResultStep.classList.add("hidden");
+}
+
+function openResetPasscodeModal() {
+  userPopover.classList.add("hidden");
+  userMenuButton.setAttribute("aria-expanded", "false");
+  resetPasscodeFlow();
+  openDialog(resetPasscodeModal);
+  currentPasscodeInput.focus();
+}
+
+function closeResetPasscodeModal() {
+  closeDialog(resetPasscodeModal);
+  resetPasscodeFlow();
+}
+
+function generatePasscode(length = 8) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return [...bytes].map((byte) => PASSCODE_CHARACTERS[byte % PASSCODE_CHARACTERS.length]).join("");
+}
+
+async function resetCurrentUserPasscode() {
+  const currentPasscode = currentPasscodeInput.value.trim().toUpperCase();
+  resetPasscodeError.textContent = "";
+
+  if (!currentPasscode) {
+    resetPasscodeError.textContent = "Enter your current passcode.";
+    return;
+  }
+
+  if (!window.callSupabaseFunction || !currentUserId) {
+    resetPasscodeError.textContent = "Could not reset passcode. Try again.";
+    return;
+  }
+
+  setButtonLoading(resetPasscodeButton, true, "Generating...");
+  currentPasscodeInput.disabled = true;
+
+  try {
+    const currentPasscodeHash = await sha256(`${PASSCODE_SALT}:${currentPasscode}`);
+    const sessionHash = sessionStorage.getItem(AUTH_HASH_KEY);
+    if (sessionHash && currentPasscodeHash !== sessionHash) {
+      resetPasscodeError.textContent = "Current passcode is incorrect.";
+      return;
+    }
+
+    const nextPasscode = generatePasscode();
+    const nextPasscodeHash = await sha256(`${PASSCODE_SALT}:${nextPasscode}`);
+    await callSupabaseFunction("reset-own-passcode", {
+      userId: currentUserId,
+      currentPasscodeHash,
+      nextPasscodeHash,
+      nextPasscodeCode: nextPasscode,
+    });
+
+    sessionStorage.setItem(AUTH_HASH_KEY, nextPasscodeHash);
+    currentPasscodeInput.value = "";
+    newPasscodeDisplay.textContent = nextPasscode;
+    resetPasscodeVerifyStep.classList.add("hidden");
+    resetPasscodeResultStep.classList.remove("hidden");
+  } catch {
+    resetPasscodeError.textContent = "Could not reset passcode. Check your current code and try again.";
+  } finally {
+    setButtonLoading(resetPasscodeButton, false);
+    currentPasscodeInput.disabled = false;
+  }
 }
 
 function syncSizeFields() {
@@ -1755,8 +1878,15 @@ marketTypeFilter.addEventListener("change", () => {
 });
 dashboardAccountFilter.addEventListener("change", render);
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
-weekRangeFilter.addEventListener("change", renderWeeklySummary);
-monthRangeFilter.addEventListener("change", renderMonthlyView);
+performanceWeekMode.addEventListener("click", () => {
+  performanceMode = "week";
+  renderPerformanceCalendar();
+});
+performanceMonthMode.addEventListener("click", () => {
+  performanceMode = "month";
+  renderPerformanceCalendar();
+});
+performancePeriodSelect.addEventListener("change", renderPerformanceCalendar);
 cancelEditButton.addEventListener("click", resetForm);
 openTradeModalButton.addEventListener("click", () => {
   if (!userConfigComplete()) {
@@ -1771,6 +1901,8 @@ closeTradeModalButton.addEventListener("click", closeTradeModal);
 openConfigButton.addEventListener("click", openConfigModal);
 closeConfigButton.addEventListener("click", closeConfigModal);
 closeNoteButton.addEventListener("click", closeNoteModal);
+openResetPasscodeButton.addEventListener("click", openResetPasscodeModal);
+closeResetPasscodeButton.addEventListener("click", closeResetPasscodeModal);
 logoutButton.addEventListener("click", logout);
 userMenuButton.addEventListener("click", () => {
   const isOpen = !userPopover.classList.contains("hidden");
@@ -1924,7 +2056,28 @@ noteModal.addEventListener("click", (event) => {
   }
 });
 
-[tradeModal, configModal, noteModal].forEach((modal) => {
+resetPasscodeModal.addEventListener("click", (event) => {
+  if (event.target === resetPasscodeModal) {
+    closeResetPasscodeModal();
+  }
+});
+
+resetPasscodeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await resetCurrentUserPasscode();
+});
+
+confirmResetPasscodeButton.addEventListener("click", async () => {
+  setButtonLoading(confirmResetPasscodeButton, true, "Logging out...");
+  try {
+    closeResetPasscodeModal();
+    await logout();
+  } finally {
+    setButtonLoading(confirmResetPasscodeButton, false);
+  }
+});
+
+[tradeModal, configModal, noteModal, resetPasscodeModal].forEach((modal) => {
   modal.addEventListener("close", updateModalScrollLock);
 });
 

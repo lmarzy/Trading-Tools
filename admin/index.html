@@ -29,6 +29,30 @@
         </header>
 
         <section class="admin-grid">
+          <section class="admin-activity-panel" aria-label="Admin activity overview">
+            <div class="weekly-heading">
+              <h2>Activity</h2>
+            </div>
+            <div class="admin-activity-grid">
+              <article class="admin-activity-card">
+                <span>Total Users</span>
+                <strong id="activityTotalUsers">0</strong>
+              </article>
+              <article class="admin-activity-card">
+                <span>Active</span>
+                <strong id="activityActiveUsers">0</strong>
+              </article>
+              <article class="admin-activity-card">
+                <span>Admins</span>
+                <strong id="activityAdminUsers">0</strong>
+              </article>
+              <article class="admin-activity-card">
+                <span>Total Trades</span>
+                <strong id="activityTotalTrades">0</strong>
+              </article>
+            </div>
+          </section>
+
           <section class="table-panel admin-users-panel" aria-label="User passcodes table">
             <div class="table-tools">
               <div>
@@ -44,6 +68,25 @@
                 </select>
                 <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
               </div>
+              <div class="admin-management-tools">
+                <input id="adminUserSearch" type="search" placeholder="Search users" />
+                <select id="adminRoleFilter" aria-label="Filter by role">
+                  <option value="all">All roles</option>
+                  <option value="user">Users</option>
+                  <option value="admin">Admins</option>
+                </select>
+                <select id="adminStatusFilter" aria-label="Filter by status">
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <select id="adminSortSelect" aria-label="Sort users">
+                  <option value="created-desc">Newest created</option>
+                  <option value="created-asc">Oldest created</option>
+                  <option value="last-login-desc">Last login</option>
+                  <option value="name-asc">Name A-Z</option>
+                </select>
+              </div>
             </div>
             <div class="table-wrap admin-passcode-table-wrap">
               <table class="admin-passcode-table">
@@ -55,8 +98,6 @@
                     <th>Role</th>
                     <th>Status</th>
                     <th>Code</th>
-                    <th>Created</th>
-                    <th>Last Login</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -64,6 +105,30 @@
               </table>
             </div>
             <p class="admin-empty-passcodes" id="adminEmptyPasscodes">No user passcodes generated yet.</p>
+          </section>
+
+          <section class="table-panel admin-audit-panel" aria-label="Audit log table">
+            <div class="table-tools admin-audit-heading">
+              <div>
+                <div class="calculator-card-label">Audit Log</div>
+              </div>
+              <button class="ghost-button" type="button" id="refreshAuditButton">Refresh</button>
+            </div>
+            <div class="table-wrap admin-audit-table-wrap">
+              <table class="admin-audit-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Actor</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="adminAuditList"></tbody>
+              </table>
+            </div>
+            <p class="admin-empty-passcodes" id="adminEmptyAuditLogs">No audit events yet.</p>
           </section>
         </section>
       </div>

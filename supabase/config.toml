@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.admin-users]
 verify_jwt = false
+
+[functions.reset-own-passcode]
+verify_jwt = false

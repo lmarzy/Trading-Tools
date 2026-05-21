@@ -14,7 +14,6 @@ Set these in Supabase before deploying functions:
 ```bash
 supabase secrets set --project-ref qsvxquoovlmvcljzgmiy 'PROJECT_URL=https://qsvxquoovlmvcljzgmiy.supabase.co'
 supabase secrets set --project-ref qsvxquoovlmvcljzgmiy 'SERVICE_ROLE_KEY=your_service_or_secret_key'
-supabase secrets set --project-ref qsvxquoovlmvcljzgmiy 'ADMIN_PASSCODE_HASH=878a37ef51145c058bd5260799abf1048d5bb34ebb520e7c1fc2f7827e032bd7'
 ```
 
 Do not put the service role or secret key in frontend code.
@@ -26,6 +25,7 @@ supabase functions deploy login
 supabase functions deploy get-user-data
 supabase functions deploy save-user-data
 supabase functions deploy admin-users
+supabase functions deploy reset-own-passcode
 ```
 
 ## What Each Function Does
@@ -34,7 +34,8 @@ supabase functions deploy admin-users
 - `get-user-data`: returns one user's config and trades.
 - `save-user-data`: saves one user's config and trades.
 - `admin-users`: admin-only user list/create/update endpoint.
+- `reset-own-passcode`: lets a logged-in user reset their own passcode after confirming the current one.
 
-## Next App Step
+## Fresh Install Notes
 
-Once these functions are deployed, the frontend can be switched from `localStorage` to Supabase-backed login/data loading.
+The app uses Supabase as the source of truth for user profiles, user config, and trades. Browser session storage is only used to keep the current login active until logout or tab/session expiry.

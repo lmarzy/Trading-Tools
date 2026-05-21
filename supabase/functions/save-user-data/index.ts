@@ -1,5 +1,6 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
+import { writeAuditLog } from "../_shared/audit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,6 +18,7 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createServiceClient();
+    const nextTradeCount = Array.isArray(trades) ? trades.length : 0;
     const { error } = await supabase.from("user_data").upsert(
       {
         user_id: userId,
@@ -30,6 +32,8 @@ Deno.serve(async (req) => {
     if (error) {
       return jsonResponse({ error: "Could not save user data" }, 500);
     }
+
+    await writeAuditLog(supabase, "user_data_saved", userId, userId, { tradeCount: nextTradeCount });
 
     return jsonResponse({ ok: true });
   } catch {

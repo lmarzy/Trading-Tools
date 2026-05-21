@@ -11,12 +11,24 @@ const lastNameInput = document.querySelector("#lastNameInput");
 const emailInput = document.querySelector("#emailInput");
 const roleInput = document.querySelector("#roleInput");
 const generateUserCodeButton = document.querySelector("#generateUserCodeButton");
+const adminUserSearch = document.querySelector("#adminUserSearch");
+const adminRoleFilter = document.querySelector("#adminRoleFilter");
+const adminStatusFilter = document.querySelector("#adminStatusFilter");
+const adminSortSelect = document.querySelector("#adminSortSelect");
 const adminPasscodeList = document.querySelector("#adminPasscodeList");
 const adminEmptyPasscodes = document.querySelector("#adminEmptyPasscodes");
+const adminAuditList = document.querySelector("#adminAuditList");
+const adminEmptyAuditLogs = document.querySelector("#adminEmptyAuditLogs");
+const refreshAuditButton = document.querySelector("#refreshAuditButton");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
+const activityTotalUsers = document.querySelector("#activityTotalUsers");
+const activityActiveUsers = document.querySelector("#activityActiveUsers");
+const activityAdminUsers = document.querySelector("#activityAdminUsers");
+const activityTotalTrades = document.querySelector("#activityTotalTrades");
 
 const adminConfig = {
   passcodes: [],
+  auditLogs: [],
 };
 
 let adminConfigLoaded = false;
@@ -55,7 +67,15 @@ function setNewUserFormLoading(isLoading) {
 function renderTableMessage(message) {
   adminPasscodeList.innerHTML = `
     <tr>
-      <td class="table-message" colspan="9">${escapeHtml(message)}</td>
+      <td class="table-message" colspan="7">${escapeHtml(message)}</td>
+    </tr>
+  `;
+}
+
+function renderAuditMessage(message) {
+  adminAuditList.innerHTML = `
+    <tr>
+      <td class="table-message" colspan="5">${escapeHtml(message)}</td>
     </tr>
   `;
 }
@@ -142,16 +162,33 @@ async function loadExistingConfig() {
       email: user.email ? String(user.email) : "",
       role: user.role === "admin" ? "admin" : "user",
       code: user.passcode_code ? String(user.passcode_code) : "",
-      hash: String(user.passcode_hash || ""),
       active: Boolean(user.active),
       createdAt: user.created_at || "",
       lastLoginAt: user.last_login_at || "",
+      lastSavedAt: user.last_saved_at || "",
+      tradeCount: Number(user.trade_count || 0),
     }));
   } catch {
     adminAccessMessage.textContent = "Could not load admin users.";
   } finally {
     adminConfigLoaded = true;
     renderPasscodes();
+    renderActivity();
+    loadAuditLogs();
+  }
+}
+
+async function loadAuditLogs() {
+  renderAuditMessage("Loading audit events...");
+  setButtonLoading(refreshAuditButton, true, "Refreshing...");
+  try {
+    const result = await callAdminUsers("audit-list");
+    adminConfig.auditLogs = result.logs || [];
+    renderAuditLogs();
+  } catch {
+    renderAuditMessage("Could not load audit events.");
+  } finally {
+    setButtonLoading(refreshAuditButton, false);
   }
 }
 
@@ -205,12 +242,120 @@ function updateGenerateUserButtonState() {
   generateUserCodeButton.disabled = !hasRequiredNewUserDetails();
 }
 
-function renderPasscodes() {
-  adminEmptyPasscodes.classList.toggle("hidden", adminConfig.passcodes.length > 0);
-  adminPasscodeList.innerHTML = adminConfig.passcodes
+function renderActivity() {
+  const users = adminConfig.passcodes;
+  const activeUsers = users.filter((user) => user.active);
+  const admins = users.filter((user) => user.role === "admin");
+  const totalTrades = users.reduce((sum, user) => sum + Number(user.tradeCount || 0), 0);
+
+  activityTotalUsers.textContent = String(users.length);
+  activityActiveUsers.textContent = String(activeUsers.length);
+  activityAdminUsers.textContent = String(admins.length);
+  activityTotalTrades.textContent = String(totalTrades);
+}
+
+function getAuditEventLabel(event) {
+  const labels = {
+    login: "Login",
+    user_data_saved: "Data saved",
+    passcode_reset_self: "Passcode reset",
+    admin_user_created: "User created",
+    admin_user_updated: "User updated",
+    admin_passcode_reset: "Code reset",
+    admin_user_removed: "User removed",
+  };
+  return labels[event] || event;
+}
+
+function formatAuditPerson(person) {
+  if (!person) {
+    return "-";
+  }
+
+  const label = person.label || person.email || "Unknown";
+  return person.role ? `${label} (${person.role})` : label;
+}
+
+function formatAuditDetails(details = {}) {
+  const entries = Object.entries(details || {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  if (!entries.length) {
+    return "-";
+  }
+
+  return entries
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(", ");
+}
+
+function renderAuditLogs() {
+  adminEmptyAuditLogs.classList.toggle("hidden", adminConfig.auditLogs.length > 0);
+  if (!adminConfig.auditLogs.length) {
+    adminAuditList.innerHTML = "";
+    return;
+  }
+
+  adminAuditList.innerHTML = adminConfig.auditLogs
     .map(
-      (passcode, index) => `
+      (log) => `
         <tr>
+          <td>${escapeHtml(formatDateTime(log.created_at))}</td>
+          <td><span class="badge open">${escapeHtml(getAuditEventLabel(log.event))}</span></td>
+          <td>${escapeHtml(formatAuditPerson(log.actor))}</td>
+          <td>${escapeHtml(formatAuditPerson(log.target))}</td>
+          <td class="admin-audit-details">${escapeHtml(formatAuditDetails(log.details))}</td>
+        </tr>
+      `,
+    )
+    .join("");
+}
+
+function getVisiblePasscodes() {
+  const query = adminUserSearch.value.trim().toLowerCase();
+  const role = adminRoleFilter.value;
+  const status = adminStatusFilter.value;
+  const sort = adminSortSelect.value;
+
+  return adminConfig.passcodes
+    .map((passcode, index) => ({ ...passcode, index }))
+    .filter((passcode) => {
+      const matchesQuery = !query
+        || [passcode.firstName, passcode.lastName, passcode.email, passcode.code, passcode.role]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      const matchesRole = role === "all" || passcode.role === role;
+      const matchesStatus = status === "all" || (status === "active" ? passcode.active : !passcode.active);
+      return matchesQuery && matchesRole && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sort === "created-asc") {
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      }
+
+      if (sort === "last-login-desc") {
+        return new Date(b.lastLoginAt || 0) - new Date(a.lastLoginAt || 0);
+      }
+
+      if (sort === "name-asc") {
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      }
+
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+}
+
+function renderPasscodes() {
+  const visiblePasscodes = getVisiblePasscodes();
+  adminEmptyPasscodes.classList.toggle("hidden", adminConfig.passcodes.length > 0);
+  if (adminConfig.passcodes.length && !visiblePasscodes.length) {
+    renderTableMessage("No users match those filters.");
+    return;
+  }
+
+  adminPasscodeList.innerHTML = visiblePasscodes
+    .map(
+      (passcode) => `
+        <tr class="admin-user-row" data-passcode-action="toggle-details" data-passcode-index="${passcode.index}">
           <td>
             <input
               class="admin-table-input"
@@ -219,7 +364,7 @@ function renderPasscodes() {
               data-original-value="${escapeHtml(passcode.firstName || "")}"
               aria-label="Edit first name"
               data-passcode-action="first-name"
-              data-passcode-index="${index}"
+              data-passcode-index="${passcode.index}"
             />
           </td>
           <td>
@@ -230,7 +375,7 @@ function renderPasscodes() {
               data-original-value="${escapeHtml(passcode.lastName || "")}"
               aria-label="Edit last name"
               data-passcode-action="last-name"
-              data-passcode-index="${index}"
+              data-passcode-index="${passcode.index}"
             />
           </td>
           <td>
@@ -241,17 +386,17 @@ function renderPasscodes() {
               data-original-value="${escapeHtml(passcode.email || "")}"
               aria-label="Edit email"
               data-passcode-action="email"
-              data-passcode-index="${index}"
+              data-passcode-index="${passcode.index}"
             />
           </td>
           <td>
-            <select class="admin-table-input" data-original-value="${escapeHtml(passcode.role || "user")}" data-passcode-action="role" data-passcode-index="${index}">
+            <select class="admin-table-input" data-original-value="${escapeHtml(passcode.role || "user")}" data-passcode-action="role" data-passcode-index="${passcode.index}">
               <option value="user" ${passcode.role !== "admin" ? "selected" : ""}>User</option>
               <option value="admin" ${passcode.role === "admin" ? "selected" : ""}>Admin</option>
             </select>
           </td>
           <td>
-            <select class="admin-table-input" data-original-value="${passcode.active ? "active" : "inactive"}" data-passcode-action="active" data-passcode-index="${index}">
+            <select class="admin-table-input" data-original-value="${passcode.active ? "active" : "inactive"}" data-passcode-action="active" data-passcode-index="${passcode.index}">
               <option value="active" ${passcode.active ? "selected" : ""}>Active</option>
               <option value="inactive" ${!passcode.active ? "selected" : ""}>Inactive</option>
             </select>
@@ -261,24 +406,30 @@ function renderPasscodes() {
               <span>${escapeHtml(passcode.code || "")}</span>
               ${
                 passcode.code
-                  ? `<button class="icon-button admin-copy-button" type="button" title="Copy code" aria-label="Copy code" data-passcode-action="copy" data-passcode-index="${index}">⧉</button>`
+                  ? `<button class="icon-button admin-copy-button" type="button" title="Copy code" aria-label="Copy code" data-passcode-action="copy" data-passcode-index="${passcode.index}">⧉</button>`
                   : ""
               }
             </div>
           </td>
-          <td>${escapeHtml(formatDateTime(passcode.createdAt))}</td>
-          <td>${escapeHtml(formatDateTime(passcode.lastLoginAt))}</td>
           <td>
-            <details class="admin-row-menu">
-              <summary aria-label="User actions">⋮</summary>
-              <div class="admin-row-menu-panel">
-                <button type="button" data-passcode-action="save" data-passcode-index="${index}" disabled>Save</button>
-                <button type="button" data-passcode-action="toggle-active" data-passcode-index="${index}">
-                  ${passcode.active ? "Disable" : "Enable"}
-                </button>
-                <button class="delete" type="button" data-passcode-action="remove" data-passcode-index="${index}">Remove</button>
-              </div>
-            </details>
+            <div class="admin-inline-actions">
+              <button class="icon-button admin-action-button" type="button" title="Save" aria-label="Save user" data-passcode-action="save" data-passcode-index="${passcode.index}" disabled>✓</button>
+              <button class="icon-button admin-action-button" type="button" title="Reset code" aria-label="Reset user code" data-passcode-action="reset-code" data-passcode-index="${passcode.index}">↻</button>
+              <button class="icon-button admin-action-button" type="button" title="${passcode.active ? "Disable" : "Enable"}" aria-label="${passcode.active ? "Disable user" : "Enable user"}" data-passcode-action="toggle-active" data-passcode-index="${passcode.index}">
+                ${passcode.active ? "⏸" : "▶"}
+              </button>
+              <button class="icon-button admin-action-button delete" type="button" title="Remove" aria-label="Remove user" data-passcode-action="remove" data-passcode-index="${passcode.index}">×</button>
+            </div>
+          </td>
+        </tr>
+        <tr class="admin-user-detail-row hidden" data-detail-index="${passcode.index}">
+          <td colspan="7">
+            <div class="admin-user-details">
+              <div><dt>Created</dt><dd>${escapeHtml(formatDateTime(passcode.createdAt))}</dd></div>
+              <div><dt>Last Login</dt><dd>${escapeHtml(formatDateTime(passcode.lastLoginAt))}</dd></div>
+              <div><dt>Trades</dt><dd>${Number(passcode.tradeCount || 0)}</dd></div>
+              <div><dt>Last Saved</dt><dd>${escapeHtml(formatDateTime(passcode.lastSavedAt))}</dd></div>
+            </div>
           </td>
         </tr>
       `,
@@ -319,10 +470,11 @@ generateUserCodeButton.addEventListener("click", async () => {
       email: result.user.email || email,
       role: result.user.role || role,
       code: result.user.passcode_code || passcode,
-      hash: result.user.passcode_hash || hash,
       active: Boolean(result.user.active),
       createdAt: result.user.created_at || "",
       lastLoginAt: result.user.last_login_at || "",
+      lastSavedAt: result.user.last_saved_at || "",
+      tradeCount: Number(result.user.trade_count || 0),
     });
     firstNameInput.value = "";
     lastNameInput.value = "";
@@ -330,6 +482,8 @@ generateUserCodeButton.addEventListener("click", async () => {
     roleInput.value = "user";
     updateGenerateUserButtonState();
     renderPasscodes();
+    renderActivity();
+    loadAuditLogs();
   } catch {
     window.alert("Could not create that user. The code may already exist, so try generating another one.");
   } finally {
@@ -344,6 +498,18 @@ generateUserCodeButton.addEventListener("click", async () => {
 adminPasscodeList.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-passcode-action]");
   if (!button) {
+    if (event.target.closest("input, select, button")) {
+      return;
+    }
+
+    const row = event.target.closest("[data-passcode-action='toggle-details']");
+    if (!row) {
+      return;
+    }
+
+    const detailRow = adminPasscodeList.querySelector(`[data-detail-index="${row.dataset.passcodeIndex}"]`);
+    detailRow?.classList.toggle("hidden");
+    row.classList.toggle("details-open", !detailRow?.classList.contains("hidden"));
     return;
   }
 
@@ -394,6 +560,7 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.active = Boolean(savedUser.active);
       passcode.createdAt = savedUser.created_at || passcode.createdAt;
       passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
+      renderActivity();
       firstNameInput.value = passcode.firstName;
       firstNameInput.dataset.originalValue = passcode.firstName;
       lastNameInput.value = passcode.lastName;
@@ -410,10 +577,45 @@ adminPasscodeList.addEventListener("click", async (event) => {
       window.setTimeout(() => {
         button.textContent = "Save";
       }, 1100);
+      loadAuditLogs();
     } catch {
       window.alert("Could not save that user.");
       setButtonLoading(button, false);
       updateRowSaveState(row);
+    }
+  }
+
+  if (button.dataset.passcodeAction === "reset-code") {
+    const confirmed = window.confirm(
+      `Generate a new code for ${passcode.label}?\n\nTheir current code will stop working immediately.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const nextCode = generatePasscode();
+    const nextHash = await sha256(`${USER_PASSCODE_SALT}:${nextCode}`);
+    setButtonLoading(button, true, "Resetting...");
+    try {
+      const result = await callAdminUsers("update", {
+        id: passcode.id,
+        firstName: passcode.firstName,
+        lastName: passcode.lastName,
+        email: passcode.email,
+        role: passcode.role,
+        label: passcode.label,
+        active: passcode.active,
+        passcodeHash: nextHash,
+        passcodeCode: nextCode,
+      });
+      const savedUser = result.user || {};
+      passcode.code = savedUser.passcode_code || nextCode;
+      renderPasscodes();
+      renderActivity();
+      loadAuditLogs();
+    } catch {
+      window.alert("Could not reset that user's code.");
+      setButtonLoading(button, false);
     }
   }
 
@@ -452,6 +654,8 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.createdAt = savedUser.created_at || passcode.createdAt;
       passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
       renderPasscodes();
+      renderActivity();
+      loadAuditLogs();
     } catch {
       window.alert(`Could not ${nextActive ? "enable" : "disable"} that user.`);
       setButtonLoading(button, false);
@@ -471,6 +675,8 @@ adminPasscodeList.addEventListener("click", async (event) => {
       await callAdminUsers("delete", { id: passcode.id });
       adminConfig.passcodes.splice(index, 1);
       renderPasscodes();
+      renderActivity();
+      loadAuditLogs();
     } catch {
       window.alert("Could not remove that user.");
       setButtonLoading(button, false);
@@ -502,7 +708,13 @@ adminPasscodeList.addEventListener("change", (event) => {
   updateRowSaveState(event.target.closest("tr"));
 });
 
+[adminUserSearch, adminRoleFilter, adminStatusFilter, adminSortSelect].forEach((control) => {
+  control.addEventListener("input", renderPasscodes);
+  control.addEventListener("change", renderPasscodes);
+});
+
 adminLogoutButton.addEventListener("click", logoutAdmin);
+refreshAuditButton.addEventListener("click", loadAuditLogs);
 
 updateGenerateUserButtonState();
 initialiseAdminGate();

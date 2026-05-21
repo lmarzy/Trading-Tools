@@ -1,21 +1,22 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
+import { writeAuditLog } from "../_shared/audit.ts";
 
 async function assertAdmin(req: Request, supabase: ReturnType<typeof createServiceClient>) {
   const adminHash = req.headers.get("x-admin-passcode-hash");
   if (!adminHash) {
-    return false;
+    return null;
   }
 
   const { data } = await supabase
     .from("app_users")
-    .select("id")
+    .select("id,label")
     .eq("passcode_hash", adminHash)
     .eq("role", "admin")
     .eq("active", true)
     .maybeSingle();
 
-  return Boolean(data);
+  return data || null;
 }
 
 Deno.serve(async (req) => {
@@ -30,22 +31,67 @@ Deno.serve(async (req) => {
   try {
     const { action, user } = await req.json();
     const supabase = createServiceClient();
+    const adminUser = await assertAdmin(req, supabase);
 
-    if (!(await assertAdmin(req, supabase))) {
+    if (!adminUser) {
       return jsonResponse({ error: "Invalid passcode" }, 401);
     }
 
     if (action === "list") {
       const { data, error } = await supabase
         .from("app_users")
-        .select("id,label,first_name,last_name,email,role,passcode_hash,passcode_code,active,created_at,last_login_at")
+        .select("id,label,first_name,last_name,email,role,passcode_code,active,created_at,last_login_at")
         .order("created_at", { ascending: false });
 
       if (error) {
         return jsonResponse({ error: "Could not list users" }, 500);
       }
 
-      return jsonResponse({ users: data || [] });
+      const userIds = (data || []).map((user) => user.id);
+      const { data: userData } = userIds.length
+        ? await supabase
+          .from("user_data")
+          .select("user_id,trades_json,updated_at")
+          .in("user_id", userIds)
+        : { data: [] };
+      const activityByUser = new Map(
+        (userData || []).map((row) => [
+          row.user_id,
+          {
+            trade_count: Array.isArray(row.trades_json) ? row.trades_json.length : 0,
+            last_saved_at: row.updated_at || null,
+          },
+        ]),
+      );
+
+      return jsonResponse({
+        users: (data || []).map((user) => ({
+          ...user,
+          trade_count: activityByUser.get(user.id)?.trade_count || 0,
+          last_saved_at: activityByUser.get(user.id)?.last_saved_at || null,
+        })),
+      });
+    }
+
+    if (action === "audit-list") {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select(`
+          id,
+          event,
+          details,
+          created_at,
+          actor:actor_user_id(label,email,role),
+          target:target_user_id(label,email,role)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        return jsonResponse({ error: "Could not list audit logs" }, 500);
+      }
+
+      return jsonResponse({ logs: data || [] });
     }
 
     if (action === "create") {
@@ -68,7 +114,7 @@ Deno.serve(async (req) => {
           passcode_code: passcodeCode || null,
           active: true,
         })
-        .select("id,label,first_name,last_name,email,role,passcode_hash,passcode_code,active,created_at,last_login_at")
+        .select("id,label,first_name,last_name,email,role,passcode_code,active,created_at,last_login_at")
         .single();
 
       if (error) {
@@ -76,11 +122,15 @@ Deno.serve(async (req) => {
       }
 
       await supabase.from("user_data").insert({ user_id: data.id });
+      await writeAuditLog(supabase, "admin_user_created", adminUser.id, data.id, {
+        role: data.role,
+        email: data.email,
+      });
       return jsonResponse({ user: data });
     }
 
     if (action === "update") {
-      const { id, firstName, lastName, email, label, role, active } = user || {};
+      const { id, firstName, lastName, email, label, role, active, passcodeHash, passcodeCode } = user || {};
       if (!id) {
         return jsonResponse({ error: "Missing user id" }, 400);
       }
@@ -91,22 +141,35 @@ Deno.serve(async (req) => {
       }
 
       const displayLabel = label || [firstName, lastName].filter(Boolean).join(" ") || "Untitled user";
+      const updates: Record<string, unknown> = {
+        label: displayLabel,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        email: email || null,
+        role: userRole,
+        active,
+      };
+
+      if (passcodeHash) {
+        updates.passcode_hash = passcodeHash;
+        updates.passcode_code = passcodeCode || null;
+      }
+
       const { data, error } = await supabase
         .from("app_users")
-        .update({
-          label: displayLabel,
-          first_name: firstName || null,
-          last_name: lastName || null,
-          email: email || null,
-          role: userRole,
-          active,
-        })
+        .update(updates)
         .eq("id", id)
-        .select("id,label,first_name,last_name,email,role,passcode_hash,passcode_code,active,created_at,last_login_at")
+        .select("id,label,first_name,last_name,email,role,passcode_code,active,created_at,last_login_at")
         .single();
       if (error) {
         return jsonResponse({ error: "Could not update user" }, 500);
       }
+
+      await writeAuditLog(supabase, passcodeHash ? "admin_passcode_reset" : "admin_user_updated", adminUser.id, data.id, {
+        role: data.role,
+        active: data.active,
+        email: data.email,
+      });
 
       return jsonResponse({ user: data });
     }
@@ -121,10 +184,22 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Keep at least one active admin" }, 400);
       }
 
+      const { data: removedUser } = await supabase
+        .from("app_users")
+        .select("id,label,email,role")
+        .eq("id", id)
+        .maybeSingle();
       const { error } = await supabase.from("app_users").delete().eq("id", id);
       if (error) {
         return jsonResponse({ error: "Could not delete user" }, 500);
       }
+
+      await writeAuditLog(supabase, "admin_user_removed", adminUser.id, null, {
+        removedUserId: id,
+        label: removedUser?.label || null,
+        email: removedUser?.email || null,
+        role: removedUser?.role || null,
+      });
 
       return jsonResponse({ ok: true });
     }

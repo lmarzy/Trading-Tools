@@ -50,6 +50,7 @@
                 <small id="userMenuRole"></small>
               </div>
               <a class="user-popover-link hidden" id="adminNavLink" href="admin/">Admin</a>
+              <button class="user-popover-link" type="button" id="openResetPasscodeButton">Reset my passcode</button>
               <button class="user-popover-link" type="button" id="logoutButton">Logout</button>
             </div>
           </div>
@@ -120,52 +121,31 @@
         <div class="analytics-breakdowns" id="analyticsBreakdowns"></div>
       </section>
 
-      <section class="weekly-panel" aria-label="Weekly trading summary">
+      <section class="performance-panel" aria-label="Performance calendar">
         <div class="weekly-heading">
-          <h2 id="weeklyTitle">This Week</h2>
-          <div class="weekly-controls">
-            <select id="weekRangeFilter" aria-label="Week range">
-              <option value="this">This Week</option>
-              <option value="last">Last Week</option>
-            </select>
-            <span id="weeklyRange">Monday - Friday</span>
+          <div class="performance-title-group">
+            <h2 id="performanceTitle">Performance Calendar</h2>
+            <span id="performanceRange">Monday - Friday</span>
+          </div>
+          <div class="weekly-controls performance-controls">
+            <div class="calendar-toggle" aria-label="Calendar mode">
+              <button class="active" type="button" id="performanceWeekMode">Week</button>
+              <button type="button" id="performanceMonthMode">Month</button>
+            </div>
+            <select id="performancePeriodSelect" aria-label="Performance period"></select>
           </div>
         </div>
-        <article class="weekly-total-card" id="weeklyTotalCard">
+        <article class="weekly-total-card" id="performanceTotalCard">
           <div>
-            <span>Week Total</span>
-            <strong id="weeklyTotalAmount">0.00</strong>
+            <span id="performanceTotalLabel">Week Total</span>
+            <strong id="performanceTotalAmount">0.00</strong>
           </div>
           <dl>
-            <div><dt>Trades</dt><dd id="weeklyTotalTrades">0</dd></div>
-            <div><dt>W/L</dt><dd id="weeklyTotalWinLoss">0/0</dd></div>
+            <div><dt>Trades</dt><dd id="performanceTotalTrades">0</dd></div>
+            <div><dt>W/L</dt><dd id="performanceTotalWinLoss">0/0</dd></div>
           </dl>
         </article>
-        <div class="weekly-grid" id="weeklyGrid"></div>
-      </section>
-
-      <section class="monthly-panel" aria-label="Monthly trading calendar">
-        <div class="weekly-heading">
-          <h2 id="monthlyTitle">Monthly View</h2>
-          <div class="weekly-controls">
-            <select id="monthRangeFilter" aria-label="Month range">
-              <option value="this">This Month</option>
-              <option value="last">Last Month</option>
-            </select>
-            <span id="monthlyRange">Month</span>
-          </div>
-        </div>
-        <article class="weekly-total-card" id="monthlyTotalCard">
-          <div>
-            <span>Month Total</span>
-            <strong id="monthlyTotalAmount">0.00</strong>
-          </div>
-          <dl>
-            <div><dt>Trades</dt><dd id="monthlyTotalTrades">0</dd></div>
-            <div><dt>W/L</dt><dd id="monthlyTotalWinLoss">0/0</dd></div>
-          </dl>
-        </article>
-        <div class="monthly-weekdays" aria-hidden="true">
+        <div class="monthly-weekdays hidden" id="performanceWeekdays" aria-hidden="true">
           <span>Mon</span>
           <span>Tue</span>
           <span>Wed</span>
@@ -175,7 +155,7 @@
           <span>Sun</span>
           <span>Total</span>
         </div>
-        <div class="monthly-grid" id="monthlyGrid"></div>
+        <div class="weekly-grid" id="performanceGrid"></div>
       </section>
 
       <section class="strategy-panel" aria-label="Strategy breakdown">
@@ -350,6 +330,28 @@
           </div>
           <p id="noteModalText"></p>
         </div>
+      </dialog>
+
+      <dialog class="trade-modal reset-passcode-modal" id="resetPasscodeModal">
+        <form class="trade-form reset-passcode-form" id="resetPasscodeForm" autocomplete="off">
+          <div class="form-heading">
+            <h2>Reset passcode</h2>
+            <button class="icon-button" type="button" id="closeResetPasscodeButton" aria-label="Close reset passcode">Close</button>
+          </div>
+          <div class="reset-passcode-step" id="resetPasscodeVerifyStep">
+            <label>
+              <span>Current passcode</span>
+              <input id="currentPasscodeInput" type="password" maxlength="8" placeholder="Enter current code" required />
+            </label>
+            <p class="passcode-error" id="resetPasscodeError" role="alert"></p>
+            <button class="primary-button" type="submit" id="resetPasscodeButton">Generate new code</button>
+          </div>
+          <div class="reset-passcode-step hidden" id="resetPasscodeResultStep">
+            <p class="config-note">This code is shown once. Save it before continuing.</p>
+            <div class="generated-passcode" id="newPasscodeDisplay"></div>
+            <button class="primary-button" type="button" id="confirmResetPasscodeButton">I've saved it</button>
+          </div>
+        </form>
       </dialog>
 
       <section class="workspace">

@@ -1,5 +1,6 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
+import { writeAuditLog } from "../_shared/audit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,6 +44,7 @@ Deno.serve(async (req) => {
       .from("app_users")
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", user.id);
+    await writeAuditLog(supabase, "login", user.id, user.id, { role: user.role });
 
     return jsonResponse({ user: { id: user.id, label: user.label, email: user.email, role: user.role } });
   } catch {
