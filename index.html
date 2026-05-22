@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trade Tracker</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>TRADERS HUB</title>
+    <link rel="stylesheet" href="styles.css?v=20260522-onboarding" />
   </head>
   <body class="auth-locked">
     <section class="passcode-gate" id="passcodeGate" aria-label="Passcode required">
       <form class="passcode-card" id="passcodeForm" autocomplete="off">
         <p class="eyebrow">Private access</p>
-        <h1>Trading Tools</h1>
+        <h1>TRADERS HUB</h1>
         <label>
           <span>Passcode</span>
           <input
@@ -19,7 +19,7 @@
             type="password"
             autocapitalize="characters"
             maxlength="8"
-            placeholder="Enter 8 character code"
+            placeholder="Enter passcode"
             required
           />
         </label>
@@ -32,7 +32,7 @@
       <header class="topbar">
         <div>
           <p class="eyebrow">Trading toolkit</p>
-          <h1>Trading Tools</h1>
+          <h1>TRADERS HUB</h1>
           <p class="save-status" id="saveStatus">Saved</p>
         </div>
         <div class="topbar-actions">
@@ -49,9 +49,9 @@
                 <small id="userMenuEmail"></small>
                 <small id="userMenuRole"></small>
               </div>
-              <a class="user-popover-link hidden" id="adminNavLink" href="admin/">Admin</a>
-              <button class="user-popover-link" type="button" id="openResetPasscodeButton">Reset my passcode</button>
-              <button class="user-popover-link" type="button" id="logoutButton">Logout</button>
+              <a class="user-popover-link hidden" id="adminNavLink" href="admin/"><span aria-hidden="true">⚙</span>Admin</a>
+              <button class="user-popover-link" type="button" id="openResetPasscodeButton"><span aria-hidden="true">↻</span>Reset my passcode</button>
+              <button class="user-popover-link" type="button" id="logoutButton"><span aria-hidden="true">↪</span>Logout</button>
             </div>
           </div>
         </div>
@@ -116,9 +116,21 @@
       <section class="analytics-panel" aria-label="Trading analytics">
         <div class="weekly-heading">
           <h2>Analytics</h2>
+          <div class="analytics-tabs" role="tablist" aria-label="Analytics views">
+            <button class="active" type="button" data-analytics-tab="overview">Overview</button>
+            <button type="button" data-analytics-tab="breakdowns">Breakdowns</button>
+            <button type="button" data-analytics-tab="discipline">Discipline</button>
+          </div>
         </div>
-        <div class="analytics-grid" id="analyticsGrid"></div>
-        <div class="analytics-breakdowns" id="analyticsBreakdowns"></div>
+        <div class="analytics-tab-panel active" id="analyticsOverviewPanel">
+          <div class="analytics-grid" id="analyticsGrid"></div>
+        </div>
+        <div class="analytics-tab-panel" id="analyticsBreakdownPanel">
+          <div class="analytics-breakdowns" id="analyticsBreakdowns"></div>
+        </div>
+        <div class="analytics-tab-panel" id="analyticsDisciplinePanel">
+          <div class="analytics-breakdowns" id="analyticsDisciplineBreakdowns"></div>
+        </div>
       </section>
 
       <section class="performance-panel" aria-label="Performance calendar">
@@ -212,87 +224,93 @@
             </div>
           </section>
 
-          <section class="form-section">
-            <h3>Size</h3>
-            <div class="field-row single-field-row">
-              <label id="lotsField">
-                <span>Lots</span>
-                <select id="lots" name="lots">
-                  <option value="0.01">0.01</option>
-                  <option value="0.02">0.02</option>
-                  <option value="0.03">0.03</option>
-                  <option value="0.04">0.04</option>
-                  <option value="0.05">0.05</option>
-                  <option value="0.06">0.06</option>
-                  <option value="0.07">0.07</option>
-                  <option value="0.08">0.08</option>
-                  <option value="0.09">0.09</option>
-                  <option value="0.10">0.10</option>
-                  <option value="0.20">0.20</option>
-                  <option value="0.30">0.30</option>
-                  <option value="0.40">0.40</option>
-                  <option value="0.50">0.50</option>
-                  <option value="0.60">0.60</option>
-                  <option value="0.70">0.70</option>
-                  <option value="0.80">0.80</option>
-                  <option value="0.90">0.90</option>
-                  <option value="1.00">1.00</option>
-                </select>
-              </label>
-              <label id="contractsField" class="hidden">
-                <span>Contracts</span>
-                <select id="contracts" name="contracts">
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </label>
-            </div>
-          </section>
+          <div class="form-section-grid">
+            <section class="form-section">
+              <h3>Size</h3>
+              <div class="field-row single-field-row">
+                <label id="lotsField">
+                  <span>Lots</span>
+                  <select id="lots" name="lots">
+                    <option value="0.01">0.01</option>
+                    <option value="0.02">0.02</option>
+                    <option value="0.03">0.03</option>
+                    <option value="0.04">0.04</option>
+                    <option value="0.05">0.05</option>
+                    <option value="0.06">0.06</option>
+                    <option value="0.07">0.07</option>
+                    <option value="0.08">0.08</option>
+                    <option value="0.09">0.09</option>
+                    <option value="0.10">0.10</option>
+                    <option value="0.20">0.20</option>
+                    <option value="0.30">0.30</option>
+                    <option value="0.40">0.40</option>
+                    <option value="0.50">0.50</option>
+                    <option value="0.60">0.60</option>
+                    <option value="0.70">0.70</option>
+                    <option value="0.80">0.80</option>
+                    <option value="0.90">0.90</option>
+                    <option value="1.00">1.00</option>
+                  </select>
+                </label>
+                <label id="contractsField" class="hidden">
+                  <span>Contracts</span>
+                  <select id="contracts" name="contracts">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                  </select>
+                </label>
+              </div>
+            </section>
 
-          <section class="form-section">
-            <h3>Result</h3>
-            <div class="field-row">
-              <label>
-                <span>Result</span>
-                <select id="outcome" name="outcome">
-                  <option value="Pending">Pending</option>
-                  <option value="Win">Win</option>
-                  <option value="Loss">Loss</option>
-                </select>
-              </label>
-              <label>
-                <span>Amount</span>
-                <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
-              </label>
-            </div>
-          </section>
+            <section class="form-section">
+              <h3>Result</h3>
+              <div class="field-row">
+                <label>
+                  <span>Result</span>
+                  <select id="outcome" name="outcome">
+                    <option value="Pending">Pending</option>
+                    <option value="Win">Win</option>
+                    <option value="Loss">Loss</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Amount</span>
+                  <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
+                </label>
+              </div>
+            </section>
+          </div>
 
           <section class="form-section">
             <h3>Discipline</h3>
             <div class="discipline-options">
               <label class="toggle-option">
                 <input id="followedPlan" name="followedPlan" type="checkbox" />
-                <span>Followed plan</span>
+                <span>Plan followed</span>
               </label>
               <label class="toggle-option">
                 <input id="enteredEarly" name="enteredEarly" type="checkbox" />
-                <span>Entered early</span>
+                <span>Early entry</span>
               </label>
               <label class="toggle-option">
                 <input id="movedSl" name="movedSl" type="checkbox" />
-                <span>Moved SL</span>
+                <span>Stop moved</span>
               </label>
               <label class="toggle-option">
                 <input id="overtraded" name="overtraded" type="checkbox" />
                 <span>Overtraded</span>
+              </label>
+              <label class="toggle-option">
+                <input id="exitedEarly" name="exitedEarly" type="checkbox" />
+                <span>Early exit</span>
               </label>
             </div>
           </section>
@@ -320,6 +338,20 @@
 
           <div class="config-grid" id="configGrid"></div>
         </form>
+      </dialog>
+
+      <dialog class="trade-modal onboarding-modal" id="onboardingModal">
+        <div class="trade-form onboarding-modal-card">
+          <div class="form-heading">
+            <div>
+              <h2>Let's get started</h2>
+            </div>
+          </div>
+          <p class="config-note">
+            Before adding trades, configure the symbols, sessions, accounts, strategies, and market types that match your trading setup.
+          </p>
+          <button class="primary-button" type="button" id="onboardingConfigButton">Configure app</button>
+        </div>
       </dialog>
 
       <dialog class="trade-modal note-modal" id="noteModal">
@@ -389,8 +421,10 @@
             </label>
 
             <div class="toolbar-actions">
+              <button class="ghost-button" type="button" id="reviewModeButton">Review Mode</button>
+              <button class="ghost-button" type="button" id="densityToggleButton">Compact Rows</button>
               <button class="ghost-button" type="button" id="exportButton">Export CSV</button>
-              <button class="danger-button" type="button" id="clearButton">Clear all</button>
+              <button class="danger-button" type="button" id="clearButton">Clear All</button>
             </div>
           </div>
 
@@ -427,11 +461,34 @@
 
           <div class="empty-state hidden" id="emptyState">
             <h2>No trades yet</h2>
-            <p>Add your first trade to start building your local journal.</p>
+            <p>Configure your inputs, then add your first trade to start building your journal.</p>
+            <div class="empty-state-actions">
+              <button class="primary-button" type="button" id="emptyAddTradeButton">Add trade</button>
+              <button class="ghost-button" type="button" id="emptyConfigButton">Configure inputs</button>
+              <button class="ghost-button" type="button" data-view-target="calculatorView">Open calculator</button>
+            </div>
           </div>
         </section>
       </section>
       </section>
+
+      <dialog class="trade-drawer" id="tradeDetailDrawer">
+        <div class="trade-drawer-panel">
+          <div class="form-heading">
+            <div>
+              <p class="eyebrow">Trade detail</p>
+              <h2 id="tradeDrawerTitle">Trade</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeTradeDrawerButton" aria-label="Close trade detail">Close</button>
+          </div>
+          <div class="trade-drawer-content" id="tradeDrawerContent"></div>
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" id="drawerPrevButton">Previous</button>
+            <button class="ghost-button" type="button" id="drawerNextButton">Next</button>
+            <button class="primary-button" type="button" id="drawerEditButton">Edit trade</button>
+          </div>
+        </div>
+      </dialog>
 
       <section class="app-view" id="calculatorView" aria-label="Position Size Calculator">
         <div class="view-header">
@@ -586,9 +643,10 @@
       </section>
       </div>
     </main>
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="supabase-config.js"></script>
-    <script src="supabase-api.js"></script>
-    <script src="app.js"></script>
+    <script src="supabase-config.js?v=20260522-onboarding"></script>
+    <script src="supabase-api.js?v=20260522-onboarding"></script>
+    <script src="app.js?v=20260522-onboarding"></script>
   </body>
 </html>

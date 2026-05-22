@@ -42,6 +42,16 @@ button {
   cursor: pointer;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+}
+
 body.auth-locked {
   overflow: hidden;
 }
@@ -100,7 +110,7 @@ body.admin-checking {
 
 .passcode-card h1 {
   margin: -8px 0 8px;
-  font-size: clamp(3.2rem, 10vw, 5rem);
+  font-size: clamp(2.6rem, 8vw, 4rem);
 }
 
 .passcode-card .primary-button {
@@ -259,6 +269,7 @@ body.admin-checking {
 .user-popover-link {
   display: flex;
   align-items: center;
+  gap: 10px;
   width: 100%;
   min-height: 42px;
   margin-top: 8px;
@@ -270,6 +281,17 @@ body.admin-checking {
   font-weight: 850;
   text-align: left;
   text-decoration: none;
+}
+
+.user-popover-link span {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--lime);
+  font-size: 0.82rem;
 }
 
 .user-popover-link:not(:disabled):hover {
@@ -373,7 +395,7 @@ h1 {
   margin-bottom: 0;
   color: var(--ink);
   font-family: Impact, "Arial Narrow", "Franklin Gothic Condensed", system-ui, sans-serif;
-  font-size: clamp(3.1rem, 5.1vw, 5.8rem);
+  font-size: clamp(2.4rem, 4.2vw, 4.7rem);
   font-weight: 900;
   line-height: 0.92;
   letter-spacing: 0.01em;
@@ -554,6 +576,40 @@ h2 {
   box-shadow: var(--shadow);
 }
 
+.analytics-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+}
+
+.analytics-tabs button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 0 16px;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.analytics-tabs button.active {
+  background: var(--lime);
+  color: #111111;
+}
+
+.analytics-tab-panel {
+  display: none;
+}
+
+.analytics-tab-panel.active {
+  display: block;
+}
+
 .strategy-panel {
   margin-bottom: 16px;
   padding: 24px;
@@ -673,6 +729,12 @@ h2 {
   fill: currentColor;
   stroke: var(--field);
   stroke-width: 5;
+}
+
+.equity-hover-point {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
 }
 
 .equity-grid-line {
@@ -802,7 +864,6 @@ h2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-  margin-top: 12px;
 }
 
 .analytics-breakdown-card {
@@ -1223,51 +1284,59 @@ h2 {
 
 .account-balance-card {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(260px, 1.4fr);
-  align-items: stretch;
-  gap: 12px;
-  min-height: 108px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  min-height: 0;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--field);
 }
 
-.account-balance-card > div:first-child {
+.account-balance-head {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   min-width: 0;
 }
 
-.account-balance-card span {
-  margin-bottom: 12px;
+.account-balance-head span {
+  margin: 0;
   color: var(--ink);
+  font-size: 1.1rem;
+  line-height: 1.1;
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
-.account-balance-card strong {
+.account-balance-head strong {
   display: block;
+  flex: 0 0 auto;
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
   font-family: Impact, "Arial Narrow", "Franklin Gothic Condensed", system-ui, sans-serif;
-  font-size: clamp(1.8rem, 2.3vw, 2.8rem);
+  font-size: clamp(2rem, 3vw, 3.1rem);
   line-height: 0.9;
+  overflow-wrap: anywhere;
 }
 
-.account-balance-card.profit strong {
+.account-balance-card.profit .account-balance-head strong {
   color: var(--lime);
 }
 
-.account-balance-card.loss strong {
+.account-balance-card.loss .account-balance-head strong {
   color: var(--loss);
 }
 
-.account-balance-card.flat strong {
+.account-balance-card.flat .account-balance-head strong {
   color: var(--muted-strong);
 }
 
 .account-balance-card dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
 }
@@ -1276,6 +1345,8 @@ h2 {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 0;
+  min-height: 68px;
   padding: 10px;
   border-radius: 12px;
   background: var(--field-2);
@@ -1289,7 +1360,7 @@ h2 {
 .account-balance-card dt {
   margin-bottom: 4px;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1297,7 +1368,26 @@ h2 {
 
 .account-balance-card dd {
   color: var(--ink);
+  font-size: clamp(0.88rem, 1.2vw, 1.08rem);
   font-weight: 900;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.account-progress {
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #181818;
+}
+
+.account-progress span {
+  display: block;
+  height: 100%;
+  margin: 0;
+  border-radius: inherit;
+  background: currentColor;
 }
 
 .weekly-card > div:first-child {
@@ -1426,7 +1516,8 @@ h2 {
 }
 
 .table-wrap {
-  overflow-x: auto;
+  max-height: min(680px, 70vh);
+  overflow: auto;
   padding: 18px 36px 32px;
 }
 
@@ -1462,6 +1553,10 @@ td {
 }
 
 th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 900;
@@ -1480,6 +1575,20 @@ tbody tr:hover td {
   background: #2a2a2a;
 }
 
+tbody tr[data-trade-id] {
+  cursor: pointer;
+}
+
+body.compact-table table {
+  border-spacing: 0 8px;
+}
+
+body.compact-table th,
+body.compact-table td {
+  padding: 11px 12px;
+  font-size: 0.86rem;
+}
+
 tbody td:first-child {
   border-radius: 18px 0 0 18px;
 }
@@ -1491,6 +1600,26 @@ tbody td:last-child {
 .table-message {
   color: var(--muted-strong);
   text-align: center;
+}
+
+.skeleton-row {
+  width: min(420px, 70%);
+  height: 10px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--field-2), rgba(200, 255, 79, 0.16), var(--field-2));
+  background-size: 220% 100%;
+  animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -120% 0;
+  }
 }
 
 .symbol-cell {
@@ -1529,6 +1658,118 @@ tbody td:last-child {
 
 .reset-passcode-modal {
   width: min(560px, calc(100% - 32px));
+}
+
+.onboarding-modal {
+  width: min(620px, calc(100% - 32px));
+}
+
+.onboarding-modal-card {
+  gap: 18px;
+}
+
+.onboarding-modal-card .config-note {
+  margin: 0;
+}
+
+.trade-drawer {
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100vh - 24px);
+  margin: auto 12px auto auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.trade-drawer::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(8px);
+}
+
+.trade-drawer-panel {
+  display: grid;
+  gap: 16px;
+  max-height: calc(100vh - 24px);
+  padding: 28px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.trade-drawer-content {
+  display: grid;
+  gap: 14px;
+}
+
+.drawer-metrics,
+.drawer-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.drawer-metrics div,
+.drawer-details div,
+.drawer-notes {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--field);
+}
+
+.drawer-metrics span,
+.drawer-details dt,
+.drawer-notes span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.drawer-metrics strong,
+.drawer-details dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.drawer-details {
+  margin: 0;
+}
+
+.drawer-discipline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.drawer-discipline span {
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--muted-strong);
+  font-weight: 850;
+}
+
+.drawer-discipline span.good {
+  color: var(--lime);
+}
+
+.drawer-discipline span.bad {
+  color: var(--loss);
+}
+
+.drawer-notes p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.6;
 }
 
 .reset-passcode-form {
@@ -1729,13 +1970,13 @@ tbody td:last-child {
 }
 
 .admin-activity-card {
-  min-height: 112px;
-  padding: 18px;
+  min-height: 92px;
+  padding: 16px;
 }
 
 .admin-activity-card span {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 900;
@@ -1746,7 +1987,7 @@ tbody td:last-child {
 .admin-activity-card strong {
   color: var(--lime);
   font-family: Impact, "Arial Narrow", "Franklin Gothic Condensed", system-ui, sans-serif;
-  font-size: clamp(2.2rem, 3vw, 3.3rem);
+  font-size: clamp(1.9rem, 2.5vw, 2.8rem);
   line-height: 0.9;
 }
 
@@ -2087,6 +2328,12 @@ button:disabled {
   grid-template-columns: 1fr;
 }
 
+.form-section-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 12px;
+}
+
 .form-section {
   display: grid;
   gap: 12px;
@@ -2161,6 +2408,13 @@ button:disabled {
     color 160ms ease;
 }
 
+a.primary-button,
+a.ghost-button,
+a.danger-button,
+a.icon-button {
+  text-decoration: none;
+}
+
 .primary-button {
   background: var(--lime);
   color: #111111;
@@ -2203,6 +2457,12 @@ button:disabled {
   color: var(--ink);
 }
 
+.ghost-button.active {
+  border-color: rgba(200, 255, 79, 0.34);
+  background: var(--lime-soft);
+  color: var(--lime);
+}
+
 .danger-button {
   border-color: var(--line);
   background: var(--field-2);
@@ -2228,6 +2488,14 @@ button:disabled {
 .icon-button:not(:disabled):hover {
   border-color: var(--line-hot);
   color: var(--lime);
+}
+
+.compact-icon {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+  font-size: 1rem;
 }
 
 button:disabled,
@@ -2357,6 +2625,9 @@ button:disabled,
 }
 
 .empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
   padding: 72px 20px 84px;
   text-align: center;
 }
@@ -2367,12 +2638,55 @@ button:disabled,
 }
 
 .empty-state p {
-  margin-bottom: 0;
+  max-width: 520px;
+  margin: 0;
   color: var(--muted-strong);
+}
+
+.empty-state-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .hidden {
   display: none;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 40;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 44px));
+  pointer-events: none;
+}
+
+.toast {
+  padding: 14px 16px;
+  border: 1px solid rgba(200, 255, 79, 0.22);
+  border-radius: 16px;
+  background: rgba(28, 28, 28, 0.96);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-weight: 850;
+  transform: translateY(0);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.toast.warning {
+  border-color: rgba(255, 173, 69, 0.28);
+}
+
+.toast.leaving {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .calc-pill {
@@ -2667,6 +2981,10 @@ button:disabled,
     grid-template-columns: 1fr;
   }
 
+  .form-section-grid {
+    grid-template-columns: 1fr;
+  }
+
   .weekly-total-card {
     grid-template-columns: 1fr;
   }
@@ -2702,9 +3020,15 @@ button:disabled,
   .app-nav,
   .view-header,
   .view-actions,
-  .calculator-actions {
+  .calculator-actions,
+  .weekly-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .analytics-tabs {
+    grid-template-columns: 1fr;
+    border-radius: 16px;
   }
 
   .user-menu,
@@ -2724,7 +3048,7 @@ button:disabled,
   }
 
   h1 {
-    font-size: 3rem;
+    font-size: 2.55rem;
   }
 
   .top-action {
@@ -2738,6 +3062,8 @@ button:disabled,
   .summary-grid,
   .market-summary-grid,
   .market-summary-card dl,
+  .drawer-metrics,
+  .drawer-details,
   .weekly-grid,
   .monthly-weekdays,
   .monthly-grid,
@@ -2747,7 +3073,6 @@ button:disabled,
   .strategy-grid,
   .account-balance-grid,
   .account-balance-card,
-  .account-balance-card dl,
   .market-type-config,
   .discipline-options,
   .config-add-row,
@@ -2764,6 +3089,18 @@ button:disabled,
     flex-direction: column;
   }
 
+  .account-balance-head {
+    align-items: flex-start;
+  }
+
+  .account-balance-head strong {
+    white-space: normal;
+  }
+
+  .account-balance-card dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .weekly-controls select {
     width: 100%;
   }
@@ -2777,6 +3114,81 @@ button:disabled,
   .table-wrap,
   .trade-form {
     padding: 22px;
+  }
+
+  .trade-drawer {
+    width: calc(100% - 18px);
+    margin: auto;
+  }
+
+  .trade-drawer-panel {
+    padding: 22px;
+  }
+
+  .table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+
+  table {
+    min-width: 0;
+    border-spacing: 0 12px;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+  }
+
+  tbody tr {
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--field);
+  }
+
+  tbody tr:hover td,
+  tbody tr:hover {
+    background: var(--field);
+  }
+
+  tbody td {
+    display: grid;
+    grid-template-columns: minmax(96px, 0.42fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 9px 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: transparent;
+    font-size: 0.9rem;
+  }
+
+  tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  tbody td:first-child,
+  tbody td:last-child {
+    border-radius: 0;
+  }
+
+  tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  tbody td:last-child .actions {
+    justify-content: flex-start;
   }
 
   .admin-passcode-row {

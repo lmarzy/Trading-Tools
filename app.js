@@ -56,8 +56,16 @@ const strategyFilter = document.querySelector("#strategyFilter");
 const marketTypeFilter = document.querySelector("#marketTypeFilter");
 const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
+const reviewModeButton = document.querySelector("#reviewModeButton");
+const densityToggleButton = document.querySelector("#densityToggleButton");
 const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
+const analyticsTabButtons = document.querySelectorAll("[data-analytics-tab]");
+const analyticsTabPanels = {
+  overview: document.querySelector("#analyticsOverviewPanel"),
+  breakdowns: document.querySelector("#analyticsBreakdownPanel"),
+  discipline: document.querySelector("#analyticsDisciplinePanel"),
+};
 const logoutButton = document.querySelector("#logoutButton");
 const adminNavLink = document.querySelector("#adminNavLink");
 const openResetPasscodeButton = document.querySelector("#openResetPasscodeButton");
@@ -67,6 +75,16 @@ const userMenuName = document.querySelector("#userMenuName");
 const userMenuEmail = document.querySelector("#userMenuEmail");
 const userMenuRole = document.querySelector("#userMenuRole");
 const saveStatus = document.querySelector("#saveStatus");
+const toastStack = document.querySelector("#toastStack");
+const onboardingModal = document.querySelector("#onboardingModal");
+const onboardingConfigButton = document.querySelector("#onboardingConfigButton");
+const tradeDetailDrawer = document.querySelector("#tradeDetailDrawer");
+const tradeDrawerTitle = document.querySelector("#tradeDrawerTitle");
+const tradeDrawerContent = document.querySelector("#tradeDrawerContent");
+const closeTradeDrawerButton = document.querySelector("#closeTradeDrawerButton");
+const drawerPrevButton = document.querySelector("#drawerPrevButton");
+const drawerNextButton = document.querySelector("#drawerNextButton");
+const drawerEditButton = document.querySelector("#drawerEditButton");
 
 const totalTradesEl = document.querySelector("#totalTrades");
 const summarySymbolSplit = document.querySelector("#summarySymbolSplit");
@@ -82,6 +100,7 @@ const equityLow = document.querySelector("#equityLow");
 const equityTrades = document.querySelector("#equityTrades");
 const analyticsGrid = document.querySelector("#analyticsGrid");
 const analyticsBreakdowns = document.querySelector("#analyticsBreakdowns");
+const analyticsDisciplineBreakdowns = document.querySelector("#analyticsDisciplineBreakdowns");
 const performanceTitle = document.querySelector("#performanceTitle");
 const performanceWeekMode = document.querySelector("#performanceWeekMode");
 const performanceMonthMode = document.querySelector("#performanceMonthMode");
@@ -97,6 +116,8 @@ const performanceGrid = document.querySelector("#performanceGrid");
 const strategyGrid = document.querySelector("#strategyGrid");
 const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
 const marketSummaryGrid = document.querySelector("#marketSummaryGrid");
+const emptyAddTradeButton = document.querySelector("#emptyAddTradeButton");
+const emptyConfigButton = document.querySelector("#emptyConfigButton");
 
 const DEFAULT_CONFIG = {
   symbols: [],
@@ -115,11 +136,13 @@ const CONFIG_FIELDS = [
 ];
 
 const MARKET_TYPE_OPTIONS = ["CFD", "Futures"];
+const DISCIPLINE_MAX_SCORE = 5;
 const DISCIPLINE_RULES = [
-  { key: "followedPlan", label: "Followed plan", positive: true },
-  { key: "enteredEarly", label: "Entered early" },
-  { key: "movedSl", label: "Moved SL" },
+  { key: "followedPlan", label: "Plan followed", positive: true },
+  { key: "enteredEarly", label: "Early entry" },
+  { key: "movedSl", label: "Stop moved" },
   { key: "overtraded", label: "Overtraded" },
+  { key: "exitedEarly", label: "Early exit" },
 ];
 
 let currentUserId = "";
@@ -136,6 +159,9 @@ let isHydratingUserState = false;
 let remoteSaveTimer = null;
 let saveStatusTimer = null;
 let performanceMode = "week";
+let reviewMode = false;
+let tableDensity = "comfortable";
+let selectedTradeId = "";
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -170,6 +196,17 @@ function setSaveStatus(status, message) {
       saveStatus.textContent = "Saved";
     }, 1600);
   }
+}
+
+function showToast(message, tone = "saved") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${tone}`;
+  toast.textContent = message;
+  toastStack.appendChild(toast);
+  window.setTimeout(() => {
+    toast.classList.add("leaving");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 2600);
 }
 
 async function setAppUnlocked(
@@ -366,8 +403,11 @@ function userConfigComplete() {
 function updateAddTradeAvailability() {
   const isComplete = userConfigComplete();
   openTradeModalButton.disabled = !isComplete;
+  emptyAddTradeButton.disabled = !isComplete;
   openTradeModalButton.title = isComplete ? "Add trade" : "Complete your trade config before adding trades";
+  emptyAddTradeButton.title = openTradeModalButton.title;
   openTradeModalButton.setAttribute("aria-disabled", String(!isComplete));
+  emptyAddTradeButton.setAttribute("aria-disabled", String(!isComplete));
 }
 
 function normalizeOptions(options, fallback) {
@@ -666,7 +706,8 @@ function getFilteredTrades() {
     const matchesAccount = selectedAccount === "All" || (trade.account || getDefaultOption("accounts")) === selectedAccount;
     const matchesStrategy = selectedStrategy === "All" || (trade.strategy || getDefaultOption("strategies")) === selectedStrategy;
     const matchesMarket = selectedMarket === "All" || getTradeMarketType(trade) === selectedMarket;
-    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy && matchesMarket;
+    const matchesReview = !reviewMode || trade.outcome === "Win" || trade.outcome === "Loss";
+    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy && matchesMarket && matchesReview;
   });
 }
 
@@ -849,6 +890,11 @@ function renderEquityCurve() {
       <line class="equity-zero-line" x1="${padding}" x2="${width - padding}" y1="${zeroY.toFixed(2)}" y2="${zeroY.toFixed(2)}" />
       <path class="equity-area" d="${areaPath}" />
       <path class="equity-line" d="${linePath}" />
+      ${coordinates.slice(1).map((point) => `
+        <circle class="equity-hover-point" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="10">
+          <title>${escapeHtml(point.date || "Trade")} · ${formatSummaryAmount(point.value)}</title>
+        </circle>
+      `).join("")}
       <circle class="equity-point" cx="${finalPoint.x.toFixed(2)}" cy="${finalPoint.y.toFixed(2)}" r="6" />
     </svg>
     <div class="equity-axis">
@@ -929,6 +975,27 @@ function renderAnalyticsBreakdown(title, items) {
   `;
 }
 
+function renderDisciplineSummaryBreakdown(title, items) {
+  const rows = items
+    .map(
+      (item) => `
+        <div class="analytics-row ${item.net > 0 ? "profit" : item.net < 0 ? "loss" : "flat"}">
+          <span>${escapeHtml(item.label)}</span>
+          <b>${formatSummaryAmount(item.net)}</b>
+          <small>${item.total} trades · ${formatPercent(item.winRate)} win rate · ${item.detail}</small>
+        </div>
+      `,
+    )
+    .join("");
+
+  return `
+    <article class="analytics-breakdown-card">
+      <h3>${escapeHtml(title)}</h3>
+      ${rows || '<p class="analytics-empty">No discipline data yet.</p>'}
+    </article>
+  `;
+}
+
 function getBreakdownItems(closedTrades, key, options = []) {
   const labels = options.length ? options : [...new Set(closedTrades.map((trade) => trade[key]).filter(Boolean))];
   return labels
@@ -952,6 +1019,8 @@ function renderAnalytics() {
   const averageDiscipline = allDisciplineScores.length
     ? allDisciplineScores.reduce((sum, score) => sum + score, 0) / allDisciplineScores.length
     : 0;
+  const cleanTrades = allDisciplineScores.filter((score) => score === DISCIPLINE_MAX_SCORE).length;
+  const cleanTradeRate = allDisciplineScores.length ? (cleanTrades / allDisciplineScores.length) * 100 : 0;
 
   const metricCards = [
     { label: "Win Rate", value: formatPercent(summary.winRate), tone: summary.winRate >= 50 ? "profit" : summary.total ? "loss" : "flat" },
@@ -960,7 +1029,8 @@ function renderAnalytics() {
     { label: "Profit Factor", value: formatProfitFactor(summary.profitFactor), tone: summary.profitFactor >= 1 ? "profit" : summary.total ? "loss" : "flat" },
     { label: "Best Day", value: bestDay ? formatSummaryAmount(bestDay.amount) : "0.00", detail: bestDay?.date || "-", tone: bestDay?.amount > 0 ? "profit" : "flat" },
     { label: "Worst Day", value: worstDay ? formatSummaryAmount(worstDay.amount) : "0.00", detail: worstDay?.date || "-", tone: worstDay?.amount < 0 ? "loss" : "flat" },
-    { label: "Discipline", value: `${formatLots(averageDiscipline)}/4`, detail: `${disciplineTrades.length} tracked`, tone: averageDiscipline >= 3 ? "profit" : averageDiscipline >= 2 ? "flat" : disciplineTrades.length ? "loss" : "flat" },
+    { label: "Discipline", value: `${formatLots(averageDiscipline)}/${DISCIPLINE_MAX_SCORE}`, detail: `${disciplineTrades.length} tracked`, tone: averageDiscipline >= 4 ? "profit" : averageDiscipline >= 3 ? "flat" : disciplineTrades.length ? "loss" : "flat" },
+    { label: "Clean Trades", value: formatPercent(cleanTradeRate), detail: `${cleanTrades}/${disciplineTrades.length || 0} perfect`, tone: cleanTradeRate >= 70 ? "profit" : cleanTradeRate >= 40 ? "flat" : disciplineTrades.length ? "loss" : "flat" },
   ];
 
   analyticsGrid.innerHTML = metricCards
@@ -980,8 +1050,44 @@ function renderAnalytics() {
     renderAnalyticsBreakdown("By Session", getBreakdownItems(closedTrades, "session", appConfig.sessions)),
     renderAnalyticsBreakdown("By Account", getBreakdownItems(closedTrades, "account", appConfig.accounts)),
     renderAnalyticsBreakdown("By Strategy", getBreakdownItems(closedTrades, "strategy", appConfig.strategies)),
+  ].join("");
+
+  analyticsDisciplineBreakdowns.innerHTML = [
+    renderDisciplinePerformanceAnalytics(),
+    renderDisciplineMistakeAnalytics(),
     renderDisciplineAnalytics(),
   ].join("");
+}
+
+function renderDisciplinePerformanceAnalytics() {
+  const closedDisciplineTrades = getClosedTrades().filter(hasTradeDiscipline);
+  const highDiscipline = closedDisciplineTrades.filter((trade) => getDisciplineScore(trade) >= 4);
+  const lowDiscipline = closedDisciplineTrades.filter((trade) => getDisciplineScore(trade) <= 3);
+  const clean = closedDisciplineTrades.filter((trade) => getDisciplineScore(trade) === DISCIPLINE_MAX_SCORE);
+
+  return renderDisciplineSummaryBreakdown("Discipline vs P&L", [
+    { label: "High discipline", detail: "score 4-5", ...summarizeTradeSet(highDiscipline) },
+    { label: "Low discipline", detail: "score 0-3", ...summarizeTradeSet(lowDiscipline) },
+    { label: "Clean trades", detail: `score ${DISCIPLINE_MAX_SCORE}/${DISCIPLINE_MAX_SCORE}`, ...summarizeTradeSet(clean) },
+  ].filter((item) => item.total > 0));
+}
+
+function renderDisciplineMistakeAnalytics() {
+  const closedDisciplineTrades = getClosedTrades().filter(hasTradeDiscipline);
+  const rows = DISCIPLINE_RULES
+    .filter((rule) => !rule.positive)
+    .map((rule) => {
+      const matchingTrades = closedDisciplineTrades.filter((trade) => Boolean(getTradeDiscipline(trade)[rule.key]));
+      return {
+        label: rule.label,
+        detail: "when marked",
+        ...summarizeTradeSet(matchingTrades),
+      };
+    })
+    .filter((item) => item.total > 0)
+    .sort((a, b) => a.net - b.net);
+
+  return renderDisciplineSummaryBreakdown("Mistake Impact", rows);
 }
 
 function renderDisciplineAnalytics() {
@@ -991,11 +1097,12 @@ function renderDisciplineAnalytics() {
     const count = disciplineTrades.filter((trade) => Boolean(getTradeDiscipline(trade)[rule.key])).length;
     const percentage = totalTrades ? (count / totalTrades) * 100 : 0;
     const rowClass = rule.positive ? "profit" : count ? "loss" : "flat";
+    const detail = rule.positive ? "of trades" : "marked as mistake";
     return `
       <div class="analytics-row ${rowClass}">
         <span>${escapeHtml(rule.label)}</span>
         <b>${count}</b>
-        <small>${formatPercent(percentage)} of trades</small>
+        <small>${formatPercent(percentage)} ${detail}</small>
       </div>
     `;
   }).join("");
@@ -1079,6 +1186,7 @@ function renderWeeklySummary() {
 
     const card = document.createElement("article");
     card.className = `weekly-card ${resultClass}`;
+    card.title = `${day.name}: ${formatSummaryAmount(amount)} · ${dayTrades.length} trades · ${wins}/${losses}`;
     card.innerHTML = `
       <div>
         <span>${day.name}</span>
@@ -1137,6 +1245,7 @@ function renderMonthlyView() {
       const hasTrades = dayTrades.length > 0;
 
       cell.className = `monthly-day ${dayClass} ${hasTrades ? "has-trades" : ""}`;
+      cell.title = `${day.label}: ${formatSummaryAmount(amount)} · ${dayTrades.length} trades · ${wins}/${losses}`;
       cell.innerHTML = `
         <div>
           <span>${day.day}</span>
@@ -1199,12 +1308,14 @@ function renderAccountBalances() {
   accounts.forEach((account) => {
     const startingBalance = parseNumber(appConfig.accountBalances?.[account]);
     const accountTrades = getDashboardTrades().filter((trade) => (trade.account || getDefaultOption("accounts")) === account);
+    const accountSummary = summarizeTradeSet(accountTrades.filter((trade) => trade.outcome === "Win" || trade.outcome === "Loss"));
     const pnl = accountTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
     const hasBalance = startingBalance > 0;
+    const pnlPercent = hasBalance ? Math.max(-100, Math.min(100, (pnl / startingBalance) * 100)) : 0;
     const card = document.createElement("article");
     card.className = `account-balance-card ${pnl > 0 ? "profit" : pnl < 0 ? "loss" : "flat"}`;
     card.innerHTML = `
-      <div>
+      <div class="account-balance-head">
         <span>${escapeHtml(account)}</span>
         <strong>${hasBalance ? formatSummaryAmount(startingBalance + pnl) : "Not set"}</strong>
       </div>
@@ -1212,14 +1323,18 @@ function renderAccountBalances() {
         <div><dt>Starting</dt><dd>${hasBalance ? formatSummaryAmount(startingBalance) : "0.00"}</dd></div>
         <div><dt>P/L</dt><dd>${formatSummaryAmount(pnl)}</dd></div>
         <div><dt>Trades</dt><dd>${accountTrades.length}</dd></div>
+        <div><dt>Win</dt><dd>${formatPercent(accountSummary.winRate)}</dd></div>
       </dl>
+      <div class="account-progress" aria-label="Account performance">
+        <span style="width: ${Math.abs(pnlPercent).toFixed(2)}%"></span>
+      </div>
     `;
     accountBalanceGrid.appendChild(card);
   });
 }
 
 function renderTable() {
-  const visibleTrades = getFilteredTrades().slice().sort((a, b) => b.tradeDate.localeCompare(a.tradeDate));
+  const visibleTrades = getVisibleTradesSorted();
   const totalPages = Math.max(1, Math.ceil(visibleTrades.length / TABLE_PAGE_SIZE));
   currentTablePage = Math.min(currentTablePage, totalPages);
   const pageStart = (currentTablePage - 1) * TABLE_PAGE_SIZE;
@@ -1232,21 +1347,22 @@ function renderTable() {
       const hasNote = Boolean(note.trim());
       const isTruncated = note.trim().length > 56;
       const row = document.createElement("tr");
+      row.dataset.tradeId = trade.id;
       row.innerHTML = `
-        <td>${trade.tradeDate}</td>
-        <td class="symbol-cell">${escapeHtml(trade.symbol)}</td>
-        <td>${escapeHtml(getTradeMarketType(trade))}</td>
-        <td>${escapeHtml(trade.session || getDefaultOption("sessions"))}</td>
-        <td>${escapeHtml(trade.account || getDefaultOption("accounts"))}</td>
-        <td>${escapeHtml(trade.strategy || "-")}</td>
-        <td>${getTradeSizeType(trade)}</td>
-        <td>${formatTradeSize(trade)}</td>
-        <td><span class="badge ${getOutcomeClass(trade.outcome)}">${escapeHtml(trade.outcome || "Pending")}</span></td>
-        <td class="${trade.outcome === "Win" ? "amount-win" : trade.outcome === "Loss" ? "amount-loss" : "muted"}">
+        <td data-label="Date">${trade.tradeDate}</td>
+        <td data-label="Symbol" class="symbol-cell">${escapeHtml(trade.symbol)}</td>
+        <td data-label="Market">${escapeHtml(getTradeMarketType(trade))}</td>
+        <td data-label="Session">${escapeHtml(trade.session || getDefaultOption("sessions"))}</td>
+        <td data-label="Account">${escapeHtml(trade.account || getDefaultOption("accounts"))}</td>
+        <td data-label="Strategy">${escapeHtml(trade.strategy || "-")}</td>
+        <td data-label="Size Type">${getTradeSizeType(trade)}</td>
+        <td data-label="Size">${formatTradeSize(trade)}</td>
+        <td data-label="Win / Loss"><span class="badge ${getOutcomeClass(trade.outcome)}">${escapeHtml(trade.outcome || "Pending")}</span></td>
+        <td data-label="Amount" class="${trade.outcome === "Win" ? "amount-win" : trade.outcome === "Loss" ? "amount-loss" : "muted"}">
           ${formatAmount(trade.amount)}
         </td>
-        <td>${renderDisciplineBadge(trade)}</td>
-        <td class="notes-cell">
+        <td data-label="Discipline">${renderDisciplineBadge(trade)}</td>
+        <td data-label="Notes" class="notes-cell">
           ${
             hasNote
               ? `<span>${escapeHtml(truncateText(note))}</span>
@@ -1258,10 +1374,10 @@ function renderTable() {
               : "-"
           }
         </td>
-        <td>
+        <td data-label="Actions">
           <div class="actions">
-            <button class="icon-button" type="button" data-action="edit" data-id="${trade.id}">Edit</button>
-            <button class="icon-button delete" type="button" data-action="delete" data-id="${trade.id}">Delete</button>
+            <button class="icon-button compact-icon" type="button" data-action="edit" data-id="${trade.id}" aria-label="Edit trade" title="Edit trade">✎</button>
+            <button class="icon-button compact-icon delete" type="button" data-action="delete" data-id="${trade.id}" aria-label="Delete trade" title="Delete trade">×</button>
           </div>
         </td>
       `;
@@ -1269,12 +1385,83 @@ function renderTable() {
     });
 
   emptyState.classList.toggle("hidden", visibleTrades.length > 0);
+  emptyState.querySelector("h2").textContent = trades.length ? (reviewMode ? "No closed trades" : "No trades match") : "No trades yet";
+  emptyState.querySelector("p").textContent = trades.length
+    ? (reviewMode ? "Turn off review mode or mark trades as Win or Loss." : "Adjust your filters to bring trades back into view.")
+    : "Configure your inputs, then add your first trade to start building your journal.";
   tablePagination.classList.toggle("hidden", visibleTrades.length === 0);
   paginationStatus.textContent = visibleTrades.length
     ? `Showing ${pageStart + 1}-${Math.min(pageEnd, visibleTrades.length)} of ${visibleTrades.length} trades`
     : "Showing 0 trades";
   prevPageButton.disabled = currentTablePage <= 1;
   nextPageButton.disabled = currentTablePage >= totalPages;
+}
+
+function getVisibleTradesSorted() {
+  return getFilteredTrades().slice().sort((a, b) => b.tradeDate.localeCompare(a.tradeDate));
+}
+
+function openTradeDrawer(id) {
+  const trade = trades.find((item) => item.id === id);
+  if (!trade) {
+    return;
+  }
+
+  selectedTradeId = id;
+  const amount = getTradeAmount(trade);
+  const discipline = getTradeDiscipline(trade);
+  tradeDrawerTitle.textContent = `${trade.symbol || "Trade"} · ${trade.tradeDate || "-"}`;
+  tradeDrawerContent.innerHTML = `
+    <div class="drawer-metrics">
+      <div><span>Outcome</span><strong><span class="badge ${getOutcomeClass(trade.outcome)}">${escapeHtml(trade.outcome || "Pending")}</span></strong></div>
+      <div><span>Amount</span><strong class="${amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "amount-flat"}">${formatSummaryAmount(amount)}</strong></div>
+      <div><span>Size</span><strong>${formatTradeSize(trade)}</strong></div>
+      <div><span>Discipline</span><strong>${renderDisciplineBadge(trade)}</strong></div>
+    </div>
+    <dl class="drawer-details">
+      <div><dt>Market</dt><dd>${escapeHtml(getTradeMarketType(trade))}</dd></div>
+      <div><dt>Session</dt><dd>${escapeHtml(trade.session || "-")}</dd></div>
+      <div><dt>Account</dt><dd>${escapeHtml(trade.account || "-")}</dd></div>
+      <div><dt>Strategy</dt><dd>${escapeHtml(trade.strategy || "-")}</dd></div>
+    </dl>
+    <div class="drawer-discipline">
+      ${DISCIPLINE_RULES.map((rule) => {
+        const checked = Boolean(discipline[rule.key]);
+        const isGood = rule.positive ? checked : !checked;
+        return `<span class="${isGood ? "good" : "bad"}">${isGood ? "✓" : "×"} ${escapeHtml(rule.label)}</span>`;
+      }).join("")}
+    </div>
+    <article class="drawer-notes">
+      <span>Notes</span>
+      <p>${trade.notes ? escapeHtml(trade.notes) : "No notes added."}</p>
+    </article>
+  `;
+  syncDrawerButtons();
+  openDialog(tradeDetailDrawer);
+}
+
+function closeTradeDrawer() {
+  closeDialog(tradeDetailDrawer);
+}
+
+function getSelectedTradeIndex() {
+  return getVisibleTradesSorted().findIndex((trade) => trade.id === selectedTradeId);
+}
+
+function syncDrawerButtons() {
+  const visibleTrades = getVisibleTradesSorted();
+  const index = getSelectedTradeIndex();
+  drawerPrevButton.disabled = index <= 0;
+  drawerNextButton.disabled = index < 0 || index >= visibleTrades.length - 1;
+}
+
+function stepTradeDrawer(direction) {
+  const visibleTrades = getVisibleTradesSorted();
+  const index = getSelectedTradeIndex();
+  const nextTrade = visibleTrades[index + direction];
+  if (nextTrade) {
+    openTradeDrawer(nextTrade.id);
+  }
 }
 
 function render() {
@@ -1385,8 +1572,8 @@ function closeConfigModal() {
 }
 
 function maybeOpenConfigForNewUser() {
-  if (!userConfigComplete() && !configModal.open) {
-    openConfigModal();
+  if (!userConfigComplete() && !configModal.open && !onboardingModal.open) {
+    openDialog(onboardingModal);
   }
 }
 
@@ -1405,6 +1592,7 @@ function addConfigValue(key, value) {
   renderConfig();
   resetForm();
   render();
+  showToast("Config value added");
 }
 
 function removeConfigValue(key, value) {
@@ -1430,6 +1618,7 @@ function removeConfigValue(key, value) {
   renderConfig();
   resetForm();
   render();
+  showToast("Config value removed");
 }
 
 function showView(viewId) {
@@ -1439,6 +1628,16 @@ function showView(viewId) {
 
   navButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.viewTarget === viewId);
+  });
+}
+
+function showAnalyticsTab(tabName) {
+  analyticsTabButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.analyticsTab === tabName);
+  });
+
+  Object.entries(analyticsTabPanels).forEach(([name, panel]) => {
+    panel.classList.toggle("active", name === tabName);
   });
 }
 
@@ -1466,7 +1665,7 @@ function getDisciplineScore(trade) {
     score += 1;
   }
 
-  ["enteredEarly", "movedSl", "overtraded"].forEach((key) => {
+  ["enteredEarly", "movedSl", "overtraded", "exitedEarly"].forEach((key) => {
     if (!discipline[key]) {
       score += 1;
     }
@@ -1481,12 +1680,12 @@ function renderDisciplineBadge(trade) {
     return '<span class="badge pending">-</span>';
   }
 
-  const className = score >= 4 ? "win" : score >= 2 ? "open" : "loss";
-  return `<span class="badge ${className}">${score}/4</span>`;
+  const className = score >= DISCIPLINE_MAX_SCORE ? "win" : score >= 3 ? "open" : "loss";
+  return `<span class="badge ${className}">${score}/${DISCIPLINE_MAX_SCORE}</span>`;
 }
 
 function updateModalScrollLock() {
-  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal].some((modal) => modal.open);
+  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal].some((modal) => modal.open);
   document.body.classList.toggle("modal-open", hasOpenModal);
 }
 
@@ -1508,6 +1707,16 @@ function closeDialog(modal) {
 function openTradeModal() {
   openDialog(tradeModal);
   form.tradeDate.focus();
+}
+
+function startAddTradeFlow() {
+  if (!userConfigComplete()) {
+    maybeOpenConfigForNewUser();
+    return;
+  }
+
+  resetForm();
+  openTradeModal();
 }
 
 function closeTradeModal() {
@@ -1651,6 +1860,7 @@ function readForm() {
       enteredEarly: form.enteredEarly.checked,
       movedSl: form.movedSl.checked,
       overtraded: form.overtraded.checked,
+      exitedEarly: form.exitedEarly.checked,
     },
     notes: form.notes.value.trim(),
     createdAt: existingId
@@ -1752,6 +1962,7 @@ function deleteTrade(id) {
   trades = trades.filter((item) => item.id !== id);
   saveTrades();
   render();
+  showToast("Trade deleted", "warning");
 }
 
 function exportCsv() {
@@ -1770,10 +1981,11 @@ function exportCsv() {
       "Win / Loss",
       "Amount",
       "Discipline Score",
-      "Followed Plan",
-      "Entered Early",
-      "Moved SL",
+      "Plan Followed",
+      "Early Entry",
+      "Stop Moved",
       "Overtraded",
+      "Early Exit",
       "Notes",
     ],
     ...trades.map((trade) => {
@@ -1791,11 +2003,12 @@ function exportCsv() {
         formatLots(getTradeLots(trade)),
         trade.outcome || "Pending",
         trade.amount || "",
-        getDisciplineScore(trade) === null ? "" : `${getDisciplineScore(trade)}/4`,
+        getDisciplineScore(trade) === null ? "" : `${getDisciplineScore(trade)}/${DISCIPLINE_MAX_SCORE}`,
         discipline.followedPlan ? "Yes" : "No",
         discipline.enteredEarly ? "Yes" : "No",
         discipline.movedSl ? "Yes" : "No",
         discipline.overtraded ? "Yes" : "No",
+        discipline.exitedEarly ? "Yes" : "No",
         trade.notes,
       ];
     }),
@@ -1811,6 +2024,7 @@ function exportCsv() {
   link.download = `trades-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+  showToast("CSV exported");
 }
 
 form.addEventListener("submit", (event) => {
@@ -1826,8 +2040,10 @@ form.addEventListener("submit", (event) => {
   const existingIndex = trades.findIndex((item) => item.id === trade.id);
   if (existingIndex >= 0) {
     trades[existingIndex] = trade;
+    showToast("Trade updated");
   } else {
     trades.push(trade);
+    showToast("Trade added");
   }
 
   saveTrades();
@@ -1840,6 +2056,10 @@ form.addEventListener("submit", (event) => {
 tableBody.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) {
+    const row = event.target.closest("tr[data-trade-id]");
+    if (row) {
+      openTradeDrawer(row.dataset.tradeId);
+    }
     return;
   }
 
@@ -1878,6 +2098,19 @@ marketTypeFilter.addEventListener("change", () => {
 });
 dashboardAccountFilter.addEventListener("change", render);
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
+reviewModeButton.addEventListener("click", () => {
+  reviewMode = !reviewMode;
+  reviewModeButton.classList.toggle("active", reviewMode);
+  currentTablePage = 1;
+  renderTable();
+  showToast(reviewMode ? "Review mode on" : "Review mode off");
+});
+densityToggleButton.addEventListener("click", () => {
+  tableDensity = tableDensity === "comfortable" ? "compact" : "comfortable";
+  document.body.classList.toggle("compact-table", tableDensity === "compact");
+  densityToggleButton.classList.toggle("active", tableDensity === "compact");
+  densityToggleButton.textContent = tableDensity === "compact" ? "Comfort Rows" : "Compact Rows";
+});
 performanceWeekMode.addEventListener("click", () => {
   performanceMode = "week";
   renderPerformanceCalendar();
@@ -1888,21 +2121,23 @@ performanceMonthMode.addEventListener("click", () => {
 });
 performancePeriodSelect.addEventListener("change", renderPerformanceCalendar);
 cancelEditButton.addEventListener("click", resetForm);
-openTradeModalButton.addEventListener("click", () => {
-  if (!userConfigComplete()) {
-    openConfigModal();
-    return;
-  }
-
-  resetForm();
-  openTradeModal();
-});
+openTradeModalButton.addEventListener("click", startAddTradeFlow);
+emptyAddTradeButton.addEventListener("click", startAddTradeFlow);
+emptyConfigButton.addEventListener("click", openConfigModal);
 closeTradeModalButton.addEventListener("click", closeTradeModal);
 openConfigButton.addEventListener("click", openConfigModal);
 closeConfigButton.addEventListener("click", closeConfigModal);
 closeNoteButton.addEventListener("click", closeNoteModal);
 openResetPasscodeButton.addEventListener("click", openResetPasscodeModal);
 closeResetPasscodeButton.addEventListener("click", closeResetPasscodeModal);
+closeTradeDrawerButton.addEventListener("click", closeTradeDrawer);
+drawerPrevButton.addEventListener("click", () => stepTradeDrawer(-1));
+drawerNextButton.addEventListener("click", () => stepTradeDrawer(1));
+drawerEditButton.addEventListener("click", () => {
+  const id = selectedTradeId;
+  closeTradeDrawer();
+  startEdit(id);
+});
 logoutButton.addEventListener("click", logout);
 userMenuButton.addEventListener("click", () => {
   const isOpen = !userPopover.classList.contains("hidden");
@@ -2056,6 +2291,12 @@ noteModal.addEventListener("click", (event) => {
   }
 });
 
+tradeDetailDrawer.addEventListener("click", (event) => {
+  if (event.target === tradeDetailDrawer) {
+    closeTradeDrawer();
+  }
+});
+
 resetPasscodeModal.addEventListener("click", (event) => {
   if (event.target === resetPasscodeModal) {
     closeResetPasscodeModal();
@@ -2077,7 +2318,7 @@ confirmResetPasscodeButton.addEventListener("click", async () => {
   }
 });
 
-[tradeModal, configModal, noteModal, resetPasscodeModal].forEach((modal) => {
+[tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal].forEach((modal) => {
   modal.addEventListener("close", updateModalScrollLock);
 });
 
@@ -2098,10 +2339,45 @@ clearButton.addEventListener("click", () => {
   resetForm();
   currentTablePage = 1;
   render();
+  showToast("Trades cleared", "warning");
 });
 
 navButtons.forEach((button) => {
   button.addEventListener("click", () => showView(button.dataset.viewTarget));
+});
+
+onboardingConfigButton.addEventListener("click", () => {
+  closeDialog(onboardingModal);
+  openConfigModal();
+});
+
+analyticsTabButtons.forEach((button) => {
+  button.addEventListener("click", () => showAnalyticsTab(button.dataset.analyticsTab));
+});
+
+document.addEventListener("keydown", (event) => {
+  const isTyping = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName);
+  if (event.key === "Escape") {
+    [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal].forEach((modal) => {
+      if (modal.open) {
+        closeDialog(modal);
+      }
+    });
+  }
+
+  if (isTyping || document.body.classList.contains("auth-locked") || document.body.classList.contains("modal-open")) {
+    return;
+  }
+
+  if (event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    startAddTradeFlow();
+  }
+
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    showView(document.querySelector("#trackerView").classList.contains("active") ? "calculatorView" : "trackerView");
+  }
 });
 
 function calcEl(id) {

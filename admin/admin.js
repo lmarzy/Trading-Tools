@@ -67,7 +67,10 @@ function setNewUserFormLoading(isLoading) {
 function renderTableMessage(message) {
   adminPasscodeList.innerHTML = `
     <tr>
-      <td class="table-message" colspan="7">${escapeHtml(message)}</td>
+      <td class="table-message" colspan="7">
+        <div class="skeleton-row"></div>
+        ${escapeHtml(message)}
+      </td>
     </tr>
   `;
 }
@@ -75,7 +78,10 @@ function renderTableMessage(message) {
 function renderAuditMessage(message) {
   adminAuditList.innerHTML = `
     <tr>
-      <td class="table-message" colspan="5">${escapeHtml(message)}</td>
+      <td class="table-message" colspan="5">
+        <div class="skeleton-row"></div>
+        ${escapeHtml(message)}
+      </td>
     </tr>
   `;
 }
@@ -298,11 +304,11 @@ function renderAuditLogs() {
     .map(
       (log) => `
         <tr>
-          <td>${escapeHtml(formatDateTime(log.created_at))}</td>
-          <td><span class="badge open">${escapeHtml(getAuditEventLabel(log.event))}</span></td>
-          <td>${escapeHtml(formatAuditPerson(log.actor))}</td>
-          <td>${escapeHtml(formatAuditPerson(log.target))}</td>
-          <td class="admin-audit-details">${escapeHtml(formatAuditDetails(log.details))}</td>
+          <td data-label="Time">${escapeHtml(formatDateTime(log.created_at))}</td>
+          <td data-label="Event"><span class="badge open">${escapeHtml(getAuditEventLabel(log.event))}</span></td>
+          <td data-label="Actor">${escapeHtml(formatAuditPerson(log.actor))}</td>
+          <td data-label="Target">${escapeHtml(formatAuditPerson(log.target))}</td>
+          <td data-label="Details" class="admin-audit-details">${escapeHtml(formatAuditDetails(log.details))}</td>
         </tr>
       `,
     )
@@ -356,7 +362,7 @@ function renderPasscodes() {
     .map(
       (passcode) => `
         <tr class="admin-user-row" data-passcode-action="toggle-details" data-passcode-index="${passcode.index}">
-          <td>
+          <td data-label="First Name">
             <input
               class="admin-table-input"
               type="text"
@@ -367,7 +373,7 @@ function renderPasscodes() {
               data-passcode-index="${passcode.index}"
             />
           </td>
-          <td>
+          <td data-label="Last Name">
             <input
               class="admin-table-input"
               type="text"
@@ -378,7 +384,7 @@ function renderPasscodes() {
               data-passcode-index="${passcode.index}"
             />
           </td>
-          <td>
+          <td data-label="Email">
             <input
               class="admin-table-input"
               type="email"
@@ -389,19 +395,19 @@ function renderPasscodes() {
               data-passcode-index="${passcode.index}"
             />
           </td>
-          <td>
+          <td data-label="Role">
             <select class="admin-table-input" data-original-value="${escapeHtml(passcode.role || "user")}" data-passcode-action="role" data-passcode-index="${passcode.index}">
               <option value="user" ${passcode.role !== "admin" ? "selected" : ""}>User</option>
               <option value="admin" ${passcode.role === "admin" ? "selected" : ""}>Admin</option>
             </select>
           </td>
-          <td>
+          <td data-label="Status">
             <select class="admin-table-input" data-original-value="${passcode.active ? "active" : "inactive"}" data-passcode-action="active" data-passcode-index="${passcode.index}">
               <option value="active" ${passcode.active ? "selected" : ""}>Active</option>
               <option value="inactive" ${!passcode.active ? "selected" : ""}>Inactive</option>
             </select>
           </td>
-          <td class="admin-code-cell">
+          <td data-label="Code" class="admin-code-cell">
             <div class="admin-code-value">
               <span>${escapeHtml(passcode.code || "")}</span>
               ${
@@ -411,7 +417,7 @@ function renderPasscodes() {
               }
             </div>
           </td>
-          <td>
+          <td data-label="Actions">
             <div class="admin-inline-actions">
               <button class="icon-button admin-action-button" type="button" title="Save" aria-label="Save user" data-passcode-action="save" data-passcode-index="${passcode.index}" disabled>✓</button>
               <button class="icon-button admin-action-button" type="button" title="Reset code" aria-label="Reset user code" data-passcode-action="reset-code" data-passcode-index="${passcode.index}">↻</button>
