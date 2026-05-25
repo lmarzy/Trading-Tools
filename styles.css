@@ -414,6 +414,63 @@ body:not(.app-checking) .app-loading-screen {
   background: var(--panel);
 }
 
+.dashboard-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.dashboard-section-tabs button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.dashboard-section-tabs button:not(:disabled):hover {
+  background: var(--field);
+  color: var(--ink);
+}
+
+.dashboard-section-tabs button.active {
+  background: var(--lime);
+  color: #111111;
+}
+
+.dashboard-sections {
+  margin-bottom: 18px;
+  padding: 8px 0 12px;
+}
+
+.dashboard-section-panel {
+  display: none;
+}
+
+.dashboard-section-panel.active {
+  display: block;
+}
+
+.dashboard-section-panel {
+  margin-bottom: 0;
+}
+
+.dashboard-section-panel > .weekly-heading {
+  margin-bottom: 18px;
+}
+
+.dashboard-section-panel > .weekly-heading h2 {
+  display: none;
+}
+
 .dashboard-filter {
   position: relative;
   width: 210px;
@@ -703,6 +760,18 @@ h2 {
   border-radius: 24px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.dashboard-section-panel.performance-panel,
+.dashboard-section-panel.equity-panel,
+.dashboard-section-panel.analytics-panel,
+.dashboard-section-panel.strategy-panel {
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .weekly-heading {
@@ -1193,7 +1262,7 @@ h2 {
 
 .account-balance-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 

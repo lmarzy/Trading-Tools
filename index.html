@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260525-logo-loader" />
+    <link rel="stylesheet" href="styles.css?v=20260525-dashboard-spacing" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -80,36 +80,48 @@
           <button class="primary-button top-action" type="button" id="openTradeModalButton">Add trade</button>
         </div>
       </div>
-      <section class="summary-grid" aria-label="Trading summary">
-        <article class="summary-tile">
-          <span>Total Trades</span>
-          <strong id="totalTrades">0</strong>
-          <div class="summary-split" id="summarySymbolSplit"></div>
-        </article>
-        <div class="summary-size-tiles" id="summarySizeTiles"></div>
-        <article class="summary-tile">
-          <span>Wins</span>
-          <strong id="winsTotal">0</strong>
-        </article>
-        <article class="summary-tile">
-          <span>Losses</span>
-          <strong id="lossesTotal">0</strong>
-        </article>
-        <article class="summary-tile">
-          <span>Amount</span>
-          <strong id="amountTotal">0.00</strong>
-        </article>
-      </section>
-      <section class="market-summary-grid hidden" id="marketSummaryGrid" aria-label="Market type summary"></section>
+      <div class="dashboard-section-tabs" role="tablist" aria-label="Dashboard sections">
+        <button class="active" type="button" data-dashboard-section="overview">Overview</button>
+        <button type="button" data-dashboard-section="balances">Account balances</button>
+        <button type="button" data-dashboard-section="equity">Equity Curve</button>
+        <button type="button" data-dashboard-section="analytics">Analytics</button>
+        <button type="button" data-dashboard-section="performance">Weekly Monthly breakdown</button>
+        <button type="button" data-dashboard-section="strategies">Strategy Breakdown</button>
+      </div>
 
-      <section class="strategy-panel" aria-label="Account balances">
+      <div class="dashboard-sections">
+      <section class="dashboard-section-panel active" id="dashboardOverviewPanel" data-dashboard-panel="overview" aria-label="Overview">
+        <section class="summary-grid" aria-label="Trading summary">
+          <article class="summary-tile">
+            <span>Total Trades</span>
+            <strong id="totalTrades">0</strong>
+            <div class="summary-split" id="summarySymbolSplit"></div>
+          </article>
+          <div class="summary-size-tiles" id="summarySizeTiles"></div>
+          <article class="summary-tile">
+            <span>Wins</span>
+            <strong id="winsTotal">0</strong>
+          </article>
+          <article class="summary-tile">
+            <span>Losses</span>
+            <strong id="lossesTotal">0</strong>
+          </article>
+          <article class="summary-tile">
+            <span>Amount</span>
+            <strong id="amountTotal">0.00</strong>
+          </article>
+        </section>
+        <section class="market-summary-grid hidden" id="marketSummaryGrid" aria-label="Market type summary"></section>
+      </section>
+
+      <section class="strategy-panel dashboard-section-panel" data-dashboard-panel="balances" aria-label="Account balances">
         <div class="weekly-heading">
           <h2>Account Balances</h2>
         </div>
         <div class="account-balance-grid" id="accountBalanceGrid"></div>
       </section>
 
-      <section class="equity-panel" aria-label="Equity curve">
+      <section class="equity-panel dashboard-section-panel" data-dashboard-panel="equity" aria-label="Equity curve">
         <div class="weekly-heading">
           <h2>Equity Curve</h2>
         </div>
@@ -122,7 +134,7 @@
         </div>
       </section>
 
-      <section class="analytics-panel" aria-label="Trading analytics">
+      <section class="analytics-panel dashboard-section-panel" data-dashboard-panel="analytics" aria-label="Trading analytics">
         <div class="weekly-heading">
           <h2>Analytics</h2>
           <div class="analytics-tabs" role="tablist" aria-label="Analytics views">
@@ -142,7 +154,7 @@
         </div>
       </section>
 
-      <section class="performance-panel" aria-label="Performance calendar">
+      <section class="performance-panel dashboard-section-panel" data-dashboard-panel="performance" aria-label="Performance calendar">
         <div class="weekly-heading">
           <div class="performance-title-group">
             <h2 id="performanceTitle">Performance Calendar</h2>
@@ -179,12 +191,13 @@
         <div class="weekly-grid" id="performanceGrid"></div>
       </section>
 
-      <section class="strategy-panel" aria-label="Strategy breakdown">
+      <section class="strategy-panel dashboard-section-panel" data-dashboard-panel="strategies" aria-label="Strategy breakdown">
         <div class="weekly-heading">
           <h2>Strategy Breakdown</h2>
         </div>
         <div class="strategy-grid" id="strategyGrid"></div>
       </section>
+      </div>
 
       <dialog class="trade-modal" id="tradeModal">
         <form class="trade-form" id="tradeForm" autocomplete="off">
@@ -669,8 +682,8 @@
     </main>
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="supabase-config.js?v=20260525-logo-loader"></script>
-    <script src="supabase-api.js?v=20260525-logo-loader"></script>
-    <script src="app.js?v=20260525-logo-loader"></script>
+    <script src="supabase-config.js?v=20260525-dashboard-spacing"></script>
+    <script src="supabase-api.js?v=20260525-dashboard-spacing"></script>
+    <script src="app.js?v=20260525-dashboard-spacing"></script>
   </body>
 </html>

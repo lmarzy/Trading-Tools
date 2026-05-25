@@ -60,6 +60,8 @@ const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
 const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
+const dashboardSectionButtons = document.querySelectorAll("[data-dashboard-section]");
+const dashboardSectionPanels = document.querySelectorAll("[data-dashboard-panel]");
 const analyticsTabButtons = document.querySelectorAll("[data-analytics-tab]");
 const analyticsTabPanels = {
   overview: document.querySelector("#analyticsOverviewPanel"),
@@ -2414,6 +2416,18 @@ function showView(viewId) {
   });
 }
 
+function showDashboardSection(sectionName) {
+  dashboardSectionButtons.forEach((button) => {
+    const isActive = button.dataset.dashboardSection === sectionName;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+
+  dashboardSectionPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.dashboardPanel === sectionName);
+  });
+}
+
 function showAnalyticsTab(tabName) {
   analyticsTabButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.analyticsTab === tabName);
@@ -2904,6 +2918,9 @@ marketTypeFilter.addEventListener("change", () => {
   renderTable();
 });
 dashboardAccountFilter.addEventListener("change", render);
+dashboardSectionButtons.forEach((button) => {
+  button.addEventListener("click", () => showDashboardSection(button.dataset.dashboardSection));
+});
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
 performanceWeekMode.addEventListener("click", () => {
   performanceMode = "week";
