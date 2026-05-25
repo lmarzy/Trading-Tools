@@ -1,6 +1,5 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
-import { writeAuditLog } from "../_shared/audit.ts";
 
 async function assertAdmin(req: Request, supabase: ReturnType<typeof createServiceClient>) {
   const adminHash = req.headers.get("x-admin-passcode-hash");
@@ -73,27 +72,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "audit-list") {
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select(`
-          id,
-          event,
-          details,
-          created_at,
-          actor:actor_user_id(label,email,role),
-          target:target_user_id(label,email,role)
-        `)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (error) {
-        return jsonResponse({ error: "Could not list audit logs" }, 500);
-      }
-
-      return jsonResponse({ logs: data || [] });
-    }
-
     if (action === "create") {
       const { firstName, lastName, email, label, role, passcodeHash, passcodeCode } = user || {};
       const displayLabel = label || [firstName, lastName].filter(Boolean).join(" ");
@@ -122,10 +100,6 @@ Deno.serve(async (req) => {
       }
 
       await supabase.from("user_data").insert({ user_id: data.id });
-      await writeAuditLog(supabase, "admin_user_created", adminUser.id, data.id, {
-        role: data.role,
-        email: data.email,
-      });
       return jsonResponse({ user: data });
     }
 
@@ -165,12 +139,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Could not update user" }, 500);
       }
 
-      await writeAuditLog(supabase, passcodeHash ? "admin_passcode_reset" : "admin_user_updated", adminUser.id, data.id, {
-        role: data.role,
-        active: data.active,
-        email: data.email,
-      });
-
       return jsonResponse({ user: data });
     }
 
@@ -184,22 +152,10 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Keep at least one active admin" }, 400);
       }
 
-      const { data: removedUser } = await supabase
-        .from("app_users")
-        .select("id,label,email,role")
-        .eq("id", id)
-        .maybeSingle();
       const { error } = await supabase.from("app_users").delete().eq("id", id);
       if (error) {
         return jsonResponse({ error: "Could not delete user" }, 500);
       }
-
-      await writeAuditLog(supabase, "admin_user_removed", adminUser.id, null, {
-        removedUserId: id,
-        label: removedUser?.label || null,
-        email: removedUser?.email || null,
-        role: removedUser?.role || null,
-      });
 
       return jsonResponse({ ok: true });
     }

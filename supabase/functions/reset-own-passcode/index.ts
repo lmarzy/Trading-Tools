@@ -1,6 +1,5 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
-import { writeAuditLog } from "../_shared/audit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -41,8 +40,6 @@ Deno.serve(async (req) => {
     if (updateError) {
       return jsonResponse({ error: "Could not reset passcode" }, 500);
     }
-
-    await writeAuditLog(supabase, "passcode_reset_self", userId, userId);
 
     return jsonResponse({ ok: true });
   } catch {

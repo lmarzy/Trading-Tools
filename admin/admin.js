@@ -11,15 +11,19 @@ const lastNameInput = document.querySelector("#lastNameInput");
 const emailInput = document.querySelector("#emailInput");
 const roleInput = document.querySelector("#roleInput");
 const generateUserCodeButton = document.querySelector("#generateUserCodeButton");
+const openAddUserModalButton = document.querySelector("#openAddUserModalButton");
+const addUserModal = document.querySelector("#addUserModal");
+const closeAddUserModalButton = document.querySelector("#closeAddUserModalButton");
+const addUserFormStep = document.querySelector("#addUserFormStep");
+const addUserResultStep = document.querySelector("#addUserResultStep");
+const generatedUserCodeDisplay = document.querySelector("#generatedUserCodeDisplay");
+const finishAddUserButton = document.querySelector("#finishAddUserButton");
 const adminUserSearch = document.querySelector("#adminUserSearch");
 const adminRoleFilter = document.querySelector("#adminRoleFilter");
 const adminStatusFilter = document.querySelector("#adminStatusFilter");
 const adminSortSelect = document.querySelector("#adminSortSelect");
 const adminPasscodeList = document.querySelector("#adminPasscodeList");
 const adminEmptyPasscodes = document.querySelector("#adminEmptyPasscodes");
-const adminAuditList = document.querySelector("#adminAuditList");
-const adminEmptyAuditLogs = document.querySelector("#adminEmptyAuditLogs");
-const refreshAuditButton = document.querySelector("#refreshAuditButton");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
 const activityTotalUsers = document.querySelector("#activityTotalUsers");
 const activityActiveUsers = document.querySelector("#activityActiveUsers");
@@ -28,7 +32,6 @@ const activityTotalTrades = document.querySelector("#activityTotalTrades");
 
 const adminConfig = {
   passcodes: [],
-  auditLogs: [],
 };
 
 let adminConfigLoaded = false;
@@ -41,16 +44,26 @@ function setButtonLoading(button, isLoading, loadingText = "Loading...") {
 
   if (isLoading) {
     button.dataset.defaultText = button.textContent;
-    button.textContent = loadingText;
+    button.dataset.defaultAriaLabel = button.getAttribute("aria-label") || "";
+    button.style.width = `${button.offsetWidth}px`;
+    button.textContent = "";
+    button.setAttribute("aria-label", loadingText);
     button.disabled = true;
     button.classList.add("is-loading");
     return;
   }
 
   button.textContent = button.dataset.defaultText || button.textContent;
+  if (button.dataset.defaultAriaLabel) {
+    button.setAttribute("aria-label", button.dataset.defaultAriaLabel);
+  } else {
+    button.removeAttribute("aria-label");
+  }
+  button.style.width = "";
   button.disabled = false;
   button.classList.remove("is-loading");
   delete button.dataset.defaultText;
+  delete button.dataset.defaultAriaLabel;
 }
 
 function setNewUserFormLoading(isLoading) {
@@ -68,17 +81,6 @@ function renderTableMessage(message) {
   adminPasscodeList.innerHTML = `
     <tr>
       <td class="table-message" colspan="7">
-        <div class="skeleton-row"></div>
-        ${escapeHtml(message)}
-      </td>
-    </tr>
-  `;
-}
-
-function renderAuditMessage(message) {
-  adminAuditList.innerHTML = `
-    <tr>
-      <td class="table-message" colspan="5">
         <div class="skeleton-row"></div>
         ${escapeHtml(message)}
       </td>
@@ -180,21 +182,6 @@ async function loadExistingConfig() {
     adminConfigLoaded = true;
     renderPasscodes();
     renderActivity();
-    loadAuditLogs();
-  }
-}
-
-async function loadAuditLogs() {
-  renderAuditMessage("Loading audit events...");
-  setButtonLoading(refreshAuditButton, true, "Refreshing...");
-  try {
-    const result = await callAdminUsers("audit-list");
-    adminConfig.auditLogs = result.logs || [];
-    renderAuditLogs();
-  } catch {
-    renderAuditMessage("Could not load audit events.");
-  } finally {
-    setButtonLoading(refreshAuditButton, false);
   }
 }
 
@@ -248,6 +235,28 @@ function updateGenerateUserButtonState() {
   generateUserCodeButton.disabled = !hasRequiredNewUserDetails();
 }
 
+function resetAddUserModal() {
+  firstNameInput.value = "";
+  lastNameInput.value = "";
+  emailInput.value = "";
+  roleInput.value = "user";
+  generatedUserCodeDisplay.textContent = "";
+  addUserFormStep.classList.remove("hidden");
+  addUserResultStep.classList.add("hidden");
+  updateGenerateUserButtonState();
+}
+
+function openAddUserModal() {
+  resetAddUserModal();
+  addUserModal.showModal();
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => firstNameInput.focus(), 0);
+}
+
+function closeAddUserModal() {
+  addUserModal.close();
+}
+
 function renderActivity() {
   const users = adminConfig.passcodes;
   const activeUsers = users.filter((user) => user.active);
@@ -258,61 +267,6 @@ function renderActivity() {
   activityActiveUsers.textContent = String(activeUsers.length);
   activityAdminUsers.textContent = String(admins.length);
   activityTotalTrades.textContent = String(totalTrades);
-}
-
-function getAuditEventLabel(event) {
-  const labels = {
-    login: "Login",
-    user_data_saved: "Data saved",
-    passcode_reset_self: "Passcode reset",
-    admin_user_created: "User created",
-    admin_user_updated: "User updated",
-    admin_passcode_reset: "Code reset",
-    admin_user_removed: "User removed",
-  };
-  return labels[event] || event;
-}
-
-function formatAuditPerson(person) {
-  if (!person) {
-    return "-";
-  }
-
-  const label = person.label || person.email || "Unknown";
-  return person.role ? `${label} (${person.role})` : label;
-}
-
-function formatAuditDetails(details = {}) {
-  const entries = Object.entries(details || {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
-  if (!entries.length) {
-    return "-";
-  }
-
-  return entries
-    .map(([key, value]) => `${key}: ${String(value)}`)
-    .join(", ");
-}
-
-function renderAuditLogs() {
-  adminEmptyAuditLogs.classList.toggle("hidden", adminConfig.auditLogs.length > 0);
-  if (!adminConfig.auditLogs.length) {
-    adminAuditList.innerHTML = "";
-    return;
-  }
-
-  adminAuditList.innerHTML = adminConfig.auditLogs
-    .map(
-      (log) => `
-        <tr>
-          <td data-label="Time">${escapeHtml(formatDateTime(log.created_at))}</td>
-          <td data-label="Event"><span class="badge open">${escapeHtml(getAuditEventLabel(log.event))}</span></td>
-          <td data-label="Actor">${escapeHtml(formatAuditPerson(log.actor))}</td>
-          <td data-label="Target">${escapeHtml(formatAuditPerson(log.target))}</td>
-          <td data-label="Details" class="admin-audit-details">${escapeHtml(formatAuditDetails(log.details))}</td>
-        </tr>
-      `,
-    )
-    .join("");
 }
 
 function getVisiblePasscodes() {
@@ -482,14 +436,11 @@ generateUserCodeButton.addEventListener("click", async () => {
       lastSavedAt: result.user.last_saved_at || "",
       tradeCount: Number(result.user.trade_count || 0),
     });
-    firstNameInput.value = "";
-    lastNameInput.value = "";
-    emailInput.value = "";
-    roleInput.value = "user";
-    updateGenerateUserButtonState();
+    generatedUserCodeDisplay.textContent = result.user.passcode_code || passcode;
+    addUserFormStep.classList.add("hidden");
+    addUserResultStep.classList.remove("hidden");
     renderPasscodes();
     renderActivity();
-    loadAuditLogs();
   } catch {
     window.alert("Could not create that user. The code may already exist, so try generating another one.");
   } finally {
@@ -499,6 +450,21 @@ generateUserCodeButton.addEventListener("click", async () => {
 
 [firstNameInput, lastNameInput, emailInput].forEach((input) => {
   input.addEventListener("input", updateGenerateUserButtonState);
+});
+
+openAddUserModalButton.addEventListener("click", openAddUserModal);
+closeAddUserModalButton.addEventListener("click", closeAddUserModal);
+finishAddUserButton.addEventListener("click", closeAddUserModal);
+
+addUserModal.addEventListener("close", () => {
+  document.body.classList.remove("modal-open");
+  resetAddUserModal();
+});
+
+addUserModal.addEventListener("click", (event) => {
+  if (event.target === addUserModal) {
+    closeAddUserModal();
+  }
 });
 
 adminPasscodeList.addEventListener("click", async (event) => {
@@ -583,7 +549,6 @@ adminPasscodeList.addEventListener("click", async (event) => {
       window.setTimeout(() => {
         button.textContent = "Save";
       }, 1100);
-      loadAuditLogs();
     } catch {
       window.alert("Could not save that user.");
       setButtonLoading(button, false);
@@ -618,7 +583,6 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.code = savedUser.passcode_code || nextCode;
       renderPasscodes();
       renderActivity();
-      loadAuditLogs();
     } catch {
       window.alert("Could not reset that user's code.");
       setButtonLoading(button, false);
@@ -661,7 +625,6 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
       renderPasscodes();
       renderActivity();
-      loadAuditLogs();
     } catch {
       window.alert(`Could not ${nextActive ? "enable" : "disable"} that user.`);
       setButtonLoading(button, false);
@@ -682,7 +645,6 @@ adminPasscodeList.addEventListener("click", async (event) => {
       adminConfig.passcodes.splice(index, 1);
       renderPasscodes();
       renderActivity();
-      loadAuditLogs();
     } catch {
       window.alert("Could not remove that user.");
       setButtonLoading(button, false);
@@ -720,7 +682,6 @@ adminPasscodeList.addEventListener("change", (event) => {
 });
 
 adminLogoutButton.addEventListener("click", logoutAdmin);
-refreshAuditButton.addEventListener("click", loadAuditLogs);
 
 updateGenerateUserButtonState();
 initialiseAdminGate();

@@ -4,13 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TRADERS HUB</title>
-    <link rel="stylesheet" href="styles.css?v=20260522-onboarding" />
+    <link rel="icon" type="image/png" href="assets/logo.png" />
+    <link rel="apple-touch-icon" href="assets/logo.png" />
+    <link rel="stylesheet" href="styles.css?v=20260525-logo-loader" />
   </head>
-  <body class="auth-locked">
+  <body class="auth-locked app-checking">
+    <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
+      <div class="app-loading-card">
+        <img class="brand-logo brand-logo-large" src="assets/logo.png" alt="TRADERS HUB logo" />
+        <div class="loading-bar" aria-hidden="true"><span></span></div>
+      </div>
+    </section>
     <section class="passcode-gate" id="passcodeGate" aria-label="Passcode required">
       <form class="passcode-card" id="passcodeForm" autocomplete="off">
+        <img class="brand-logo brand-logo-large" src="assets/logo.png" alt="TRADERS HUB logo" />
         <p class="eyebrow">Private access</p>
-        <h1>TRADERS HUB</h1>
         <label>
           <span>Passcode</span>
           <input
@@ -30,10 +38,11 @@
     <main class="app-shell">
       <div class="dashboard-frame">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Trading toolkit</p>
-          <h1>TRADERS HUB</h1>
-          <p class="save-status" id="saveStatus">Saved</p>
+        <div class="brand-lockup">
+          <img class="brand-logo" src="assets/logo.png" alt="TRADERS HUB logo" />
+          <div>
+            <p class="save-status" id="saveStatus">Saved</p>
+          </div>
         </div>
         <div class="topbar-actions">
           <nav class="app-nav" aria-label="App tools">
@@ -200,7 +209,7 @@
                 <span>Symbol</span>
                 <select id="symbol" name="symbol" required></select>
               </label>
-              <label>
+              <label id="sessionField">
                 <span>Session</span>
                 <select id="session" name="session"></select>
               </label>
@@ -346,11 +355,28 @@
             <div>
               <h2>Let's get started</h2>
             </div>
+            <div class="modal-actions">
+              <button class="icon-button" type="button" id="closeOnboardingButton" aria-label="Close onboarding">Close</button>
+            </div>
           </div>
           <p class="config-note">
-            Before adding trades, configure the symbols, sessions, accounts, strategies, and market types that match your trading setup.
+            Before adding trades, configure the markets, symbols, accounts, strategies, and optional session tracking that match your trading setup.
           </p>
-          <button class="primary-button" type="button" id="onboardingConfigButton">Configure app</button>
+          <button class="primary-button" type="button" id="onboardingConfigButton">Start setup</button>
+        </div>
+      </dialog>
+
+      <dialog class="trade-modal onboarding-wizard-modal" id="onboardingWizardModal">
+        <div class="trade-form onboarding-wizard-card">
+          <div class="wizard-topbar">
+            <div class="wizard-progress" id="wizardProgress">Step 1 of 6</div>
+            <button class="icon-button" type="button" id="closeWizardButton" aria-label="Close setup">Close</button>
+          </div>
+          <div class="wizard-content" id="wizardContent"></div>
+          <div class="wizard-actions">
+            <button class="ghost-button" type="button" id="wizardBackButton">Back</button>
+            <button class="primary-button" type="button" id="wizardNextButton">Next</button>
+          </div>
         </div>
       </dialog>
 
@@ -395,7 +421,7 @@
                 <option value="All">All</option>
               </select>
             </label>
-            <label>
+            <label id="sessionFilterField">
               <span>Session</span>
               <select id="sessionFilter">
                 <option value="All">All</option>
@@ -421,8 +447,6 @@
             </label>
 
             <div class="toolbar-actions">
-              <button class="ghost-button" type="button" id="reviewModeButton">Review Mode</button>
-              <button class="ghost-button" type="button" id="densityToggleButton">Compact Rows</button>
               <button class="ghost-button" type="button" id="exportButton">Export CSV</button>
               <button class="danger-button" type="button" id="clearButton">Clear All</button>
             </div>
@@ -435,7 +459,7 @@
                   <th>Date</th>
                   <th>Symbol</th>
                   <th>Market</th>
-                  <th>Session</th>
+                  <th data-session-column>Session</th>
                   <th>Account</th>
                   <th>Strategy</th>
                   <th>Size Type</th>
@@ -645,8 +669,8 @@
     </main>
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="supabase-config.js?v=20260522-onboarding"></script>
-    <script src="supabase-api.js?v=20260522-onboarding"></script>
-    <script src="app.js?v=20260522-onboarding"></script>
+    <script src="supabase-config.js?v=20260525-logo-loader"></script>
+    <script src="supabase-api.js?v=20260525-logo-loader"></script>
+    <script src="app.js?v=20260525-logo-loader"></script>
   </body>
 </html>

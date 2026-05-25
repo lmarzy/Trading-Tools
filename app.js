@@ -23,6 +23,7 @@ const openTradeModalButton = document.querySelector("#openTradeModalButton");
 const closeTradeModalButton = document.querySelector("#closeTradeModalButton");
 const marketTypeInput = document.querySelector("#marketType");
 const marketTypeField = document.querySelector("#marketTypeField");
+const sessionField = document.querySelector("#sessionField");
 const lotsField = document.querySelector("#lotsField");
 const contractsField = document.querySelector("#contractsField");
 const notesDisclosure = document.querySelector("#notesDisclosure");
@@ -51,13 +52,12 @@ const prevPageButton = document.querySelector("#prevPageButton");
 const nextPageButton = document.querySelector("#nextPageButton");
 const symbolFilter = document.querySelector("#symbolFilter");
 const sessionFilter = document.querySelector("#sessionFilter");
+const sessionFilterField = document.querySelector("#sessionFilterField");
 const accountFilter = document.querySelector("#accountFilter");
 const strategyFilter = document.querySelector("#strategyFilter");
 const marketTypeFilter = document.querySelector("#marketTypeFilter");
 const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
-const reviewModeButton = document.querySelector("#reviewModeButton");
-const densityToggleButton = document.querySelector("#densityToggleButton");
 const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
 const analyticsTabButtons = document.querySelectorAll("[data-analytics-tab]");
@@ -78,6 +78,13 @@ const saveStatus = document.querySelector("#saveStatus");
 const toastStack = document.querySelector("#toastStack");
 const onboardingModal = document.querySelector("#onboardingModal");
 const onboardingConfigButton = document.querySelector("#onboardingConfigButton");
+const closeOnboardingButton = document.querySelector("#closeOnboardingButton");
+const onboardingWizardModal = document.querySelector("#onboardingWizardModal");
+const wizardProgress = document.querySelector("#wizardProgress");
+const wizardContent = document.querySelector("#wizardContent");
+const closeWizardButton = document.querySelector("#closeWizardButton");
+const wizardBackButton = document.querySelector("#wizardBackButton");
+const wizardNextButton = document.querySelector("#wizardNextButton");
 const tradeDetailDrawer = document.querySelector("#tradeDetailDrawer");
 const tradeDrawerTitle = document.querySelector("#tradeDrawerTitle");
 const tradeDrawerContent = document.querySelector("#tradeDrawerContent");
@@ -121,7 +128,12 @@ const emptyConfigButton = document.querySelector("#emptyConfigButton");
 
 const DEFAULT_CONFIG = {
   symbols: [],
+  symbolsByMarket: {
+    CFD: [],
+    Futures: [],
+  },
   sessions: [],
+  trackSessions: false,
   accounts: [],
   strategies: [],
   marketTypes: [],
@@ -129,13 +141,63 @@ const DEFAULT_CONFIG = {
 };
 
 const CONFIG_FIELDS = [
-  { key: "symbols", label: "Symbol", selectIds: ["symbol"], filterIds: ["symbolFilter"] },
-  { key: "sessions", label: "Session", selectIds: ["session"], filterIds: ["sessionFilter"] },
   { key: "accounts", label: "Account", selectIds: ["account"], filterIds: ["accountFilter"] },
   { key: "strategies", label: "Strategy", selectIds: ["strategy"], filterIds: ["strategyFilter"] },
 ];
 
 const MARKET_TYPE_OPTIONS = ["CFD", "Futures"];
+const MARKET_TYPE_DETAILS = {
+  CFD: "Use lots in the trade tracker and position size calculator.",
+  Futures: "Use contracts in the trade tracker and position size calculator.",
+};
+const DEFAULT_SESSION_OPTIONS = ["Asia", "London", "New York", "N/A"];
+const ONBOARDING_STEPS = [
+  {
+    key: "marketTypes",
+    label: "Market Types",
+    title: "Do you trade CFDs, futures, or both?",
+    description: "Choose how your position size should be tracked. This controls whether the app uses lots, contracts, or both.",
+  },
+  {
+    key: "symbols",
+    label: "Symbols",
+    title: "Which symbols do you trade?",
+    description: "Add the markets you want available when recording a trade, such as XAUUSD, NAS100, or ES.",
+    placeholder: "Example: XAUUSD, NAS100",
+  },
+  {
+    key: "sessionTracking",
+    label: "Sessions",
+    title: "Do you want to track trading sessions?",
+    description: "Sessions are useful if you want to compare trades taken during periods such as Asia, London, New York, or N/A. If you trade setup-first throughout the day, you can skip this.",
+  },
+  {
+    key: "sessions",
+    label: "Sessions",
+    title: "Which sessions should appear in the trade form?",
+    description: "Select the session labels you want available on each trade. Keep N/A for trades that do not belong to a specific session.",
+  },
+  {
+    key: "accounts",
+    label: "Accounts",
+    title: "Which accounts do you want to track?",
+    description: "Accounts let you separate performance across brokers, prop accounts, copy trading, or personal accounts.",
+    placeholder: "Example: Vantage, Prop",
+  },
+  {
+    key: "strategies",
+    label: "Strategies",
+    title: "Which strategies do you trade?",
+    description: "Strategies make your analytics more useful by showing which setups are actually working.",
+    placeholder: "Example: Trendlines, ORB",
+  },
+  {
+    key: "summary",
+    label: "Summary",
+    title: "Review your setup",
+    description: "Check everything looks right. You can still edit these later from the config button.",
+  },
+];
 const DISCIPLINE_MAX_SCORE = 5;
 const DISCIPLINE_RULES = [
   { key: "followedPlan", label: "Plan followed", positive: true },
@@ -159,9 +221,9 @@ let isHydratingUserState = false;
 let remoteSaveTimer = null;
 let saveStatusTimer = null;
 let performanceMode = "week";
-let reviewMode = false;
-let tableDensity = "comfortable";
 let selectedTradeId = "";
+let onboardingStepIndex = 0;
+let onboardingDraft = structuredClone(DEFAULT_CONFIG);
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -170,16 +232,26 @@ function setButtonLoading(button, isLoading, loadingText = "Loading...") {
 
   if (isLoading) {
     button.dataset.defaultText = button.textContent;
-    button.textContent = loadingText;
+    button.dataset.defaultAriaLabel = button.getAttribute("aria-label") || "";
+    button.style.width = `${button.offsetWidth}px`;
+    button.textContent = "";
+    button.setAttribute("aria-label", loadingText);
     button.disabled = true;
     button.classList.add("is-loading");
     return;
   }
 
   button.textContent = button.dataset.defaultText || button.textContent;
+  if (button.dataset.defaultAriaLabel) {
+    button.setAttribute("aria-label", button.dataset.defaultAriaLabel);
+  } else {
+    button.removeAttribute("aria-label");
+  }
+  button.style.width = "";
   button.disabled = false;
   button.classList.remove("is-loading");
   delete button.dataset.defaultText;
+  delete button.dataset.defaultAriaLabel;
 }
 
 function setSaveStatus(status, message) {
@@ -217,7 +289,7 @@ async function setAppUnlocked(
   passcodeHash = sessionStorage.getItem(AUTH_HASH_KEY),
   refreshUser = true,
 ) {
-  document.body.classList.remove("auth-locked");
+  document.body.classList.add("app-checking");
   passcodeGate.setAttribute("hidden", "");
   if (userId) {
     if (refreshUser && passcodeHash && /^[a-f0-9]{64}$/i.test(passcodeHash)) {
@@ -248,9 +320,11 @@ async function setAppUnlocked(
     adminNavLink.classList.toggle("hidden", userRole !== "admin");
     await loadUserState(userId, userLabel || userId);
   }
+  document.body.classList.remove("auth-locked", "app-checking");
 }
 
 function setAppLocked() {
+  document.body.classList.remove("app-checking");
   document.body.classList.add("auth-locked");
   passcodeGate.removeAttribute("hidden");
   passcodeInput.focus();
@@ -354,12 +428,16 @@ async function hydrateUserStateFromSupabase() {
     isHydratingUserState = true;
     const remoteData = await callSupabaseFunction("get-user-data", { userId: currentUserId });
     trades = Array.isArray(remoteData.trades) ? remoteData.trades : [];
+    const marketTypes = normalizeMarketTypes(remoteData.config?.marketTypes);
+    const symbolsByMarket = normalizeSymbolsByMarket(remoteData.config?.symbolsByMarket, remoteData.config?.symbols);
     appConfig = {
-      symbols: normalizeOptions(remoteData.config?.symbols, DEFAULT_CONFIG.symbols),
+      symbols: flattenSymbolsByMarket(symbolsByMarket),
+      symbolsByMarket,
       sessions: normalizeOptions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions),
+      trackSessions: Boolean(remoteData.config?.trackSessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
       strategies: normalizeOptions(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
-      marketTypes: normalizeMarketTypes(remoteData.config?.marketTypes),
+      marketTypes,
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
     };
   } catch {
@@ -397,7 +475,20 @@ async function syncUserDataToSupabase() {
 }
 
 function userConfigComplete() {
-  return CONFIG_FIELDS.every((field) => appConfig[field.key].length > 0) && appConfig.marketTypes.length > 0;
+  return (
+    CONFIG_FIELDS.every((field) => appConfig[field.key].length > 0) &&
+    appConfig.marketTypes.length > 0 &&
+    appConfig.marketTypes.every((marketType) => getSymbolsForMarket(marketType).length > 0) &&
+    (!appConfig.trackSessions || appConfig.sessions.length > 0)
+  );
+}
+
+function userHasStartedConfig() {
+  const hasFieldValues = CONFIG_FIELDS.some((field) => appConfig[field.key].length > 0);
+  const hasMarketTypes = appConfig.marketTypes.length > 0;
+  const hasSymbols = getAllSymbols().length > 0;
+  const hasSessions = appConfig.sessions.length > 0 || appConfig.trackSessions === true;
+  return hasFieldValues || hasMarketTypes || hasSymbols || hasSessions;
 }
 
 function updateAddTradeAvailability() {
@@ -425,6 +516,26 @@ function normalizeMarketTypes(options) {
   return [...new Set(cleaned)];
 }
 
+function normalizeSymbolsByMarket(symbolsByMarket = {}, fallbackSymbols = []) {
+  const fallback = normalizeOptions(fallbackSymbols, []);
+  return MARKET_TYPE_OPTIONS.reduce((normalized, marketType) => {
+    normalized[marketType] = normalizeOptions(symbolsByMarket?.[marketType], marketType === "CFD" ? fallback : []);
+    return normalized;
+  }, {});
+}
+
+function getSymbolsForMarket(marketType = getDefaultMarketType()) {
+  return normalizeOptions(appConfig.symbolsByMarket?.[marketType], []);
+}
+
+function flattenSymbolsByMarket(symbolsByMarket = appConfig.symbolsByMarket) {
+  return [...new Set(MARKET_TYPE_OPTIONS.flatMap((marketType) => normalizeOptions(symbolsByMarket?.[marketType], [])))];
+}
+
+function getAllSymbols() {
+  return flattenSymbolsByMarket();
+}
+
 function normalizeAccountBalances(balances = {}, accounts = []) {
   const normalized = {};
   normalizeOptions(accounts, DEFAULT_CONFIG.accounts).forEach((account) => {
@@ -440,6 +551,10 @@ function getDefaultOption(key) {
 
 function getDefaultMarketType() {
   return appConfig.marketTypes[0] || "";
+}
+
+function getOnboardingSteps() {
+  return ONBOARDING_STEPS.filter((step) => step.key !== "sessions" || onboardingDraft.trackSessions === true);
 }
 
 function createOption(value) {
@@ -484,11 +599,26 @@ function syncConfiguredInputs() {
       populateSelect(document.querySelector(`#${id}`), appConfig[field.key], true);
     });
   });
+  populateSelect(symbolFilter, getAllSymbols(), true);
   populateSelect(dashboardAccountFilter, appConfig.accounts, true);
   populateSelect(marketTypeInput, appConfig.marketTypes);
   populateSelect(marketTypeFilter, appConfig.marketTypes, true);
+  populateSelect(sessionFilter, appConfig.sessions, true);
+  populateSelect(form.session, appConfig.sessions);
+  populateSelect(form.symbol, getSymbolsForMarket(marketTypeInput.value || getDefaultMarketType()));
   syncMarketTypeField();
+  syncSymbolFromMarket();
+  syncSessionVisibility();
   updateAddTradeAvailability();
+}
+
+function syncSessionVisibility() {
+  const isTracking = Boolean(appConfig.trackSessions);
+  sessionField.classList.toggle("hidden", !isTracking);
+  sessionFilterField.classList.toggle("hidden", !isTracking);
+  document.querySelectorAll("[data-session-column]").forEach((element) => {
+    element.classList.toggle("hidden", !isTracking);
+  });
 }
 
 function parseNumber(value) {
@@ -695,19 +825,18 @@ function getAvailableMonthOptions() {
 
 function getFilteredTrades() {
   const selectedSymbol = symbolFilter.value;
-  const selectedSession = sessionFilter.value;
+  const selectedSession = appConfig.trackSessions ? sessionFilter.value : "All";
   const selectedAccount = accountFilter.value;
   const selectedStrategy = strategyFilter.value;
   const selectedMarket = marketTypeFilter.value;
 
   return trades.filter((trade) => {
     const matchesSymbol = selectedSymbol === "All" || trade.symbol === selectedSymbol;
-    const matchesSession = selectedSession === "All" || (trade.session || getDefaultOption("sessions")) === selectedSession;
+    const matchesSession = !appConfig.trackSessions || selectedSession === "All" || (trade.session || getDefaultOption("sessions")) === selectedSession;
     const matchesAccount = selectedAccount === "All" || (trade.account || getDefaultOption("accounts")) === selectedAccount;
     const matchesStrategy = selectedStrategy === "All" || (trade.strategy || getDefaultOption("strategies")) === selectedStrategy;
     const matchesMarket = selectedMarket === "All" || getTradeMarketType(trade) === selectedMarket;
-    const matchesReview = !reviewMode || trade.outcome === "Win" || trade.outcome === "Loss";
-    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy && matchesMarket && matchesReview;
+    return matchesSymbol && matchesSession && matchesAccount && matchesStrategy && matchesMarket;
   });
 }
 
@@ -1047,7 +1176,7 @@ function renderAnalytics() {
 
   analyticsBreakdowns.innerHTML = [
     renderAnalyticsBreakdown("By Symbol", getBreakdownItems(closedTrades, "symbol", appConfig.symbols)),
-    renderAnalyticsBreakdown("By Session", getBreakdownItems(closedTrades, "session", appConfig.sessions)),
+    appConfig.trackSessions ? renderAnalyticsBreakdown("By Session", getBreakdownItems(closedTrades, "session", appConfig.sessions)) : "",
     renderAnalyticsBreakdown("By Account", getBreakdownItems(closedTrades, "account", appConfig.accounts)),
     renderAnalyticsBreakdown("By Strategy", getBreakdownItems(closedTrades, "strategy", appConfig.strategies)),
   ].join("");
@@ -1348,11 +1477,12 @@ function renderTable() {
       const isTruncated = note.trim().length > 56;
       const row = document.createElement("tr");
       row.dataset.tradeId = trade.id;
+      row.className = `trade-row ${getOutcomeClass(trade.outcome)}`;
       row.innerHTML = `
         <td data-label="Date">${trade.tradeDate}</td>
         <td data-label="Symbol" class="symbol-cell">${escapeHtml(trade.symbol)}</td>
         <td data-label="Market">${escapeHtml(getTradeMarketType(trade))}</td>
-        <td data-label="Session">${escapeHtml(trade.session || getDefaultOption("sessions"))}</td>
+        <td data-label="Session" data-session-column>${escapeHtml(trade.session || getDefaultOption("sessions"))}</td>
         <td data-label="Account">${escapeHtml(trade.account || getDefaultOption("accounts"))}</td>
         <td data-label="Strategy">${escapeHtml(trade.strategy || "-")}</td>
         <td data-label="Size Type">${getTradeSizeType(trade)}</td>
@@ -1385,9 +1515,9 @@ function renderTable() {
     });
 
   emptyState.classList.toggle("hidden", visibleTrades.length > 0);
-  emptyState.querySelector("h2").textContent = trades.length ? (reviewMode ? "No closed trades" : "No trades match") : "No trades yet";
+  emptyState.querySelector("h2").textContent = trades.length ? "No trades match" : "No trades yet";
   emptyState.querySelector("p").textContent = trades.length
-    ? (reviewMode ? "Turn off review mode or mark trades as Win or Loss." : "Adjust your filters to bring trades back into view.")
+    ? "Adjust your filters to bring trades back into view."
     : "Configure your inputs, then add your first trade to start building your journal.";
   tablePagination.classList.toggle("hidden", visibleTrades.length === 0);
   paginationStatus.textContent = visibleTrades.length
@@ -1395,6 +1525,7 @@ function renderTable() {
     : "Showing 0 trades";
   prevPageButton.disabled = currentTablePage <= 1;
   nextPageButton.disabled = currentTablePage >= totalPages;
+  syncSessionVisibility();
 }
 
 function getVisibleTradesSorted() {
@@ -1420,16 +1551,12 @@ function openTradeDrawer(id) {
     </div>
     <dl class="drawer-details">
       <div><dt>Market</dt><dd>${escapeHtml(getTradeMarketType(trade))}</dd></div>
-      <div><dt>Session</dt><dd>${escapeHtml(trade.session || "-")}</dd></div>
+      ${appConfig.trackSessions ? `<div><dt>Session</dt><dd>${escapeHtml(trade.session || "-")}</dd></div>` : ""}
       <div><dt>Account</dt><dd>${escapeHtml(trade.account || "-")}</dd></div>
       <div><dt>Strategy</dt><dd>${escapeHtml(trade.strategy || "-")}</dd></div>
     </dl>
     <div class="drawer-discipline">
-      ${DISCIPLINE_RULES.map((rule) => {
-        const checked = Boolean(discipline[rule.key]);
-        const isGood = rule.positive ? checked : !checked;
-        return `<span class="${isGood ? "good" : "bad"}">${isGood ? "✓" : "×"} ${escapeHtml(rule.label)}</span>`;
-      }).join("")}
+      ${renderDisciplineDetails(discipline)}
     </div>
     <article class="drawer-notes">
       <span>Notes</span>
@@ -1442,6 +1569,18 @@ function openTradeDrawer(id) {
 
 function closeTradeDrawer() {
   closeDialog(tradeDetailDrawer);
+}
+
+function renderDisciplineDetails(discipline) {
+  const selectedRules = DISCIPLINE_RULES.filter((rule) => Boolean(discipline[rule.key]));
+
+  if (!selectedRules.length) {
+    return '<span class="neutral">No discipline items selected</span>';
+  }
+
+  return selectedRules
+    .map((rule) => `<span class="${rule.positive ? "good" : "bad"}">✓ ${escapeHtml(rule.label)}</span>`)
+    .join("");
 }
 
 function getSelectedTradeIndex() {
@@ -1466,6 +1605,7 @@ function stepTradeDrawer(direction) {
 
 function render() {
   updateAddTradeAvailability();
+  syncSessionVisibility();
   renderSummary();
   renderEquityCurve();
   renderAnalytics();
@@ -1487,15 +1627,100 @@ function renderConfig() {
     <div class="market-type-config">
       ${MARKET_TYPE_OPTIONS.map(
         (marketType) => `
-          <label class="toggle-option">
+          <label class="wizard-option-card config-option-card">
             <input type="checkbox" value="${marketType}" data-market-type-toggle ${appConfig.marketTypes.includes(marketType) ? "checked" : ""} />
-            <span>${marketType}</span>
+            <span>
+              <strong>${marketType}</strong>
+              <small>${MARKET_TYPE_DETAILS[marketType]}</small>
+            </span>
           </label>
         `,
       ).join("")}
     </div>
   `;
   configGrid.appendChild(marketSection);
+
+  const sessionTrackingSection = document.createElement("section");
+  sessionTrackingSection.className = "config-section";
+  sessionTrackingSection.innerHTML = `
+    <div class="config-section-heading">
+      <h3>Sessions</h3>
+    </div>
+    <p class="config-note">Track sessions if you want to compare trades by time context, such as Asia, London, New York, or N/A. Skip this if sessions are not part of your process.</p>
+    <div class="market-type-config">
+      <label class="toggle-option config-session-toggle">
+        <input type="checkbox" data-track-sessions-toggle ${appConfig.trackSessions ? "checked" : ""} />
+        <span>Track Sessions</span>
+      </label>
+    </div>
+  `;
+  configGrid.appendChild(sessionTrackingSection);
+
+  appConfig.marketTypes.forEach((marketType) => {
+    const section = document.createElement("section");
+    section.className = "config-section";
+    section.dataset.configKey = "symbolsByMarket";
+    section.dataset.marketType = marketType;
+    const symbols = getSymbolsForMarket(marketType);
+    section.innerHTML = `
+      <div class="config-section-heading">
+        <h3>${escapeHtml(marketType)} Symbols</h3>
+        <div class="config-add-row">
+          <input type="text" placeholder="Add ${escapeHtml(marketType.toLowerCase())} symbol" aria-label="Add ${escapeHtml(marketType)} symbol" />
+          <button class="ghost-button" type="button" data-config-action="add" data-config-key="symbolsByMarket" data-market-type="${escapeHtml(marketType)}">Add</button>
+        </div>
+      </div>
+      <div class="config-list">
+        ${
+          symbols.length
+            ? symbols
+                .map(
+                  (option) => `
+                    <span class="config-pill">
+                      ${escapeHtml(option)}
+                      <button type="button" aria-label="Remove ${escapeHtml(option)}" data-config-action="remove" data-config-key="symbolsByMarket" data-market-type="${escapeHtml(marketType)}" data-config-value="${escapeHtml(option)}">x</button>
+                    </span>
+                  `,
+                )
+                .join("")
+            : '<span class="muted">No values yet.</span>'
+        }
+      </div>
+    `;
+    configGrid.appendChild(section);
+  });
+
+  if (appConfig.trackSessions) {
+    const sessionSection = document.createElement("section");
+    sessionSection.className = "config-section";
+    sessionSection.dataset.configKey = "sessions";
+    sessionSection.innerHTML = `
+      <div class="config-section-heading">
+        <h3>Session Values</h3>
+        <div class="config-add-row">
+          <input type="text" placeholder="Add session" aria-label="Add Session" />
+          <button class="ghost-button" type="button" data-config-action="add" data-config-key="sessions">Add</button>
+        </div>
+      </div>
+      <div class="config-list">
+        ${
+          appConfig.sessions.length
+            ? appConfig.sessions
+                .map(
+                  (option) => `
+                    <span class="config-pill">
+                      ${escapeHtml(option)}
+                      <button type="button" aria-label="Remove ${escapeHtml(option)}" data-config-action="remove" data-config-key="sessions" data-config-value="${escapeHtml(option)}">x</button>
+                    </span>
+                  `,
+                )
+                .join("")
+            : '<span class="muted">No values yet.</span>'
+        }
+      </div>
+    `;
+    configGrid.appendChild(sessionSection);
+  }
 
   CONFIG_FIELDS.forEach((field) => {
     const section = document.createElement("section");
@@ -1567,18 +1792,552 @@ function openConfigModal() {
   openDialog(configModal);
 }
 
+function openConfigFlow() {
+  if (userHasStartedConfig()) {
+    openConfigModal();
+    return;
+  }
+
+  openDialog(onboardingModal);
+}
+
 function closeConfigModal() {
   closeDialog(configModal);
 }
 
 function maybeOpenConfigForNewUser() {
-  if (!userConfigComplete() && !configModal.open && !onboardingModal.open) {
+  if (!userHasStartedConfig() && !configModal.open && !onboardingModal.open && !onboardingWizardModal.open) {
     openDialog(onboardingModal);
   }
 }
 
-function addConfigValue(key, value) {
+function parseWizardValues(value) {
+  return [
+    ...new Set(
+      value
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function getWizardStepValues(key) {
+  return key === "marketTypes" ? onboardingDraft.marketTypes : onboardingDraft[key] || [];
+}
+
+function renderWizardValueBuilder({ key, label, placeholder, values, marketType = "" }) {
+  const marketAttribute = marketType ? ` data-wizard-market-type-value="${escapeHtml(marketType)}"` : "";
+  return `
+    <div class="wizard-value-builder" data-wizard-builder="${escapeHtml(key)}"${marketAttribute}>
+      <label class="wizard-add-row">
+        <span>${escapeHtml(label)}</span>
+        <div>
+          <input type="text" placeholder="${escapeHtml(placeholder)}" data-wizard-add-input />
+          <button class="ghost-button" type="button" data-wizard-add-value>Add</button>
+        </div>
+      </label>
+      <div class="wizard-chip-list">
+        ${
+          values.length
+            ? values
+                .map(
+                  (value) => `
+                    <span class="config-pill">
+                      ${escapeHtml(value)}
+                      <button type="button" aria-label="Remove ${escapeHtml(value)}" data-wizard-remove-value="${escapeHtml(value)}">x</button>
+                    </span>
+                  `,
+                )
+                .join("")
+            : '<span class="muted">No values yet.</span>'
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderWizardAccountBuilder() {
+  const accounts = onboardingDraft.accounts || [];
+  return `
+    <div class="wizard-value-builder" data-wizard-builder="accounts">
+      <label class="wizard-add-row">
+        <span>Account</span>
+        <div>
+          <input type="text" placeholder="Example: Vantage" data-wizard-add-input />
+          <button class="ghost-button" type="button" data-wizard-add-value>Add</button>
+        </div>
+      </label>
+      <div class="wizard-account-list">
+        ${
+          accounts.length
+            ? accounts
+                .map(
+                  (account) => `
+                    <div class="wizard-account-row">
+                      <strong>${escapeHtml(account)}</strong>
+                      <label>
+                        <span>Starting balance</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value="${escapeHtml(onboardingDraft.accountBalances?.[account] || "")}"
+                          data-wizard-account-balance="${escapeHtml(account)}"
+                        />
+                      </label>
+                      <button type="button" aria-label="Remove ${escapeHtml(account)}" data-wizard-remove-value="${escapeHtml(account)}">x</button>
+                    </div>
+                  `,
+                )
+                .join("")
+            : '<span class="muted">No accounts yet.</span>'
+        }
+      </div>
+    </div>
+  `;
+}
+
+function wizardCurrentStepHasValue() {
+  const step = getOnboardingSteps()[onboardingStepIndex];
+  if (step.key === "summary") {
+    return (
+      CONFIG_FIELDS.every((field) => (onboardingDraft[field.key] || []).length > 0) &&
+      onboardingDraft.marketTypes.length > 0 &&
+      onboardingDraft.marketTypes.every((marketType) => (onboardingDraft.symbolsByMarket?.[marketType] || []).length > 0) &&
+      (!onboardingDraft.trackSessions || onboardingDraft.sessions.length > 0)
+    );
+  }
+
+  if (step.key === "marketTypes") {
+    return wizardContent.querySelectorAll("[data-wizard-market-type]:checked").length > 0;
+  }
+
+  if (step.key === "symbols") {
+    return onboardingDraft.marketTypes.every((marketType) => (onboardingDraft.symbolsByMarket?.[marketType] || []).length > 0);
+  }
+
+  if (step.key === "sessionTracking") {
+    return wizardContent.querySelectorAll("[data-wizard-session-tracking]:checked").length > 0;
+  }
+
+  if (step.key === "sessions") {
+    return wizardContent.querySelectorAll("[data-wizard-session]:checked").length > 0;
+  }
+
+  return (onboardingDraft[step.key] || []).length > 0;
+}
+
+function updateWizardNextState() {
+  wizardNextButton.disabled = !wizardCurrentStepHasValue();
+}
+
+function renderWizardRail() {
+  const steps = getOnboardingSteps();
+  return `
+    <ol class="wizard-rail" aria-label="Setup steps">
+      ${steps.map((step, index) => {
+        const state = index < onboardingStepIndex ? "complete" : index === onboardingStepIndex ? "active" : "";
+        return `
+          <li class="${state}">
+            <span>${index + 1}</span>
+            <div>
+              <strong>${escapeHtml(step.label)}</strong>
+              <small>${index < onboardingStepIndex ? "Complete" : index === onboardingStepIndex ? "Current step" : "Up next"}</small>
+            </div>
+          </li>
+        `;
+      }).join("")}
+    </ol>
+  `;
+}
+
+function renderOnboardingWizard() {
+  const steps = getOnboardingSteps();
+  const step = steps[onboardingStepIndex];
+  const isSummary = step.key === "summary";
+  wizardProgress.textContent = `Step ${onboardingStepIndex + 1} of ${steps.length}`;
+  wizardBackButton.disabled = onboardingStepIndex === 0;
+  wizardNextButton.textContent = isSummary ? "Save setup" : "Next";
+  let stepContent = "";
+
+  if (isSummary) {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      <div class="wizard-summary">
+        <div>
+          <span>Symbols</span>
+          <strong>${escapeHtml(
+            onboardingDraft.marketTypes
+              .map((marketType) => `${marketType}: ${(onboardingDraft.symbolsByMarket?.[marketType] || []).join(", ") || "Not set"}`)
+              .join(" | "),
+          )}</strong>
+        </div>
+        <div>
+          <span>Sessions</span>
+          <strong>${onboardingDraft.trackSessions ? escapeHtml(onboardingDraft.sessions.join(", ") || "Not set") : "Skipped"}</strong>
+        </div>
+        ${CONFIG_FIELDS.map(
+          (field) => `
+            <div>
+              <span>${escapeHtml(field.label)}</span>
+              <strong>${escapeHtml(
+                field.key === "accounts"
+                  ? (onboardingDraft.accounts || [])
+                      .map((account) => `${account}${onboardingDraft.accountBalances?.[account] ? ` (${onboardingDraft.accountBalances[account]})` : ""}`)
+                      .join(", ") || "Not set"
+                  : (onboardingDraft[field.key] || []).join(", ") || "Not set",
+              )}</strong>
+            </div>
+          `,
+        ).join("")}
+        <div>
+          <span>Market Types</span>
+          <strong>${escapeHtml(onboardingDraft.marketTypes.join(", ") || "Not set")}</strong>
+        </div>
+      </div>
+    `;
+  } else if (step.key === "marketTypes") {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      <div class="market-type-config wizard-market-types">
+        ${MARKET_TYPE_OPTIONS.map(
+          (marketType) => `
+            <label class="wizard-option-card">
+              <input type="checkbox" value="${marketType}" data-wizard-market-type ${onboardingDraft.marketTypes.includes(marketType) ? "checked" : ""} />
+              <span>
+                <strong>${marketType}</strong>
+                <small>${escapeHtml(MARKET_TYPE_DETAILS[marketType])}</small>
+              </span>
+            </label>
+          `,
+        ).join("")}
+      </div>
+      <p class="wizard-hint">Choose at least one. You can change this later from the config button.</p>
+    `;
+  } else if (step.key === "symbols") {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      <div class="wizard-symbol-groups">
+        ${onboardingDraft.marketTypes.map(
+          (marketType) => `
+            ${renderWizardValueBuilder({
+              key: "symbols",
+              label: `${marketType} Symbols`,
+              placeholder: marketType === "Futures" ? "Example: MNQ" : "Example: XAUUSD",
+              values: onboardingDraft.symbolsByMarket?.[marketType] || [],
+              marketType,
+            })}
+          `,
+        ).join("")}
+      </div>
+      <p class="wizard-hint">Add one symbol at a time. Use Configure inputs later if you need to make changes.</p>
+    `;
+  } else if (step.key === "sessionTracking") {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      <div class="wizard-market-types">
+        <label class="wizard-option-card">
+          <input type="radio" name="wizardSessionTracking" value="yes" data-wizard-session-tracking ${onboardingDraft.trackSessions === true ? "checked" : ""} />
+          <span>
+            <strong>Track sessions</strong>
+            <small>Show Session in trades, filters, table columns, and analytics. Useful for Asia, London, New York, or N/A tracking.</small>
+          </span>
+        </label>
+        <label class="wizard-option-card">
+          <input type="radio" name="wizardSessionTracking" value="no" data-wizard-session-tracking ${onboardingDraft.trackSessions === false ? "checked" : ""} />
+          <span>
+            <strong>Skip sessions</strong>
+            <small>Hide Session from the app if your trades are setup-based or sessions are not part of your process.</small>
+          </span>
+        </label>
+      </div>
+      <p class="wizard-hint">You can change this later from Configure inputs.</p>
+    `;
+  } else if (step.key === "sessions") {
+    const selectedSessions = onboardingDraft.sessions;
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      <div class="wizard-session-list">
+        ${DEFAULT_SESSION_OPTIONS.map(
+          (session) => `
+            <label class="wizard-session-option">
+              <input type="checkbox" value="${escapeHtml(session)}" data-wizard-session ${selectedSessions.includes(session) ? "checked" : ""} />
+              <span>${escapeHtml(session)}</span>
+            </label>
+          `,
+        ).join("")}
+      </div>
+      <p class="wizard-hint">Select the session labels you want available. You can add custom labels later from Configure inputs.</p>
+    `;
+  } else if (step.key === "accounts") {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      ${renderWizardAccountBuilder()}
+      <p class="wizard-hint">Add each account, then enter its starting balance so account-level P/L can be tracked correctly.</p>
+    `;
+  } else {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)}</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      ${renderWizardValueBuilder({
+        key: step.key,
+        label: step.label,
+        placeholder: step.placeholder || `Add ${step.label.toLowerCase()}`,
+        values: getWizardStepValues(step.key),
+      })}
+      <p class="wizard-hint">Add one value at a time. You can remove anything before continuing.</p>
+  `;
+  }
+
+  wizardContent.innerHTML = `
+    <div class="wizard-layout">
+      ${renderWizardRail()}
+      <div class="wizard-main">${stepContent}</div>
+    </div>
+  `;
+  updateWizardNextState();
+}
+
+function openOnboardingWizard() {
+  onboardingStepIndex = 0;
+  onboardingDraft = structuredClone(appConfig);
+  onboardingDraft.trackSessions = null;
+  onboardingDraft.sessions = [];
+  onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+  onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+  renderOnboardingWizard();
+  openDialog(onboardingWizardModal);
+}
+
+function persistWizardStep() {
+  const step = getOnboardingSteps()[onboardingStepIndex];
+  if (step.key === "summary") {
+    return true;
+  }
+
+  if (step.key === "marketTypes") {
+    const selected = [...wizardContent.querySelectorAll("[data-wizard-market-type]:checked")].map((input) => input.value);
+    if (!selected.length) {
+      showToast("Choose at least one market type", "warning");
+      return false;
+    }
+    onboardingDraft.marketTypes = normalizeMarketTypes(selected);
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+    return true;
+  }
+
+  if (step.key === "symbols") {
+    const missingMarket = onboardingDraft.marketTypes.find((marketType) => !(onboardingDraft.symbolsByMarket?.[marketType] || []).length);
+    if (missingMarket) {
+      showToast(`Add at least one ${missingMarket} symbol`, "warning");
+      wizardContent.querySelector(`[data-wizard-market-type-value="${missingMarket}"] [data-wizard-add-input]`)?.focus();
+      return false;
+    }
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, []);
+    onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+    return true;
+  }
+
+  if (step.key === "sessionTracking") {
+    const selected = wizardContent.querySelector("[data-wizard-session-tracking]:checked")?.value;
+    onboardingDraft.trackSessions = selected === "yes";
+    if (!onboardingDraft.trackSessions) {
+      onboardingDraft.sessions = [];
+    }
+    return true;
+  }
+
+  if (step.key === "sessions") {
+    const selected = [...wizardContent.querySelectorAll("[data-wizard-session]:checked")].map((input) => input.value);
+    if (!selected.length) {
+      showToast("Choose at least one session", "warning");
+      return false;
+    }
+    onboardingDraft.sessions = normalizeOptions(selected, []);
+    return true;
+  }
+
+  const values = onboardingDraft[step.key] || [];
+  if (!values.length) {
+    showToast(`Add at least one ${step.label.toLowerCase()} value`, "warning");
+    wizardContent.querySelector(`[data-wizard-builder="${step.key}"] [data-wizard-add-input]`)?.focus();
+    return false;
+  }
+  if (step.key === "accounts") {
+    onboardingDraft.accountBalances = normalizeAccountBalances(onboardingDraft.accountBalances, values);
+  }
+  return true;
+}
+
+function stashWizardStep() {
+  const step = getOnboardingSteps()[onboardingStepIndex];
+  if (step.key === "summary") {
+    return;
+  }
+
+  if (step.key === "marketTypes") {
+    onboardingDraft.marketTypes = normalizeMarketTypes(
+      [...wizardContent.querySelectorAll("[data-wizard-market-type]:checked")].map((input) => input.value),
+    );
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+    return;
+  }
+
+  if (step.key === "symbols") {
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, []);
+    onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+    return;
+  }
+
+  if (step.key === "sessionTracking") {
+    const selected = wizardContent.querySelector("[data-wizard-session-tracking]:checked")?.value;
+    onboardingDraft.trackSessions = selected === "yes";
+    if (!onboardingDraft.trackSessions) {
+      onboardingDraft.sessions = [];
+    }
+    return;
+  }
+
+  if (step.key === "sessions") {
+    onboardingDraft.sessions = normalizeOptions(
+      [...wizardContent.querySelectorAll("[data-wizard-session]:checked")].map((input) => input.value),
+      [],
+    );
+    return;
+  }
+
+  if (step.key !== "summary") {
+    onboardingDraft[step.key] = normalizeOptions(onboardingDraft[step.key], []);
+  }
+}
+
+function addWizardValue(builder, input) {
+  const key = builder.dataset.wizardBuilder;
+  const marketType = builder.dataset.wizardMarketTypeValue || "";
+  const values = parseWizardValues(input.value);
+  if (!values.length) {
+    input.focus();
+    return;
+  }
+
+  if (key === "symbols") {
+    const current = onboardingDraft.symbolsByMarket?.[marketType] || [];
+    onboardingDraft.symbolsByMarket = {
+      ...onboardingDraft.symbolsByMarket,
+      [marketType]: normalizeOptions([...current, ...values], []),
+    };
+    onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+  } else {
+    onboardingDraft[key] = normalizeOptions([...(onboardingDraft[key] || []), ...values], []);
+    if (key === "accounts") {
+      onboardingDraft.accountBalances = onboardingDraft[key].reduce(
+        (balances, account) => ({ ...balances, [account]: onboardingDraft.accountBalances?.[account] || "" }),
+        {},
+      );
+    }
+  }
+
+  input.value = "";
+  renderOnboardingWizard();
+  const selector = marketType
+    ? `[data-wizard-builder="${key}"][data-wizard-market-type-value="${marketType}"] [data-wizard-add-input]`
+    : `[data-wizard-builder="${key}"] [data-wizard-add-input]`;
+  wizardContent.querySelector(selector)?.focus();
+}
+
+function removeWizardValue(builder, value) {
+  const key = builder.dataset.wizardBuilder;
+  const marketType = builder.dataset.wizardMarketTypeValue || "";
+
+  if (key === "symbols") {
+    onboardingDraft.symbolsByMarket = {
+      ...onboardingDraft.symbolsByMarket,
+      [marketType]: (onboardingDraft.symbolsByMarket?.[marketType] || []).filter((item) => item !== value),
+    };
+    onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+  } else {
+    onboardingDraft[key] = (onboardingDraft[key] || []).filter((item) => item !== value);
+    if (key === "accounts") {
+      onboardingDraft.accountBalances = onboardingDraft[key].reduce(
+        (balances, account) => ({ ...balances, [account]: onboardingDraft.accountBalances?.[account] || "" }),
+        {},
+      );
+    }
+  }
+
+  renderOnboardingWizard();
+}
+
+function saveOnboardingWizard() {
+  const symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+  appConfig = {
+    symbols: flattenSymbolsByMarket(symbolsByMarket),
+    symbolsByMarket,
+    sessions: onboardingDraft.trackSessions ? normalizeOptions(onboardingDraft.sessions, []) : [],
+    trackSessions: Boolean(onboardingDraft.trackSessions),
+    accounts: normalizeOptions(onboardingDraft.accounts, []),
+    strategies: normalizeOptions(onboardingDraft.strategies, []),
+    marketTypes: normalizeMarketTypes(onboardingDraft.marketTypes),
+    accountBalances: normalizeAccountBalances(onboardingDraft.accountBalances, onboardingDraft.accounts),
+  };
+  saveConfig();
+  syncConfiguredInputs();
+  resetForm();
+  render();
+  closeDialog(onboardingWizardModal);
+  showToast("Setup saved");
+}
+
+function addConfigValue(key, value, marketType = "") {
   const nextValue = value.trim();
+  if (key === "symbolsByMarket") {
+    const currentSymbols = getSymbolsForMarket(marketType);
+    if (!nextValue || currentSymbols.includes(nextValue)) {
+      return;
+    }
+    appConfig.symbolsByMarket = {
+      ...appConfig.symbolsByMarket,
+      [marketType]: [...currentSymbols, nextValue],
+    };
+    appConfig.symbols = getAllSymbols();
+    saveConfig();
+    syncConfiguredInputs();
+    renderConfig();
+    resetForm();
+    render();
+    showToast("Config value added");
+    return;
+  }
+
   if (!nextValue || appConfig[key].includes(nextValue)) {
     return;
   }
@@ -1595,7 +2354,33 @@ function addConfigValue(key, value) {
   showToast("Config value added");
 }
 
-function removeConfigValue(key, value) {
+function removeConfigValue(key, value, marketType = "") {
+  if (key === "symbolsByMarket") {
+    const currentSymbols = getSymbolsForMarket(marketType);
+    if (currentSymbols.length <= 1) {
+      window.alert(`Keep at least one symbol for ${marketType}.`);
+      return;
+    }
+
+    const confirmed = window.confirm(`Remove "${value}" from your ${marketType} symbols?\n\nExisting trades will keep their saved value.`);
+    if (!confirmed) {
+      return;
+    }
+
+    appConfig.symbolsByMarket = {
+      ...appConfig.symbolsByMarket,
+      [marketType]: currentSymbols.filter((option) => option !== value),
+    };
+    appConfig.symbols = getAllSymbols();
+    saveConfig();
+    syncConfiguredInputs();
+    renderConfig();
+    resetForm();
+    render();
+    showToast("Config value removed");
+    return;
+  }
+
   if (appConfig[key].length <= 1) {
     window.alert("Keep at least one value in each list.");
     return;
@@ -1610,8 +2395,6 @@ function removeConfigValue(key, value) {
   if (key === "accounts") {
     const { [value]: _removed, ...remainingBalances } = appConfig.accountBalances;
     appConfig.accountBalances = remainingBalances;
-  }
-  if (key === "symbols") {
   }
   saveConfig();
   syncConfiguredInputs();
@@ -1685,7 +2468,7 @@ function renderDisciplineBadge(trade) {
 }
 
 function updateModalScrollLock() {
-  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal].some((modal) => modal.open);
+  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal].some((modal) => modal.open);
   document.body.classList.toggle("modal-open", hasOpenModal);
 }
 
@@ -1825,7 +2608,17 @@ function syncMarketTypeField() {
   }
 }
 
+function syncSymbolFromMarket(preferredSymbol = "") {
+  const symbols = getSymbolsForMarket(marketTypeInput.value || getDefaultMarketType());
+  const nextSymbol = preferredSymbol || form.symbol.value;
+  populateSelect(form.symbol, symbols);
+  if (nextSymbol && symbols.includes(nextSymbol)) {
+    form.symbol.value = nextSymbol;
+  }
+}
+
 function syncSizeFromMarket() {
+  syncSymbolFromMarket();
   syncSizeFields();
 }
 
@@ -1845,7 +2638,7 @@ function readForm() {
     id: existingId || crypto.randomUUID(),
     tradeDate: form.tradeDate.value,
     symbol: form.symbol.value,
-    session: form.session.value,
+    session: appConfig.trackSessions ? form.session.value : "",
     account: form.account.value,
     strategy: form.strategy.value,
     marketType: form.marketType.value || getDefaultMarketType(),
@@ -1870,8 +2663,10 @@ function readForm() {
 }
 
 function validateTrade(trade) {
-  if (!trade.tradeDate || !trade.symbol || !trade.session || !trade.account || !trade.marketType) {
-    return "Date, symbol, session, account, and market type are required.";
+  if (!trade.tradeDate || !trade.symbol || !trade.account || !trade.marketType || (appConfig.trackSessions && !trade.session)) {
+    return appConfig.trackSessions
+      ? "Date, symbol, session, account, and market type are required."
+      : "Date, symbol, account, and market type are required.";
   }
 
   if (trade.sizeType === "contracts" && !trade.contracts) {
@@ -1893,11 +2688,13 @@ function resetForm() {
   editingTradeId = "";
   tradeIdInput.value = "";
   form.tradeDate.value = new Date().toISOString().slice(0, 10);
-  form.symbol.value = getDefaultOption("symbols");
-  form.session.value = getDefaultOption("sessions");
+  form.marketType.value = getDefaultMarketType();
+  syncSymbolFromMarket();
+  if (appConfig.trackSessions) {
+    form.session.value = getDefaultOption("sessions");
+  }
   form.account.value = getDefaultOption("accounts");
   form.strategy.value = getDefaultOption("strategies");
-  form.marketType.value = getDefaultMarketType();
   syncMarketTypeField();
   form.lots.value = "0.01";
   form.contracts.value = "1";
@@ -1923,11 +2720,14 @@ function startEdit(id) {
   tradeIdInput.value = trade.id;
   editingTradeId = trade.id;
   form.tradeDate.value = trade.tradeDate;
-  preserveOption(form.symbol, trade.symbol || getDefaultOption("symbols"));
-  preserveOption(form.session, trade.session || getDefaultOption("sessions"));
+  preserveOption(form.marketType, getTradeMarketType(trade));
+  syncSymbolFromMarket(trade.symbol);
+  preserveOption(form.symbol, trade.symbol || getSymbolsForMarket(getTradeMarketType(trade))[0] || "");
+  if (appConfig.trackSessions) {
+    preserveOption(form.session, trade.session || getDefaultOption("sessions"));
+  }
   preserveOption(form.account, trade.account || getDefaultOption("accounts"));
   preserveOption(form.strategy, trade.strategy || getDefaultOption("strategies"));
-  preserveOption(form.marketType, getTradeMarketType(trade));
   syncMarketTypeField();
   form.lots.value = formatLots(getTradeLots(trade));
   form.contracts.value = trade.contracts || "1";
@@ -1966,12 +2766,10 @@ function deleteTrade(id) {
 }
 
 function exportCsv() {
-  const rows = [
-    [
+  const header = [
       "Date",
       "Symbol",
       "Market",
-      "Session",
       "Account",
       "Strategy",
       "Size Type",
@@ -1987,14 +2785,19 @@ function exportCsv() {
       "Overtraded",
       "Early Exit",
       "Notes",
-    ],
+    ];
+  if (appConfig.trackSessions) {
+    header.splice(3, 0, "Session");
+  }
+
+  const rows = [
+    header,
     ...trades.map((trade) => {
       const discipline = getTradeDiscipline(trade);
-      return [
+      const row = [
         trade.tradeDate,
         trade.symbol,
         getTradeMarketType(trade),
-        trade.session || getDefaultOption("sessions"),
         trade.account || getDefaultOption("accounts"),
         trade.strategy,
         getTradeSizeType(trade),
@@ -2011,6 +2814,10 @@ function exportCsv() {
         discipline.exitedEarly ? "Yes" : "No",
         trade.notes,
       ];
+      if (appConfig.trackSessions) {
+        row.splice(3, 0, trade.session || getDefaultOption("sessions"));
+      }
+      return row;
     }),
   ];
 
@@ -2098,19 +2905,6 @@ marketTypeFilter.addEventListener("change", () => {
 });
 dashboardAccountFilter.addEventListener("change", render);
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
-reviewModeButton.addEventListener("click", () => {
-  reviewMode = !reviewMode;
-  reviewModeButton.classList.toggle("active", reviewMode);
-  currentTablePage = 1;
-  renderTable();
-  showToast(reviewMode ? "Review mode on" : "Review mode off");
-});
-densityToggleButton.addEventListener("click", () => {
-  tableDensity = tableDensity === "comfortable" ? "compact" : "comfortable";
-  document.body.classList.toggle("compact-table", tableDensity === "compact");
-  densityToggleButton.classList.toggle("active", tableDensity === "compact");
-  densityToggleButton.textContent = tableDensity === "compact" ? "Comfort Rows" : "Compact Rows";
-});
 performanceWeekMode.addEventListener("click", () => {
   performanceMode = "week";
   renderPerformanceCalendar();
@@ -2123,10 +2917,11 @@ performancePeriodSelect.addEventListener("change", renderPerformanceCalendar);
 cancelEditButton.addEventListener("click", resetForm);
 openTradeModalButton.addEventListener("click", startAddTradeFlow);
 emptyAddTradeButton.addEventListener("click", startAddTradeFlow);
-emptyConfigButton.addEventListener("click", openConfigModal);
+emptyConfigButton.addEventListener("click", openConfigFlow);
 closeTradeModalButton.addEventListener("click", closeTradeModal);
-openConfigButton.addEventListener("click", openConfigModal);
+openConfigButton.addEventListener("click", openConfigFlow);
 closeConfigButton.addEventListener("click", closeConfigModal);
+closeOnboardingButton.addEventListener("click", () => closeDialog(onboardingModal));
 closeNoteButton.addEventListener("click", closeNoteModal);
 openResetPasscodeButton.addEventListener("click", openResetPasscodeModal);
 closeResetPasscodeButton.addEventListener("click", closeResetPasscodeModal);
@@ -2163,25 +2958,45 @@ configGrid.addEventListener("click", (event) => {
   const key = button.dataset.configKey;
   if (button.dataset.configAction === "add") {
     const input = button.closest(".config-section").querySelector("input");
-    addConfigValue(key, input.value);
+    addConfigValue(key, input.value, button.dataset.marketType || "");
     input.value = "";
   }
 
   if (button.dataset.configAction === "remove") {
-    removeConfigValue(key, button.dataset.configValue);
+    removeConfigValue(key, button.dataset.configValue, button.dataset.marketType || "");
   }
 });
 
 configGrid.addEventListener("change", (event) => {
+  if (event.target.matches("[data-track-sessions-toggle]")) {
+    appConfig.trackSessions = event.target.checked;
+    if (appConfig.trackSessions && !appConfig.sessions.length) {
+      appConfig.sessions = [...DEFAULT_SESSION_OPTIONS];
+    }
+    if (!appConfig.trackSessions) {
+      appConfig.sessions = [];
+      sessionFilter.value = "All";
+    }
+    saveConfig();
+    syncConfiguredInputs();
+    resetForm();
+    renderConfig();
+    render();
+    return;
+  }
+
   if (!event.target.matches("[data-market-type-toggle]")) {
     return;
   }
 
   const selected = [...configGrid.querySelectorAll("[data-market-type-toggle]:checked")].map((input) => input.value);
   appConfig.marketTypes = normalizeMarketTypes(selected);
+  appConfig.symbolsByMarket = normalizeSymbolsByMarket(appConfig.symbolsByMarket, appConfig.symbols);
+  appConfig.symbols = getAllSymbols();
   saveConfig();
   syncConfiguredInputs();
   resetForm();
+  renderConfig();
   render();
 });
 
@@ -2195,7 +3010,7 @@ configGrid.addEventListener("keydown", (event) => {
   if (!section?.dataset.configKey) {
     return;
   }
-  addConfigValue(section.dataset.configKey, event.target.value);
+  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "");
   event.target.value = "";
 });
 
@@ -2318,7 +3133,7 @@ confirmResetPasscodeButton.addEventListener("click", async () => {
   }
 });
 
-[tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal].forEach((modal) => {
+[tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal].forEach((modal) => {
   modal.addEventListener("close", updateModalScrollLock);
 });
 
@@ -2348,8 +3163,79 @@ navButtons.forEach((button) => {
 
 onboardingConfigButton.addEventListener("click", () => {
   closeDialog(onboardingModal);
-  openConfigModal();
+  openOnboardingWizard();
 });
+
+closeWizardButton.addEventListener("click", () => closeDialog(onboardingWizardModal));
+
+wizardBackButton.addEventListener("click", () => {
+  if (onboardingStepIndex === 0) {
+    return;
+  }
+  stashWizardStep();
+  onboardingStepIndex -= 1;
+  renderOnboardingWizard();
+});
+
+wizardNextButton.addEventListener("click", () => {
+  if (!persistWizardStep()) {
+    return;
+  }
+
+  if (onboardingStepIndex === getOnboardingSteps().length - 1) {
+    saveOnboardingWizard();
+    return;
+  }
+
+  onboardingStepIndex += 1;
+  renderOnboardingWizard();
+});
+
+wizardContent.addEventListener("click", (event) => {
+  const addButton = event.target.closest("[data-wizard-add-value]");
+  if (addButton) {
+    const builder = addButton.closest("[data-wizard-builder]");
+    const input = builder?.querySelector("[data-wizard-add-input]");
+    if (builder && input) {
+      addWizardValue(builder, input);
+    }
+    return;
+  }
+
+  const removeButton = event.target.closest("[data-wizard-remove-value]");
+  if (removeButton) {
+    const builder = removeButton.closest("[data-wizard-builder]");
+    if (builder) {
+      removeWizardValue(builder, removeButton.dataset.wizardRemoveValue);
+    }
+  }
+});
+
+wizardContent.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || !event.target.matches("[data-wizard-add-input]")) {
+    return;
+  }
+
+  event.preventDefault();
+  const builder = event.target.closest("[data-wizard-builder]");
+  if (builder) {
+    addWizardValue(builder, event.target);
+  }
+});
+
+wizardContent.addEventListener("input", updateWizardNextState);
+wizardContent.addEventListener("input", (event) => {
+  const account = event.target.dataset.wizardAccountBalance;
+  if (!account) {
+    return;
+  }
+
+  onboardingDraft.accountBalances = {
+    ...onboardingDraft.accountBalances,
+    [account]: event.target.value.trim(),
+  };
+});
+wizardContent.addEventListener("change", updateWizardNextState);
 
 analyticsTabButtons.forEach((button) => {
   button.addEventListener("click", () => showAnalyticsTab(button.dataset.analyticsTab));
@@ -2358,7 +3244,7 @@ analyticsTabButtons.forEach((button) => {
 document.addEventListener("keydown", (event) => {
   const isTyping = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName);
   if (event.key === "Escape") {
-    [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal].forEach((modal) => {
+    [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal].forEach((modal) => {
       if (modal.open) {
         closeDialog(modal);
       }

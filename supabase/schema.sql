@@ -21,21 +21,8 @@ create table if not exists public.user_data (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.audit_logs (
-  id bigserial primary key,
-  event text not null,
-  actor_user_id uuid references public.app_users(id) on delete set null,
-  target_user_id uuid references public.app_users(id) on delete set null,
-  details jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now()
-);
-
 create index if not exists app_users_role_active_idx on public.app_users(role, active);
 create index if not exists user_data_updated_at_idx on public.user_data(updated_at);
-create index if not exists audit_logs_created_at_idx on public.audit_logs(created_at desc);
-create index if not exists audit_logs_actor_user_id_idx on public.audit_logs(actor_user_id);
-create index if not exists audit_logs_target_user_id_idx on public.audit_logs(target_user_id);
 
 alter table public.app_users enable row level security;
 alter table public.user_data enable row level security;
-alter table public.audit_logs enable row level security;
