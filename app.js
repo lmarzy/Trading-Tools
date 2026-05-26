@@ -27,6 +27,9 @@ const sessionField = document.querySelector("#sessionField");
 const lotsField = document.querySelector("#lotsField");
 const contractsField = document.querySelector("#contractsField");
 const notesDisclosure = document.querySelector("#notesDisclosure");
+const priceDetailsDisclosure = document.querySelector("#priceDetailsDisclosure");
+const pricePointsPreview = document.querySelector("#pricePointsPreview");
+const disciplineDisclosure = document.querySelector("#disciplineDisclosure");
 const configModal = document.querySelector("#configModal");
 const configGrid = document.querySelector("#configGrid");
 const openConfigButton = document.querySelector("#openConfigButton");
@@ -707,6 +710,58 @@ function getTradeAmount(trade) {
   return 0;
 }
 
+function hasTradePriceDetails(trade) {
+  return trade.entryPrice !== undefined && trade.entryPrice !== "" && trade.exitPrice !== undefined && trade.exitPrice !== "";
+}
+
+function getTradePoints(trade) {
+  if (!hasTradePriceDetails(trade)) {
+    return null;
+  }
+
+  const entry = parseNumber(trade.entryPrice);
+  const exit = parseNumber(trade.exitPrice);
+  const direction = trade.direction === "Sell" ? "Sell" : "Buy";
+  const points = direction === "Sell" ? entry - exit : exit - entry;
+  return Number.isFinite(points) ? points : null;
+}
+
+function formatPoints(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function updatePricePointsPreview() {
+  if (!pricePointsPreview) {
+    return;
+  }
+
+  const valueEl = pricePointsPreview.querySelector("strong");
+  const points = getTradePoints({
+    direction: form.direction.value,
+    entryPrice: form.entryPrice.value,
+    exitPrice: form.exitPrice.value,
+  });
+
+  pricePointsPreview.classList.toggle("positive", points > 0);
+  pricePointsPreview.classList.toggle("negative", points < 0);
+  pricePointsPreview.classList.toggle("flat", points === null || points === 0);
+
+  if (valueEl) {
+    valueEl.textContent = formatPoints(points);
+  }
+}
+
+function getPointsClass(value) {
+  return value > 0 ? "amount-win" : value < 0 ? "amount-loss" : "amount-flat";
+}
+
 function parseTradeDate(dateString) {
   if (!dateString) {
     return null;
@@ -1146,6 +1201,12 @@ function renderAnalytics() {
   const bestDay = daily.length ? daily.reduce((best, day) => (day.amount > best.amount ? day : best), daily[0]) : null;
   const worstDay = daily.length ? daily.reduce((worst, day) => (day.amount < worst.amount ? day : worst), daily[0]) : null;
   const dashboardTrades = getDashboardTrades();
+  const pointValues = dashboardTrades
+    .map((trade) => getTradePoints(trade))
+    .filter((points) => points !== null);
+  const totalPoints = pointValues.reduce((sum, points) => sum + points, 0);
+  const averagePoints = pointValues.length ? totalPoints / pointValues.length : null;
+  const bestPoints = pointValues.length ? Math.max(...pointValues) : null;
   const disciplineTrades = dashboardTrades.filter(hasTradeDiscipline);
   const allDisciplineScores = disciplineTrades.map((trade) => getDisciplineScore(trade));
   const averageDiscipline = allDisciplineScores.length
@@ -1161,6 +1222,8 @@ function renderAnalytics() {
     { label: "Profit Factor", value: formatProfitFactor(summary.profitFactor), tone: summary.profitFactor >= 1 ? "profit" : summary.total ? "loss" : "flat" },
     { label: "Best Day", value: bestDay ? formatSummaryAmount(bestDay.amount) : "0.00", detail: bestDay?.date || "-", tone: bestDay?.amount > 0 ? "profit" : "flat" },
     { label: "Worst Day", value: worstDay ? formatSummaryAmount(worstDay.amount) : "0.00", detail: worstDay?.date || "-", tone: worstDay?.amount < 0 ? "loss" : "flat" },
+    { label: "Average Points", value: formatPoints(averagePoints), detail: `${pointValues.length} tracked`, tone: averagePoints > 0 ? "profit" : averagePoints < 0 ? "loss" : "flat" },
+    { label: "Best Points", value: formatPoints(bestPoints), detail: pointValues.length ? "best move" : "-", tone: bestPoints > 0 ? "profit" : bestPoints < 0 ? "loss" : "flat" },
     { label: "Discipline", value: `${formatLots(averageDiscipline)}/${DISCIPLINE_MAX_SCORE}`, detail: `${disciplineTrades.length} tracked`, tone: averageDiscipline >= 4 ? "profit" : averageDiscipline >= 3 ? "flat" : disciplineTrades.length ? "loss" : "flat" },
     { label: "Clean Trades", value: formatPercent(cleanTradeRate), detail: `${cleanTrades}/${disciplineTrades.length || 0} perfect`, tone: cleanTradeRate >= 70 ? "profit" : cleanTradeRate >= 40 ? "flat" : disciplineTrades.length ? "loss" : "flat" },
   ];
@@ -1475,6 +1538,7 @@ function renderTable() {
   tableBody.innerHTML = "";
 
   pageTrades.forEach((trade) => {
+      const points = getTradePoints(trade);
       const note = trade.notes || "";
       const hasNote = Boolean(note.trim());
       const isTruncated = note.trim().length > 56;
@@ -1490,6 +1554,7 @@ function renderTable() {
         <td data-label="Strategy">${escapeHtml(trade.strategy || "-")}</td>
         <td data-label="Size Type">${getTradeSizeType(trade)}</td>
         <td data-label="Size">${formatTradeSize(trade)}</td>
+        <td data-label="Points" class="${getPointsClass(points)}">${formatPoints(points)}</td>
         <td data-label="Win / Loss"><span class="badge ${getOutcomeClass(trade.outcome)}">${escapeHtml(trade.outcome || "Pending")}</span></td>
         <td data-label="Amount" class="${trade.outcome === "Win" ? "amount-win" : trade.outcome === "Loss" ? "amount-loss" : "muted"}">
           ${formatAmount(trade.amount)}
@@ -1543,6 +1608,7 @@ function openTradeDrawer(id) {
 
   selectedTradeId = id;
   const amount = getTradeAmount(trade);
+  const points = getTradePoints(trade);
   const discipline = getTradeDiscipline(trade);
   tradeDrawerTitle.textContent = `${trade.symbol || "Trade"} · ${trade.tradeDate || "-"}`;
   tradeDrawerContent.innerHTML = `
@@ -1550,6 +1616,7 @@ function openTradeDrawer(id) {
       <div><span>Outcome</span><strong><span class="badge ${getOutcomeClass(trade.outcome)}">${escapeHtml(trade.outcome || "Pending")}</span></strong></div>
       <div><span>Amount</span><strong class="${amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "amount-flat"}">${formatSummaryAmount(amount)}</strong></div>
       <div><span>Size</span><strong>${formatTradeSize(trade)}</strong></div>
+      <div><span>Points</span><strong class="${getPointsClass(points)}">${formatPoints(points)}</strong></div>
       <div><span>Discipline</span><strong>${renderDisciplineBadge(trade)}</strong></div>
     </div>
     <dl class="drawer-details">
@@ -1557,6 +1624,8 @@ function openTradeDrawer(id) {
       ${appConfig.trackSessions ? `<div><dt>Session</dt><dd>${escapeHtml(trade.session || "-")}</dd></div>` : ""}
       <div><dt>Account</dt><dd>${escapeHtml(trade.account || "-")}</dd></div>
       <div><dt>Strategy</dt><dd>${escapeHtml(trade.strategy || "-")}</dd></div>
+      <div><dt>Direction</dt><dd>${hasTradePriceDetails(trade) ? escapeHtml(trade.direction || "Buy") : "-"}</dd></div>
+      <div><dt>Entry / Exit</dt><dd>${hasTradePriceDetails(trade) ? `${escapeHtml(trade.entryPrice)} / ${escapeHtml(trade.exitPrice)}` : "-"}</dd></div>
     </dl>
     <div class="drawer-discipline">
       ${renderDisciplineDetails(discipline)}
@@ -2663,6 +2732,9 @@ function readForm() {
     contracts: form.contracts.value,
     outcome: form.outcome.value,
     amount: form.amount.value,
+    direction: form.direction.value,
+    entryPrice: form.entryPrice.value,
+    exitPrice: form.exitPrice.value,
     discipline: {
       followedPlan: form.followedPlan.checked,
       enteredEarly: form.enteredEarly.checked,
@@ -2697,6 +2769,10 @@ function validateTrade(trade) {
     return "Add an amount when marking a trade as Win or Loss.";
   }
 
+  if ((trade.entryPrice && !trade.exitPrice) || (!trade.entryPrice && trade.exitPrice)) {
+    return "Add both entry and exit prices to calculate points.";
+  }
+
   return "";
 }
 
@@ -2717,9 +2793,15 @@ function resetForm() {
   syncSizeFields();
   form.outcome.value = "Pending";
   form.amount.value = "";
+  form.direction.value = "Buy";
+  form.entryPrice.value = "";
+  form.exitPrice.value = "";
+  priceDetailsDisclosure.open = false;
+  updatePricePointsPreview();
   DISCIPLINE_RULES.forEach((rule) => {
     form[rule.key].checked = false;
   });
+  disciplineDisclosure.open = false;
   form.notes.value = "";
   notesDisclosure.open = false;
   formTitle.textContent = "Add trade";
@@ -2750,10 +2832,16 @@ function startEdit(id) {
   syncSizeFields();
   form.outcome.value = trade.outcome || "Pending";
   form.amount.value = trade.amount || "";
+  form.direction.value = trade.direction === "Sell" ? "Sell" : "Buy";
+  form.entryPrice.value = trade.entryPrice || "";
+  form.exitPrice.value = trade.exitPrice || "";
+  priceDetailsDisclosure.open = hasTradePriceDetails(trade);
+  updatePricePointsPreview();
   const discipline = getTradeDiscipline(trade);
   DISCIPLINE_RULES.forEach((rule) => {
     form[rule.key].checked = Boolean(discipline[rule.key]);
   });
+  disciplineDisclosure.open = DISCIPLINE_RULES.some((rule) => Boolean(discipline[rule.key]));
   form.notes.value = trade.notes;
   notesDisclosure.open = Boolean(trade.notes);
   formTitle.textContent = "Edit trade";
@@ -2792,6 +2880,10 @@ function exportCsv() {
       "Lots",
       "Contracts",
       "Total Lots",
+      "Direction",
+      "Entry",
+      "Exit",
+      "Points",
       "Win / Loss",
       "Amount",
       "Discipline Score",
@@ -2811,6 +2903,7 @@ function exportCsv() {
     header,
     ...trades.map((trade) => {
       const discipline = getTradeDiscipline(trade);
+      const points = getTradePoints(trade);
       const row = [
         trade.tradeDate,
         trade.symbol,
@@ -2821,6 +2914,10 @@ function exportCsv() {
         trade.lots,
         trade.contracts || "",
         formatLots(getTradeLots(trade)),
+        trade.direction || "",
+        trade.entryPrice || "",
+        trade.exitPrice || "",
+        points === null ? "" : formatPoints(points),
         trade.outcome || "Pending",
         trade.amount || "",
         getDisciplineScore(trade) === null ? "" : `${getDisciplineScore(trade)}/${DISCIPLINE_MAX_SCORE}`,
@@ -2926,6 +3023,10 @@ dashboardSectionButtons.forEach((button) => {
   button.addEventListener("click", () => showDashboardSection(button.dataset.dashboardSection));
 });
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
+["direction", "entryPrice", "exitPrice"].forEach((name) => {
+  form[name].addEventListener("input", updatePricePointsPreview);
+  form[name].addEventListener("change", updatePricePointsPreview);
+});
 performanceWeekMode.addEventListener("click", () => {
   performanceMode = "week";
   renderPerformanceCalendar();

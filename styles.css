@@ -2932,6 +2932,57 @@ button:disabled {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.price-details-grid {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr);
+  gap: 10px;
+  align-items: end;
+  padding: 0 14px 14px;
+}
+
+.price-details-grid label {
+  padding: 0;
+}
+
+.price-details-grid input,
+.price-details-grid select {
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.price-points-preview {
+  display: grid;
+  align-content: center;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field-2);
+}
+
+.price-points-preview span {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.price-points-preview strong {
+  margin-top: 3px;
+  color: var(--muted-strong);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.price-points-preview.positive strong {
+  color: var(--lime);
+}
+
+.price-points-preview.negative strong {
+  color: var(--loss);
+}
+
 .field-row.single-field-row {
   grid-template-columns: 1fr;
 }
@@ -2993,6 +3044,14 @@ button:disabled {
 }
 
 .notes-disclosure label {
+  padding: 0 14px 14px;
+}
+
+.notes-disclosure .price-details-grid label {
+  padding: 0;
+}
+
+.discipline-disclosure .discipline-groups {
   padding: 0 14px 14px;
 }
 
@@ -4560,6 +4619,7 @@ select,
   .weekly-total-card,
   .weekly-total-card dl,
   .strategy-card dl,
+  .price-details-grid,
   .field-row {
     grid-template-columns: 1fr;
   }
