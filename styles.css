@@ -2417,6 +2417,36 @@ tbody td:last-child {
   gap: 10px;
 }
 
+.discipline-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.discipline-group {
+  display: grid;
+  gap: 8px;
+}
+
+.discipline-group > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.discipline-options-positive {
+  grid-template-columns: minmax(180px, 0.25fr);
+}
+
+.discipline-group.positive .toggle-option {
+  border-color: rgba(185, 255, 87, 0.2);
+}
+
+.discipline-group.negative .toggle-option {
+  border-color: rgba(255, 122, 122, 0.12);
+}
+
 .toggle-option {
   display: flex;
   align-items: center;

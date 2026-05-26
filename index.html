@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260525-dashboard-spacing" />
+    <link rel="stylesheet" href="styles.css?v=20260526-discipline-groups" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -313,27 +313,41 @@
 
           <section class="form-section">
             <h3>Discipline</h3>
-            <div class="discipline-options">
-              <label class="toggle-option">
-                <input id="followedPlan" name="followedPlan" type="checkbox" />
-                <span>Plan followed</span>
-              </label>
-              <label class="toggle-option">
-                <input id="enteredEarly" name="enteredEarly" type="checkbox" />
-                <span>Early entry</span>
-              </label>
-              <label class="toggle-option">
-                <input id="movedSl" name="movedSl" type="checkbox" />
-                <span>Stop moved</span>
-              </label>
-              <label class="toggle-option">
-                <input id="overtraded" name="overtraded" type="checkbox" />
-                <span>Overtraded</span>
-              </label>
-              <label class="toggle-option">
-                <input id="exitedEarly" name="exitedEarly" type="checkbox" />
-                <span>Early exit</span>
-              </label>
+            <div class="discipline-groups">
+              <div class="discipline-group positive">
+                <span>Positive</span>
+                <div class="discipline-options discipline-options-positive">
+                  <label class="toggle-option">
+                    <input id="followedPlan" name="followedPlan" type="checkbox" />
+                    <span>Plan followed</span>
+                  </label>
+                </div>
+              </div>
+              <div class="discipline-group negative">
+                <span>Mistakes</span>
+                <div class="discipline-options">
+                  <label class="toggle-option">
+                    <input id="enteredEarly" name="enteredEarly" type="checkbox" />
+                    <span>Early entry</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input id="movedSl" name="movedSl" type="checkbox" />
+                    <span>Stop moved</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input id="overtraded" name="overtraded" type="checkbox" />
+                    <span>Overtraded</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input id="exitedEarly" name="exitedEarly" type="checkbox" />
+                    <span>Early exit</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input id="heldTooLong" name="heldTooLong" type="checkbox" />
+                    <span>Held too long</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -682,8 +696,8 @@
     </main>
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="supabase-config.js?v=20260525-dashboard-spacing"></script>
-    <script src="supabase-api.js?v=20260525-dashboard-spacing"></script>
-    <script src="app.js?v=20260525-dashboard-spacing"></script>
+    <script src="supabase-config.js?v=20260526-discipline-groups"></script>
+    <script src="supabase-api.js?v=20260526-discipline-groups"></script>
+    <script src="app.js?v=20260526-discipline-groups"></script>
   </body>
 </html>

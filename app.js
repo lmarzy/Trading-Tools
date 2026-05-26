@@ -200,14 +200,15 @@ const ONBOARDING_STEPS = [
     description: "Check everything looks right. You can still edit these later from the config button.",
   },
 ];
-const DISCIPLINE_MAX_SCORE = 5;
 const DISCIPLINE_RULES = [
   { key: "followedPlan", label: "Plan followed", positive: true },
   { key: "enteredEarly", label: "Early entry" },
   { key: "movedSl", label: "Stop moved" },
   { key: "overtraded", label: "Overtraded" },
   { key: "exitedEarly", label: "Early exit" },
+  { key: "heldTooLong", label: "Held too long" },
 ];
+const DISCIPLINE_MAX_SCORE = DISCIPLINE_RULES.length;
 
 let currentUserId = "";
 let currentUserLabel = "";
@@ -2462,7 +2463,7 @@ function getDisciplineScore(trade) {
     score += 1;
   }
 
-  ["enteredEarly", "movedSl", "overtraded", "exitedEarly"].forEach((key) => {
+  ["enteredEarly", "movedSl", "overtraded", "exitedEarly", "heldTooLong"].forEach((key) => {
     if (!discipline[key]) {
       score += 1;
     }
@@ -2668,6 +2669,7 @@ function readForm() {
       movedSl: form.movedSl.checked,
       overtraded: form.overtraded.checked,
       exitedEarly: form.exitedEarly.checked,
+      heldTooLong: form.heldTooLong.checked,
     },
     notes: form.notes.value.trim(),
     createdAt: existingId
@@ -2798,6 +2800,7 @@ function exportCsv() {
       "Stop Moved",
       "Overtraded",
       "Early Exit",
+      "Held Too Long",
       "Notes",
     ];
   if (appConfig.trackSessions) {
@@ -2826,6 +2829,7 @@ function exportCsv() {
         discipline.movedSl ? "Yes" : "No",
         discipline.overtraded ? "Yes" : "No",
         discipline.exitedEarly ? "Yes" : "No",
+        discipline.heldTooLong ? "Yes" : "No",
         trade.notes,
       ];
       if (appConfig.trackSessions) {
