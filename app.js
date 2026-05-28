@@ -3,6 +3,8 @@ const AUTH_LABEL_KEY = "trade-tools:unlocked-label";
 const AUTH_EMAIL_KEY = "trade-tools:unlocked-email";
 const AUTH_ROLE_KEY = "trade-tools:unlocked-role";
 const AUTH_HASH_KEY = "trade-tools:unlocked-passcode-hash";
+const AUTH_TRIAL_ENABLED_KEY = "trade-tools:unlocked-trial-enabled";
+const AUTH_TRIAL_ENDS_KEY = "trade-tools:unlocked-trial-ends";
 const TABLE_PAGE_SIZE = 10;
 const PASSCODE_SALT = "trade-tools-v1";
 const PASSCODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ2346789";
@@ -79,6 +81,8 @@ const userPopover = document.querySelector("#userPopover");
 const userMenuName = document.querySelector("#userMenuName");
 const userMenuEmail = document.querySelector("#userMenuEmail");
 const userMenuRole = document.querySelector("#userMenuRole");
+const trialBanner = document.querySelector("#trialBanner");
+const trialBannerText = document.querySelector("#trialBannerText");
 const saveStatus = document.querySelector("#saveStatus");
 const toastStack = document.querySelector("#toastStack");
 const onboardingModal = document.querySelector("#onboardingModal");
@@ -287,6 +291,57 @@ function showToast(message, tone = "saved") {
   }, 2600);
 }
 
+function formatTrialDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getTrialDaysRemaining(value) {
+  if (!value) {
+    return null;
+  }
+
+  const remaining = new Date(value).getTime() - Date.now();
+  if (Number.isNaN(remaining)) {
+    return null;
+  }
+
+  return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
+}
+
+function updateTrialBanner(trialEnabled = sessionStorage.getItem(AUTH_TRIAL_ENABLED_KEY) === "true", trialEndsAt = sessionStorage.getItem(AUTH_TRIAL_ENDS_KEY)) {
+  if (!trialBanner || !trialBannerText) {
+    return;
+  }
+
+  if (!trialEnabled || !trialEndsAt) {
+    trialBanner.classList.add("hidden");
+    trialBannerText.textContent = "";
+    return;
+  }
+
+  const days = getTrialDaysRemaining(trialEndsAt);
+  const formattedDate = formatTrialDate(trialEndsAt);
+  const dayText = days === null ? "" : `${days} day${days === 1 ? "" : "s"} remaining`;
+  trialBannerText.textContent = formattedDate
+    ? `Your trial ends on ${formattedDate}${dayText ? ` · ${dayText}` : ""}.`
+    : "Your trial is active.";
+  trialBanner.classList.toggle("trial-ending-soon", days !== null && days <= 3);
+  trialBanner.classList.remove("hidden");
+}
+
 async function setAppUnlocked(
   userId = sessionStorage.getItem(AUTH_STORAGE_KEY),
   userLabel = sessionStorage.getItem(AUTH_LABEL_KEY),
@@ -294,6 +349,8 @@ async function setAppUnlocked(
   userRole = sessionStorage.getItem(AUTH_ROLE_KEY),
   passcodeHash = sessionStorage.getItem(AUTH_HASH_KEY),
   refreshUser = true,
+  trialEnabled = sessionStorage.getItem(AUTH_TRIAL_ENABLED_KEY) === "true",
+  trialEndsAt = sessionStorage.getItem(AUTH_TRIAL_ENDS_KEY) || "",
 ) {
   document.body.classList.add("app-checking");
   passcodeGate.setAttribute("hidden", "");
@@ -301,10 +358,16 @@ async function setAppUnlocked(
     if (refreshUser && passcodeHash && /^[a-f0-9]{64}$/i.test(passcodeHash)) {
       try {
         const result = await callSupabaseFunction("login", { passcodeHash });
+        if (!result.user) {
+          setAppLocked();
+          return;
+        }
         if (result.user?.id === userId) {
           userLabel = result.user.label || userLabel;
           userEmail = result.user.email || "";
           userRole = result.user.role || userRole;
+          trialEnabled = Boolean(result.user.trialEnabled);
+          trialEndsAt = result.user.trialEndsAt || "";
         }
       } catch {
         // Keep the local session usable if the profile refresh cannot complete.
@@ -315,6 +378,8 @@ async function setAppUnlocked(
     sessionStorage.setItem(AUTH_LABEL_KEY, userLabel || userId);
     sessionStorage.setItem(AUTH_EMAIL_KEY, userEmail || "");
     sessionStorage.setItem(AUTH_ROLE_KEY, userRole || "user");
+    sessionStorage.setItem(AUTH_TRIAL_ENABLED_KEY, trialEnabled ? "true" : "false");
+    sessionStorage.setItem(AUTH_TRIAL_ENDS_KEY, trialEndsAt || "");
     if (passcodeHash) {
       sessionStorage.setItem(AUTH_HASH_KEY, passcodeHash);
     }
@@ -324,6 +389,7 @@ async function setAppUnlocked(
     userMenuRole.textContent = userRole === "admin" ? "Admin" : "User";
     userMenuButton.textContent = getUserInitials(currentUserLabel);
     adminNavLink.classList.toggle("hidden", userRole !== "admin");
+    updateTrialBanner(trialEnabled, trialEndsAt);
     await loadUserState(userId, userLabel || userId);
   }
   document.body.classList.remove("auth-locked", "app-checking");
@@ -333,6 +399,7 @@ function setAppLocked() {
   document.body.classList.remove("app-checking");
   document.body.classList.add("auth-locked");
   passcodeGate.removeAttribute("hidden");
+  updateTrialBanner(false, "");
   passcodeInput.focus();
 }
 
@@ -346,6 +413,8 @@ async function logout() {
     sessionStorage.removeItem(AUTH_EMAIL_KEY);
     sessionStorage.removeItem(AUTH_ROLE_KEY);
     sessionStorage.removeItem(AUTH_HASH_KEY);
+    sessionStorage.removeItem(AUTH_TRIAL_ENABLED_KEY);
+    sessionStorage.removeItem(AUTH_TRIAL_ENDS_KEY);
     currentUserId = "";
     currentUserLabel = "";
     adminNavLink.classList.add("hidden");
@@ -446,7 +515,12 @@ async function hydrateUserStateFromSupabase() {
       marketTypes,
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
     };
-  } catch {
+  } catch (error) {
+    if (error.message === "Access denied") {
+      showToast("Your access is no longer active.");
+      setAppLocked();
+      return;
+    }
     setSaveStatus("pending", "Could not load saved data");
   } finally {
     isHydratingUserState = false;
@@ -475,7 +549,12 @@ async function syncUserDataToSupabase() {
       trades,
     });
     setSaveStatus("saved", "Saved");
-  } catch {
+  } catch (error) {
+    if (error.message === "Access denied") {
+      showToast("Your access is no longer active.");
+      setAppLocked();
+      return;
+    }
     setSaveStatus("pending", "Offline changes pending");
   }
 }
@@ -3204,7 +3283,16 @@ passcodeForm.addEventListener("submit", async (event) => {
 
     failedPasscodeAttempts = 0;
     passcodeInput.value = "";
-    await setAppUnlocked(matchedUser.id, matchedUser.label, matchedUser.email, matchedUser.role, inputHash, false);
+    await setAppUnlocked(
+      matchedUser.id,
+      matchedUser.label,
+      matchedUser.email,
+      matchedUser.role,
+      inputHash,
+      false,
+      Boolean(matchedUser.trialEnabled),
+      matchedUser.trialEndsAt || "",
+    );
     maybeOpenConfigForNewUser();
   } finally {
     setButtonLoading(passcodeSubmitButton, false);

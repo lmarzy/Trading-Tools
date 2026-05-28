@@ -1,6 +1,10 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 
+function isTrialExpired(user: { trial_enabled?: boolean; trial_ends_at?: string | null }) {
+  return Boolean(user.trial_enabled && user.trial_ends_at && new Date(user.trial_ends_at).getTime() <= Date.now());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -19,7 +23,7 @@ Deno.serve(async (req) => {
     const supabase = createServiceClient();
     let query = supabase
       .from("app_users")
-      .select("id,label,email,role,active")
+      .select("id,label,email,role,active,trial_enabled,trial_ends_at")
       .eq("passcode_hash", passcodeHash)
       .eq("active", true);
 
@@ -30,6 +34,14 @@ Deno.serve(async (req) => {
     const { data: user, error } = await query.maybeSingle();
 
     if (error || !user) {
+      return jsonResponse({ user: null });
+    }
+
+    if (isTrialExpired(user)) {
+      await supabase
+        .from("app_users")
+        .update({ active: false, disabled_reason: "Trial expired" })
+        .eq("id", user.id);
       return jsonResponse({ user: null });
     }
 
@@ -44,7 +56,16 @@ Deno.serve(async (req) => {
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", user.id);
 
-    return jsonResponse({ user: { id: user.id, label: user.label, email: user.email, role: user.role } });
+    return jsonResponse({
+      user: {
+        id: user.id,
+        label: user.label,
+        email: user.email,
+        role: user.role,
+        trialEnabled: Boolean(user.trial_enabled),
+        trialEndsAt: user.trial_ends_at || null,
+      },
+    });
   } catch {
     return jsonResponse({ user: null });
   }

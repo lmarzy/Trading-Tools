@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260526-price-preview" />
+    <link rel="stylesheet" href="styles.css?v=20260528-trials" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -65,6 +65,12 @@
           </div>
         </div>
       </header>
+      <section class="trial-banner hidden" id="trialBanner" aria-live="polite">
+        <div>
+          <strong>Trial access</strong>
+          <span id="trialBannerText">Your trial is active.</span>
+        </div>
+      </section>
 
       <section class="app-view active" id="trackerView">
       <div class="view-header">
@@ -722,8 +728,8 @@
     </main>
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="supabase-config.js?v=20260526-price-preview"></script>
-    <script src="supabase-api.js?v=20260526-price-preview"></script>
-    <script src="app.js?v=20260526-price-preview"></script>
+    <script src="supabase-config.js?v=20260528-trials"></script>
+    <script src="supabase-api.js?v=20260528-trials"></script>
+    <script src="app.js?v=20260528-trials"></script>
   </body>
 </html>

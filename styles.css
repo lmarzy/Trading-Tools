@@ -258,6 +258,44 @@ body:not(.app-checking) .app-loading-screen {
   color: #ffaa48;
 }
 
+.trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px 0 24px;
+  padding: 12px 16px;
+  border: 1px solid rgba(200, 255, 79, 0.2);
+  border-radius: 16px;
+  background: rgba(200, 255, 79, 0.08);
+  color: var(--muted-strong);
+}
+
+.trial-banner strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--lime);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.trial-banner span {
+  color: var(--value);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.trial-banner.trial-ending-soon {
+  border-color: rgba(255, 170, 72, 0.4);
+  background: rgba(255, 170, 72, 0.1);
+}
+
+.trial-banner.trial-ending-soon strong {
+  color: #ffaa48;
+}
+
 .app-nav {
   display: flex;
   align-items: center;
@@ -2666,7 +2704,7 @@ tbody td:last-child {
 }
 
 .admin-passcode-table {
-  min-width: 980px;
+  min-width: 1120px;
   border-spacing: 0 8px;
 }
 
@@ -2738,7 +2776,7 @@ tbody td:last-child {
 
 .admin-user-details {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   padding: 12px;
   border: 1px solid rgba(200, 255, 79, 0.14);

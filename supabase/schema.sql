@@ -10,6 +10,11 @@ create table if not exists public.app_users (
   passcode_hash text not null unique,
   passcode_code text,
   active boolean not null default true,
+  trial_enabled boolean not null default false,
+  trial_weeks integer check (trial_weeks is null or trial_weeks between 1 and 4),
+  trial_started_at timestamptz,
+  trial_ends_at timestamptz,
+  disabled_reason text,
   created_at timestamptz not null default now(),
   last_login_at timestamptz
 );

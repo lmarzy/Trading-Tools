@@ -6,7 +6,7 @@
     <title>TRADERS HUB Admin</title>
     <link rel="icon" type="image/png" href="../assets/logo.png" />
     <link rel="apple-touch-icon" href="../assets/logo.png" />
-    <link rel="stylesheet" href="../styles.css?v=20260525-admin-header" />
+    <link rel="stylesheet" href="../styles.css?v=20260528-trials" />
   </head>
   <body class="admin-page admin-checking">
     <section class="admin-access-panel hidden" id="adminGate" aria-label="Admin access required">
@@ -75,6 +75,7 @@
                 <select id="adminStatusFilter" aria-label="Filter by status">
                   <option value="all">All statuses</option>
                   <option value="active">Active</option>
+                  <option value="trial">Trial</option>
                   <option value="inactive">Inactive</option>
                 </select>
                 <select id="adminSortSelect" aria-label="Sort users">
@@ -126,6 +127,11 @@
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
+            <select id="statusInput" aria-label="Status">
+              <option value="active">Active</option>
+              <option value="trial">Trial</option>
+              <option value="inactive">Inactive</option>
+            </select>
             <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
           </div>
         </div>
@@ -139,8 +145,8 @@
       </div>
     </dialog>
 
-    <script src="../supabase-config.js?v=20260522-onboarding"></script>
-    <script src="../supabase-api.js?v=20260522-onboarding"></script>
-    <script src="admin.js?v=20260525-admin-header"></script>
+    <script src="../supabase-config.js?v=20260528-trials"></script>
+    <script src="../supabase-api.js?v=20260528-trials"></script>
+    <script src="admin.js?v=20260528-trials"></script>
   </body>
 </html>

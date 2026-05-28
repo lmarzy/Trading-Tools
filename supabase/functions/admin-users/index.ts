@@ -1,6 +1,40 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 
+const USER_SELECT = "id,label,first_name,last_name,email,role,passcode_code,active,trial_enabled,trial_weeks,trial_started_at,trial_ends_at,disabled_reason,created_at,last_login_at";
+
+function normaliseTrialWeeks(value: unknown) {
+  const weeks = Number(value);
+  return Number.isInteger(weeks) && weeks >= 1 && weeks <= 4 ? weeks : null;
+}
+
+function getTrialFields(trialEnabled: unknown, trialWeeks: unknown) {
+  const weeks = normaliseTrialWeeks(trialWeeks) || 2;
+  const enabled = Boolean(trialEnabled);
+  const startedAt = enabled ? new Date() : null;
+  const endsAt = enabled && startedAt ? new Date(startedAt.getTime() + weeks * 7 * 24 * 60 * 60 * 1000) : null;
+
+  return {
+    trial_enabled: enabled,
+    trial_weeks: enabled ? weeks : null,
+    trial_started_at: enabled ? startedAt?.toISOString() : null,
+    trial_ends_at: enabled ? endsAt?.toISOString() : null,
+  };
+}
+
+function isTrialExpired(user: { trial_enabled?: boolean; trial_ends_at?: string | null }) {
+  return Boolean(user.trial_enabled && user.trial_ends_at && new Date(user.trial_ends_at).getTime() <= Date.now());
+}
+
+async function expireTrials(supabase: ReturnType<typeof createServiceClient>) {
+  await supabase
+    .from("app_users")
+    .update({ active: false, disabled_reason: "Trial expired" })
+    .eq("active", true)
+    .eq("trial_enabled", true)
+    .lte("trial_ends_at", new Date().toISOString());
+}
+
 async function assertAdmin(req: Request, supabase: ReturnType<typeof createServiceClient>) {
   const adminHash = req.headers.get("x-admin-passcode-hash");
   if (!adminHash) {
@@ -9,13 +43,17 @@ async function assertAdmin(req: Request, supabase: ReturnType<typeof createServi
 
   const { data } = await supabase
     .from("app_users")
-    .select("id,label")
+    .select("id,label,trial_enabled,trial_ends_at")
     .eq("passcode_hash", adminHash)
     .eq("role", "admin")
     .eq("active", true)
     .maybeSingle();
 
-  return data || null;
+  if (!data || isTrialExpired(data)) {
+    return null;
+  }
+
+  return data;
 }
 
 Deno.serve(async (req) => {
@@ -30,6 +68,7 @@ Deno.serve(async (req) => {
   try {
     const { action, user } = await req.json();
     const supabase = createServiceClient();
+    await expireTrials(supabase);
     const adminUser = await assertAdmin(req, supabase);
 
     if (!adminUser) {
@@ -39,7 +78,7 @@ Deno.serve(async (req) => {
     if (action === "list") {
       const { data, error } = await supabase
         .from("app_users")
-        .select("id,label,first_name,last_name,email,role,passcode_code,active,created_at,last_login_at")
+        .select(USER_SELECT)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -73,12 +112,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
-      const { firstName, lastName, email, label, role, passcodeHash, passcodeCode } = user || {};
+      const { firstName, lastName, email, label, role, passcodeHash, passcodeCode, trialEnabled, trialWeeks } = user || {};
       const displayLabel = label || [firstName, lastName].filter(Boolean).join(" ");
       if (!displayLabel || !passcodeHash) {
         return jsonResponse({ error: "Missing user details" }, 400);
       }
       const userRole = role === "admin" ? "admin" : "user";
+      const trialFields = getTrialFields(trialEnabled, trialWeeks);
+      const isActive = user.active === false ? false : true;
 
       const { data, error } = await supabase
         .from("app_users")
@@ -90,9 +131,11 @@ Deno.serve(async (req) => {
           role: userRole,
           passcode_hash: passcodeHash,
           passcode_code: passcodeCode || null,
-          active: true,
+          active: isActive,
+          disabled_reason: isActive ? null : "Manually disabled",
+          ...trialFields,
         })
-        .select("id,label,first_name,last_name,email,role,passcode_code,active,created_at,last_login_at")
+        .select(USER_SELECT)
         .single();
 
       if (error) {
@@ -104,7 +147,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      const { id, firstName, lastName, email, label, role, active, passcodeHash, passcodeCode } = user || {};
+      const { id, firstName, lastName, email, label, role, active, passcodeHash, passcodeCode, trialEnabled, trialWeeks, resetTrial } = user || {};
       if (!id) {
         return jsonResponse({ error: "Missing user id" }, 400);
       }
@@ -122,7 +165,12 @@ Deno.serve(async (req) => {
         email: email || null,
         role: userRole,
         active,
+        disabled_reason: active ? null : "Manually disabled",
       };
+
+      if (resetTrial || trialEnabled !== undefined || trialWeeks !== undefined) {
+        Object.assign(updates, getTrialFields(trialEnabled, trialWeeks));
+      }
 
       if (passcodeHash) {
         updates.passcode_hash = passcodeHash;
@@ -133,7 +181,7 @@ Deno.serve(async (req) => {
         .from("app_users")
         .update(updates)
         .eq("id", id)
-        .select("id,label,first_name,last_name,email,role,passcode_code,active,created_at,last_login_at")
+        .select(USER_SELECT)
         .single();
       if (error) {
         return jsonResponse({ error: "Could not update user" }, 500);
