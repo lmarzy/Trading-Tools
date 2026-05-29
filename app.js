@@ -308,17 +308,43 @@ function formatTrialDate(value) {
   });
 }
 
-function getTrialDaysRemaining(value) {
+function getTrialTimeRemaining(value) {
   if (!value) {
     return null;
   }
 
-  const remaining = new Date(value).getTime() - Date.now();
+  const endDate = new Date(value);
+  const remaining = endDate.getTime() - Date.now();
   if (Number.isNaN(remaining)) {
     return null;
   }
 
-  return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
+  const today = new Date();
+  const expiresToday = endDate.toDateString() === today.toDateString();
+
+  return {
+    days: Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000))),
+    hours: Math.max(0, Math.ceil(remaining / (60 * 60 * 1000))),
+    expired: remaining <= 0,
+    expiresToday,
+  };
+}
+
+function formatTrialTimeRemaining(value) {
+  const remaining = getTrialTimeRemaining(value);
+  if (!remaining) {
+    return "";
+  }
+
+  if (remaining.expired) {
+    return "Expires today";
+  }
+
+  if (remaining.expiresToday) {
+    return remaining.hours <= 1 ? "Expires in less than 1 hour" : `Expires today · ${remaining.hours} hours remaining`;
+  }
+
+  return `${remaining.days} day${remaining.days === 1 ? "" : "s"} remaining`;
 }
 
 function updateTrialBanner(trialEnabled = sessionStorage.getItem(AUTH_TRIAL_ENABLED_KEY) === "true", trialEndsAt = sessionStorage.getItem(AUTH_TRIAL_ENDS_KEY)) {
@@ -332,13 +358,13 @@ function updateTrialBanner(trialEnabled = sessionStorage.getItem(AUTH_TRIAL_ENAB
     return;
   }
 
-  const days = getTrialDaysRemaining(trialEndsAt);
+  const remaining = getTrialTimeRemaining(trialEndsAt);
   const formattedDate = formatTrialDate(trialEndsAt);
-  const dayText = days === null ? "" : `${days} day${days === 1 ? "" : "s"} remaining`;
+  const remainingText = formatTrialTimeRemaining(trialEndsAt);
   trialBannerText.textContent = formattedDate
-    ? `Your trial ends on ${formattedDate}${dayText ? ` · ${dayText}` : ""}.`
+    ? `Your trial ends on ${formattedDate}${remainingText ? ` · ${remainingText}` : ""}.`
     : "Your trial is active.";
-  trialBanner.classList.toggle("trial-ending-soon", days !== null && days <= 3);
+  trialBanner.classList.toggle("trial-ending-soon", Boolean(remaining && remaining.days <= 3));
   trialBanner.classList.remove("hidden");
 }
 
