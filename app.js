@@ -83,6 +83,13 @@ const userMenuEmail = document.querySelector("#userMenuEmail");
 const userMenuRole = document.querySelector("#userMenuRole");
 const trialBanner = document.querySelector("#trialBanner");
 const trialBannerText = document.querySelector("#trialBannerText");
+const newsAlertButton = document.querySelector("#newsAlertButton");
+const newsAlertBadge = document.querySelector("#newsAlertBadge");
+const newsDrawer = document.querySelector("#newsDrawer");
+const newsDrawerBackdrop = document.querySelector("#newsDrawerBackdrop");
+const closeNewsDrawerButton = document.querySelector("#closeNewsDrawerButton");
+const newsEventsList = document.querySelector("#newsEventsList");
+const newsFilterButtons = document.querySelectorAll("[data-news-filter]");
 const saveStatus = document.querySelector("#saveStatus");
 const toastStack = document.querySelector("#toastStack");
 const onboardingModal = document.querySelector("#onboardingModal");
@@ -234,6 +241,10 @@ let performanceMode = "week";
 let selectedTradeId = "";
 let onboardingStepIndex = 0;
 let onboardingDraft = structuredClone(DEFAULT_CONFIG);
+let newsEvents = [];
+let newsFilter = "today";
+let newsLoaded = false;
+const MOTION_DURATION_MS = 190;
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -368,6 +379,207 @@ function updateTrialBanner(trialEnabled = sessionStorage.getItem(AUTH_TRIAL_ENAB
   trialBanner.classList.remove("hidden");
 }
 
+function toLocalDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatNewsEventTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Time TBC";
+  }
+
+  return date.toLocaleString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
+function formatNewsGroupDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Date TBC";
+  }
+
+  const eventKey = toLocalDateKey(date);
+  const today = toLocalDateKey();
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const prefix = eventKey === today ? "Today" : eventKey === toLocalDateKey(tomorrowDate) ? "Tomorrow" : "";
+  const label = date.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+  return prefix ? `${prefix} · ${label}` : label;
+}
+
+function getImpactClass(impact = "") {
+  const value = String(impact).toLowerCase();
+  if (value.includes("high")) {
+    return "high";
+  }
+  if (value.includes("medium")) {
+    return "medium";
+  }
+  if (value.includes("low")) {
+    return "low";
+  }
+  return "flat";
+}
+
+function getVisibleNewsEvents() {
+  const today = toLocalDateKey();
+  if (newsFilter === "today") {
+    return newsEvents.filter((event) => toLocalDateKey(event.date) === today);
+  }
+
+  return newsEvents;
+}
+
+function groupNewsEventsByDate(events) {
+  return events.reduce((groups, event) => {
+    const key = toLocalDateKey(event.date) || "unknown";
+    const existing = groups.find((group) => group.key === key);
+    if (existing) {
+      existing.events.push(event);
+      return groups;
+    }
+
+    groups.push({ key, date: event.date, events: [event] });
+    return groups;
+  }, []);
+}
+
+function renderNewsEvents() {
+  if (!newsEventsList) {
+    return;
+  }
+
+  newsFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.newsFilter === newsFilter);
+  });
+
+  const visibleEvents = getVisibleNewsEvents();
+  if (!visibleEvents.length) {
+    newsEventsList.innerHTML = `
+      <div class="empty-state compact-empty-state">
+        <h2>No events found</h2>
+        <p>${newsFilter === "today" ? "No economic events found for today." : "No economic events found for the next week."}</p>
+      </div>
+    `;
+    return;
+  }
+
+  newsEventsList.innerHTML = groupNewsEventsByDate(visibleEvents)
+    .map((group) => {
+      return `
+        <section class="news-day-group">
+          <div class="news-day-heading">
+            <h3>${escapeHtml(formatNewsGroupDate(group.date))}</h3>
+            <span>${group.events.length} ${group.events.length === 1 ? "event" : "events"}</span>
+          </div>
+          <div class="news-day-events">
+            ${group.events
+              .map((event) => {
+                const impactClass = getImpactClass(event.impact);
+                return `
+                  <article class="news-event-row ${impactClass}">
+                    <time>${escapeHtml(formatNewsEventTime(event.date))}</time>
+                    <div>
+                      <h4>${escapeHtml(event.title || "Economic event")}</h4>
+                      <p>${[event.currency, event.country].filter(Boolean).map(escapeHtml).join(" · ") || "Global"}</p>
+                      ${event.notes ? `<p class="news-event-notes">${escapeHtml(event.notes)}</p>` : ""}
+                    </div>
+                    <span class="news-impact ${impactClass}">${escapeHtml(event.impact || "Impact TBC")}</span>
+                  </article>
+                `;
+              })
+              .join("")}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
+}
+
+function updateNewsBadge() {
+  if (!newsAlertBadge) {
+    return;
+  }
+
+  const todayCount = newsEvents.filter((event) => toLocalDateKey(event.date) === toLocalDateKey()).length;
+  newsAlertBadge.textContent = String(todayCount);
+  newsAlertBadge.classList.toggle("hidden", todayCount === 0);
+  newsAlertButton?.classList.toggle("has-news", todayCount > 0);
+}
+
+async function loadNewsEvents() {
+  if (!window.callSupabaseFunction || newsLoaded) {
+    return;
+  }
+
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 1);
+  const from = toLocalDateKey(fromDate);
+  const toDate = new Date();
+  toDate.setDate(toDate.getDate() + 8);
+  try {
+    const result = await callSupabaseFunction("news-events", { action: "list", from, to: toLocalDateKey(toDate) });
+    newsEvents = Array.isArray(result.events)
+      ? result.events.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0))
+      : [];
+    newsLoaded = true;
+    updateNewsBadge();
+    renderNewsEvents();
+  } catch (error) {
+    newsEventsList.innerHTML = `
+      <div class="empty-state compact-empty-state">
+        <h2>News unavailable</h2>
+        <p>${escapeHtml(error.message || "Could not load the economic calendar right now.")}</p>
+      </div>
+    `;
+  }
+}
+
+function openNewsDrawer() {
+  newsDrawer?.classList.remove("hidden");
+  newsDrawer?.classList.remove("is-closing");
+  newsDrawerBackdrop?.classList.remove("hidden");
+  newsDrawerBackdrop?.classList.remove("is-closing");
+  document.body.classList.add("modal-open");
+  if (!newsLoaded) {
+    loadNewsEvents();
+  } else {
+    renderNewsEvents();
+  }
+}
+
+function closeNewsDrawer() {
+  if (!newsDrawer || newsDrawer.classList.contains("hidden")) {
+    return;
+  }
+
+  newsDrawer.classList.add("is-closing");
+  newsDrawerBackdrop?.classList.add("is-closing");
+  window.setTimeout(() => {
+    newsDrawer.classList.add("hidden");
+    newsDrawer.classList.remove("is-closing");
+    newsDrawerBackdrop?.classList.add("hidden");
+    newsDrawerBackdrop?.classList.remove("is-closing");
+    document.body.classList.remove("modal-open");
+  }, MOTION_DURATION_MS);
+}
+
 async function setAppUnlocked(
   userId = sessionStorage.getItem(AUTH_STORAGE_KEY),
   userLabel = sessionStorage.getItem(AUTH_LABEL_KEY),
@@ -417,6 +629,7 @@ async function setAppUnlocked(
     adminNavLink.classList.toggle("hidden", userRole !== "admin");
     updateTrialBanner(trialEnabled, trialEndsAt);
     await loadUserState(userId, userLabel || userId);
+    loadNewsEvents();
   }
   document.body.classList.remove("auth-locked", "app-checking");
 }
@@ -2662,6 +2875,7 @@ function updateModalScrollLock() {
 }
 
 function openDialog(modal) {
+  modal.classList.remove("is-closing");
   if (typeof modal.showModal === "function") {
     modal.showModal();
   } else {
@@ -2672,8 +2886,16 @@ function openDialog(modal) {
 }
 
 function closeDialog(modal) {
-  modal.close();
-  updateModalScrollLock();
+  if (!modal.open || modal.classList.contains("is-closing")) {
+    return;
+  }
+
+  modal.classList.add("is-closing");
+  window.setTimeout(() => {
+    modal.close();
+    modal.classList.remove("is-closing");
+    updateModalScrollLock();
+  }, MOTION_DURATION_MS);
 }
 
 function openTradeModal() {
@@ -3126,6 +3348,15 @@ marketTypeFilter.addEventListener("change", () => {
 dashboardAccountFilter.addEventListener("change", render);
 dashboardSectionButtons.forEach((button) => {
   button.addEventListener("click", () => showDashboardSection(button.dataset.dashboardSection));
+});
+newsAlertButton?.addEventListener("click", openNewsDrawer);
+closeNewsDrawerButton?.addEventListener("click", closeNewsDrawer);
+newsDrawerBackdrop?.addEventListener("click", closeNewsDrawer);
+newsFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    newsFilter = button.dataset.newsFilter || "today";
+    renderNewsEvents();
+  });
 });
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
 ["direction", "entryPrice", "exitPrice"].forEach((name) => {

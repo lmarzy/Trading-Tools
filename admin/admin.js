@@ -30,13 +30,51 @@ const activityTotalUsers = document.querySelector("#activityTotalUsers");
 const activityActiveUsers = document.querySelector("#activityActiveUsers");
 const activityAdminUsers = document.querySelector("#activityAdminUsers");
 const activityTotalTrades = document.querySelector("#activityTotalTrades");
+const openAddNewsModalButton = document.querySelector("#openAddNewsModalButton");
+const addNewsModal = document.querySelector("#addNewsModal");
+const closeAddNewsModalButton = document.querySelector("#closeAddNewsModalButton");
+const cancelAddNewsButton = document.querySelector("#cancelAddNewsButton");
+const saveNewsEventButton = document.querySelector("#saveNewsEventButton");
+const newsTitleInput = document.querySelector("#newsTitleInput");
+const newsCustomTitleInput = document.querySelector("#newsCustomTitleInput");
+const newsDateInput = document.querySelector("#newsDateInput");
+const newsTimezoneHelper = document.querySelector("#newsTimezoneHelper");
+const newsCurrencyInput = document.querySelector("#newsCurrencyInput");
+const newsImpactInput = document.querySelector("#newsImpactInput");
+const newsSourceInput = document.querySelector("#newsSourceInput");
+const newsNotesInput = document.querySelector("#newsNotesInput");
+const adminNewsSearch = document.querySelector("#adminNewsSearch");
+const adminNewsImpactFilter = document.querySelector("#adminNewsImpactFilter");
+const adminNewsStatusFilter = document.querySelector("#adminNewsStatusFilter");
+const adminNewsSortSelect = document.querySelector("#adminNewsSortSelect");
+const adminNewsList = document.querySelector("#adminNewsList");
+const adminEmptyNewsEvents = document.querySelector("#adminEmptyNewsEvents");
+
+const DEFAULT_NEWS_EVENT_TITLES = [
+  "Non-Farm Payrolls",
+  "FOMC Rate Decision",
+  "CPI Inflation",
+  "GDP",
+  "Unemployment Claims",
+  "Retail Sales",
+  "Fed Chair Speaks",
+  "ECB Rate Decision",
+  "BOE Rate Decision",
+  "PMI Data",
+  "Consumer Confidence",
+  "Trade Balance",
+];
 
 const adminConfig = {
   passcodes: [],
+  newsEvents: [],
 };
 
 let adminConfigLoaded = false;
+let adminNewsLoaded = false;
 let currentAdminHash = sessionStorage.getItem(AUTH_HASH_KEY) || "";
+let editingNewsEventId = "";
+const MOTION_DURATION_MS = 190;
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -141,6 +179,81 @@ function formatDateTime(value) {
   });
 }
 
+function toDateTimeLocalValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function getLocalTimezoneLabel() {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "your local timezone";
+  const shortZone = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+    .formatToParts(new Date())
+    .find((part) => part.type === "timeZoneName")?.value;
+  return shortZone ? `${zone} (${shortZone})` : zone;
+}
+
+function updateNewsTimezoneHelper() {
+  if (!newsTimezoneHelper) {
+    return;
+  }
+
+  newsTimezoneHelper.textContent = `Enter the event time in ${getLocalTimezoneLabel()}. Users will see it converted to their own local timezone.`;
+}
+
+function getNewsTitleValue() {
+  return newsTitleInput.value === "__other__" ? newsCustomTitleInput.value.trim() : newsTitleInput.value.trim();
+}
+
+function getStoredNewsTitles() {
+  return [
+    ...new Set(
+      [
+        ...DEFAULT_NEWS_EVENT_TITLES,
+        ...adminConfig.newsEvents.map((event) => event.title).filter(Boolean),
+      ].map((title) => String(title).trim()).filter(Boolean),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
+}
+
+function renderNewsTitleOptions(selectedTitle = "") {
+  const titles = getStoredNewsTitles();
+  const selectedIsKnown = !selectedTitle || titles.includes(selectedTitle);
+  newsTitleInput.innerHTML = [
+    `<option value="">Select event</option>`,
+    ...titles.map((title) => `<option value="${escapeHtml(title)}" ${title === selectedTitle ? "selected" : ""}>${escapeHtml(title)}</option>`),
+    `<option value="__other__" ${selectedTitle && !selectedIsKnown ? "selected" : ""}>Other</option>`,
+  ].join("");
+}
+
+function syncCustomNewsTitleInput(selectedTitle = "") {
+  const isOther = newsTitleInput.value === "__other__";
+  newsCustomTitleInput.classList.toggle("hidden", !isOther);
+  if (isOther && selectedTitle && !getStoredNewsTitles().includes(selectedTitle)) {
+    newsCustomTitleInput.value = selectedTitle;
+  }
+  if (!isOther) {
+    newsCustomTitleInput.value = "";
+  }
+}
+
 function getStatusSelectValue(user) {
   return getUserStatus(user);
 }
@@ -194,6 +307,14 @@ async function callAdminUsers(action, user = {}) {
   );
 }
 
+async function callNewsEvents(action, event = {}) {
+  return callSupabaseFunction(
+    "news-events",
+    { action, event },
+    { "x-admin-passcode-hash": currentAdminHash },
+  );
+}
+
 async function loadExistingConfig() {
   if (adminConfigLoaded && adminConfig.passcodes.length) {
     return;
@@ -230,6 +351,34 @@ async function loadExistingConfig() {
   }
 }
 
+async function loadNewsEvents() {
+  if (adminNewsLoaded && adminConfig.newsEvents.length) {
+    return;
+  }
+
+  renderNewsTableMessage("Loading events...");
+  try {
+    const result = await callNewsEvents("admin-list");
+    adminConfig.newsEvents = (result.events || []).map((event) => ({
+      id: event.id,
+      title: event.title || "",
+      eventTime: event.event_time || "",
+      currency: event.currency || "USD",
+      impact: event.impact || "High",
+      notes: event.notes || "",
+      sourceUrl: event.source_url || "",
+      active: event.active !== false,
+      createdAt: event.created_at || "",
+      updatedAt: event.updated_at || "",
+    }));
+  } catch {
+    renderNewsTableMessage("Could not load news events.");
+  } finally {
+    adminNewsLoaded = true;
+    renderNewsEvents();
+  }
+}
+
 async function initialiseAdminGate() {
   const savedUser = sessionStorage.getItem(AUTH_STORAGE_KEY);
   const savedRole = sessionStorage.getItem(AUTH_ROLE_KEY);
@@ -243,6 +392,7 @@ async function initialiseAdminGate() {
       }
       setAdminUnlocked(savedAdminHash);
       loadExistingConfig();
+      loadNewsEvents();
       return;
     } catch {
       sessionStorage.removeItem(AUTH_STORAGE_KEY);
@@ -266,7 +416,9 @@ function logoutAdmin() {
   sessionStorage.removeItem(AUTH_HASH_KEY);
   currentAdminHash = "";
   adminConfigLoaded = false;
+  adminNewsLoaded = false;
   adminConfig.passcodes = [];
+  adminConfig.newsEvents = [];
   window.location.href = "../index.html";
 }
 
@@ -297,13 +449,27 @@ function resetAddUserModal() {
 
 function openAddUserModal() {
   resetAddUserModal();
+  addUserModal.classList.remove("is-closing");
   addUserModal.showModal();
   document.body.classList.add("modal-open");
   window.setTimeout(() => firstNameInput.focus(), 0);
 }
 
+function closeAdminDialog(modal) {
+  if (!modal.open || modal.classList.contains("is-closing")) {
+    return;
+  }
+
+  modal.classList.add("is-closing");
+  window.setTimeout(() => {
+    modal.close();
+    modal.classList.remove("is-closing");
+    document.body.classList.remove("modal-open");
+  }, MOTION_DURATION_MS);
+}
+
 function closeAddUserModal() {
-  addUserModal.close();
+  closeAdminDialog(addUserModal);
 }
 
 function renderActivity() {
@@ -449,6 +615,147 @@ function renderPasscodes() {
       `,
     )
     .join("");
+}
+
+function renderNewsTableMessage(message) {
+  adminNewsList.innerHTML = `
+    <tr>
+      <td class="table-message" colspan="6">
+        <div class="skeleton-row"></div>
+        ${escapeHtml(message)}
+      </td>
+    </tr>
+  `;
+}
+
+function getVisibleNewsEvents() {
+  const query = adminNewsSearch.value.trim().toLowerCase();
+  const impact = adminNewsImpactFilter.value;
+  const status = adminNewsStatusFilter.value;
+  const sort = adminNewsSortSelect.value;
+
+  return adminConfig.newsEvents
+    .map((event, index) => ({ ...event, index }))
+    .filter((event) => {
+      const matchesQuery = !query
+        || [event.title, event.currency, event.impact, event.notes]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      const matchesImpact = impact === "all" || event.impact === impact;
+      const matchesStatus = status === "all" || (status === "active" ? event.active : !event.active);
+      return matchesQuery && matchesImpact && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sort === "date-desc") {
+        return new Date(b.eventTime || 0) - new Date(a.eventTime || 0);
+      }
+
+      if (sort === "title-asc") {
+        return String(a.title).localeCompare(String(b.title));
+      }
+
+      return new Date(a.eventTime || 0) - new Date(b.eventTime || 0);
+    });
+}
+
+function renderNewsEvents() {
+  const visibleEvents = getVisibleNewsEvents();
+  adminEmptyNewsEvents.classList.toggle("hidden", adminConfig.newsEvents.length > 0);
+
+  if (adminConfig.newsEvents.length && !visibleEvents.length) {
+    renderNewsTableMessage("No events match those filters.");
+    return;
+  }
+
+  if (!adminConfig.newsEvents.length) {
+    adminNewsList.innerHTML = "";
+    return;
+  }
+
+  adminNewsList.innerHTML = visibleEvents
+    .map(
+      (event) => `
+        <tr class="admin-user-row">
+          <td data-label="Event">
+            <strong>${escapeHtml(event.title)}</strong>
+            ${event.notes ? `<small>${escapeHtml(event.notes)}</small>` : ""}
+          </td>
+          <td data-label="Date & Time">${escapeHtml(formatDateTime(event.eventTime))}</td>
+          <td data-label="Currency">${escapeHtml(event.currency)}</td>
+          <td data-label="Impact"><span class="news-impact ${String(event.impact).toLowerCase()}">${escapeHtml(event.impact)}</span></td>
+          <td data-label="Status">${event.active ? "Active" : "Inactive"}</td>
+          <td data-label="Actions">
+            <div class="admin-inline-actions">
+              <button class="icon-button admin-action-button" type="button" title="Edit" aria-label="Edit event" data-news-action="edit" data-news-index="${event.index}">✎</button>
+              <button class="icon-button admin-action-button" type="button" title="${event.active ? "Disable" : "Enable"}" aria-label="${event.active ? "Disable event" : "Enable event"}" data-news-action="toggle-active" data-news-index="${event.index}">
+                ${event.active ? "⏸" : "▶"}
+              </button>
+              <button class="icon-button admin-action-button delete" type="button" title="Remove" aria-label="Remove event" data-news-action="remove" data-news-index="${event.index}">×</button>
+            </div>
+          </td>
+        </tr>
+      `,
+    )
+    .join("");
+}
+
+function updateSaveNewsButtonState() {
+  saveNewsEventButton.disabled = !(getNewsTitleValue() && newsDateInput.value.trim() && newsCurrencyInput.value.trim());
+}
+
+function resetNewsModal() {
+  editingNewsEventId = "";
+  renderNewsTitleOptions();
+  newsTitleInput.value = "";
+  syncCustomNewsTitleInput();
+  newsDateInput.value = "";
+  newsCurrencyInput.value = "USD";
+  newsImpactInput.value = "High";
+  newsSourceInput.value = "";
+  newsNotesInput.value = "";
+  document.querySelector("#addNewsModalTitle").textContent = "Add Event";
+  saveNewsEventButton.textContent = "Save event";
+  updateSaveNewsButtonState();
+}
+
+function openNewsModal(event = null) {
+  resetNewsModal();
+  if (event) {
+    editingNewsEventId = event.id;
+    renderNewsTitleOptions(event.title);
+    syncCustomNewsTitleInput(event.title);
+    newsDateInput.value = toDateTimeLocalValue(event.eventTime);
+    newsCurrencyInput.value = event.currency;
+    newsImpactInput.value = event.impact;
+    newsSourceInput.value = event.sourceUrl || "";
+    newsNotesInput.value = event.notes || "";
+    document.querySelector("#addNewsModalTitle").textContent = "Edit Event";
+    saveNewsEventButton.textContent = "Save changes";
+    updateSaveNewsButtonState();
+  }
+
+  addNewsModal.classList.remove("is-closing");
+  addNewsModal.showModal();
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => (newsTitleInput.value === "__other__" ? newsCustomTitleInput : newsTitleInput).focus(), 0);
+}
+
+function closeNewsModal() {
+  closeAdminDialog(addNewsModal);
+}
+
+function syncNewsEventFromResult(target, savedEvent) {
+  target.id = savedEvent.id;
+  target.title = savedEvent.title || "";
+  target.eventTime = savedEvent.event_time || "";
+  target.currency = savedEvent.currency || "USD";
+  target.impact = savedEvent.impact || "High";
+  target.notes = savedEvent.notes || "";
+  target.sourceUrl = savedEvent.source_url || "";
+  target.active = savedEvent.active !== false;
+  target.createdAt = savedEvent.created_at || "";
+  target.updatedAt = savedEvent.updated_at || "";
 }
 
 generateUserCodeButton.addEventListener("click", async () => {
@@ -762,7 +1069,131 @@ adminPasscodeList.addEventListener("change", (event) => {
   control.addEventListener("change", renderPasscodes);
 });
 
+openAddNewsModalButton.addEventListener("click", () => openNewsModal());
+closeAddNewsModalButton.addEventListener("click", closeNewsModal);
+cancelAddNewsButton.addEventListener("click", closeNewsModal);
+
+addNewsModal.addEventListener("close", () => {
+  document.body.classList.remove("modal-open");
+  resetNewsModal();
+});
+
+addNewsModal.addEventListener("click", (event) => {
+  if (event.target === addNewsModal) {
+    closeNewsModal();
+  }
+});
+
+[newsTitleInput, newsCustomTitleInput, newsDateInput, newsCurrencyInput].forEach((input) => {
+  input.addEventListener("input", updateSaveNewsButtonState);
+  input.addEventListener("change", updateSaveNewsButtonState);
+});
+
+newsTitleInput.addEventListener("change", () => {
+  syncCustomNewsTitleInput();
+  updateSaveNewsButtonState();
+  if (newsTitleInput.value === "__other__") {
+    window.setTimeout(() => newsCustomTitleInput.focus(), 0);
+  }
+});
+
+saveNewsEventButton.addEventListener("click", async () => {
+  const payload = {
+    id: editingNewsEventId || undefined,
+    title: getNewsTitleValue(),
+    eventTime: fromDateTimeLocalValue(newsDateInput.value),
+    currency: newsCurrencyInput.value.trim(),
+    impact: newsImpactInput.value,
+    sourceUrl: newsSourceInput.value.trim(),
+    notes: newsNotesInput.value.trim(),
+    active: true,
+  };
+
+  if (!payload.title || !payload.eventTime || !payload.currency) {
+    updateSaveNewsButtonState();
+    return;
+  }
+
+  setButtonLoading(saveNewsEventButton, true, "Saving...");
+  try {
+    const result = await callNewsEvents(editingNewsEventId ? "update" : "create", payload);
+    if (editingNewsEventId) {
+      const existing = adminConfig.newsEvents.find((event) => event.id === editingNewsEventId);
+      if (existing) {
+        syncNewsEventFromResult(existing, result.event);
+      }
+    } else {
+      const nextEvent = {};
+      syncNewsEventFromResult(nextEvent, result.event);
+      adminConfig.newsEvents.unshift(nextEvent);
+    }
+    renderNewsEvents();
+    closeNewsModal();
+  } catch {
+    window.alert("Could not save that news event.");
+  } finally {
+    setButtonLoading(saveNewsEventButton, false);
+    updateSaveNewsButtonState();
+  }
+});
+
+adminNewsList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-news-action]");
+  if (!button) {
+    return;
+  }
+
+  const index = Number(button.dataset.newsIndex);
+  const newsEvent = adminConfig.newsEvents[index];
+  if (!newsEvent) {
+    return;
+  }
+
+  if (button.dataset.newsAction === "edit") {
+    openNewsModal(newsEvent);
+  }
+
+  if (button.dataset.newsAction === "toggle-active") {
+    setButtonLoading(button, true, newsEvent.active ? "Disabling..." : "Enabling...");
+    try {
+      const result = await callNewsEvents("update", {
+        ...newsEvent,
+        active: !newsEvent.active,
+      });
+      syncNewsEventFromResult(newsEvent, result.event);
+      renderNewsEvents();
+    } catch {
+      window.alert("Could not update that event.");
+      setButtonLoading(button, false);
+    }
+  }
+
+  if (button.dataset.newsAction === "remove") {
+    const confirmed = window.confirm(`Remove ${newsEvent.title}? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setButtonLoading(button, true, "Removing...");
+    try {
+      await callNewsEvents("delete", { id: newsEvent.id });
+      adminConfig.newsEvents.splice(index, 1);
+      renderNewsEvents();
+    } catch {
+      window.alert("Could not remove that event.");
+      setButtonLoading(button, false);
+    }
+  }
+});
+
+[adminNewsSearch, adminNewsImpactFilter, adminNewsStatusFilter, adminNewsSortSelect].forEach((control) => {
+  control.addEventListener("input", renderNewsEvents);
+  control.addEventListener("change", renderNewsEvents);
+});
+
 adminLogoutButton.addEventListener("click", logoutAdmin);
 
 updateGenerateUserButtonState();
+updateSaveNewsButtonState();
+updateNewsTimezoneHelper();
 initialiseAdminGate();

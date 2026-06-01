@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.reset-own-passcode]
 verify_jwt = false
+
+[functions.news-events]
+verify_jwt = false

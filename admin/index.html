@@ -6,7 +6,7 @@
     <title>TRADERS HUB Admin</title>
     <link rel="icon" type="image/png" href="../assets/logo.png" />
     <link rel="apple-touch-icon" href="../assets/logo.png" />
-    <link rel="stylesheet" href="../styles.css?v=20260528-trials" />
+    <link rel="stylesheet" href="../styles.css?v=20260530-admin-news" />
   </head>
   <body class="admin-page admin-checking">
     <section class="admin-access-panel hidden" id="adminGate" aria-label="Admin access required">
@@ -104,6 +104,50 @@
             </div>
             <p class="admin-empty-passcodes" id="adminEmptyPasscodes">No user passcodes generated yet.</p>
           </section>
+
+          <section class="table-panel admin-news-panel" aria-label="News events table">
+            <div class="table-tools">
+              <div class="admin-table-heading">
+                <div class="calculator-card-label">News Events</div>
+                <button class="primary-button compact-button" type="button" id="openAddNewsModalButton">Add event</button>
+              </div>
+              <div class="admin-management-tools">
+                <input id="adminNewsSearch" type="search" placeholder="Search events" />
+                <select id="adminNewsImpactFilter" aria-label="Filter by impact">
+                  <option value="all">All impacts</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+                <select id="adminNewsStatusFilter" aria-label="Filter by status">
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <select id="adminNewsSortSelect" aria-label="Sort events">
+                  <option value="date-asc">Soonest first</option>
+                  <option value="date-desc">Latest first</option>
+                  <option value="title-asc">Title A-Z</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap admin-passcode-table-wrap">
+              <table class="admin-passcode-table admin-news-table">
+                <thead>
+                  <tr>
+                    <th>Event</th>
+                    <th>Date & Time</th>
+                    <th>Currency</th>
+                    <th>Impact</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminNewsList"></tbody>
+              </table>
+            </div>
+            <p class="admin-empty-passcodes" id="adminEmptyNewsEvents">No news events added yet.</p>
+          </section>
         </section>
       </div>
     </main>
@@ -145,8 +189,55 @@
       </div>
     </dialog>
 
-    <script src="../supabase-config.js?v=20260528-trials"></script>
-    <script src="../supabase-api.js?v=20260528-trials"></script>
-    <script src="admin.js?v=20260528-trials"></script>
+    <dialog class="trade-modal admin-user-modal" id="addNewsModal" aria-labelledby="addNewsModalTitle">
+      <div class="trade-form admin-user-modal-card">
+        <div class="form-heading">
+          <div>
+            <p class="eyebrow">Economic calendar</p>
+            <h2 id="addNewsModalTitle">Add Event</h2>
+          </div>
+          <button class="icon-button" type="button" id="closeAddNewsModalButton" aria-label="Close add event modal">×</button>
+        </div>
+
+        <div class="admin-news-form-grid">
+          <select id="newsTitleInput" aria-label="Event name">
+            <option value="">Select event</option>
+          </select>
+          <input class="hidden" id="newsCustomTitleInput" type="text" placeholder="Enter event name" aria-label="Custom event name" />
+          <div class="admin-news-time-field">
+            <input id="newsDateInput" type="datetime-local" aria-label="Event date and time" />
+            <p id="newsTimezoneHelper">Enter the event time in your local timezone. Users will see it converted to their own local timezone.</p>
+          </div>
+          <select id="newsCurrencyInput" aria-label="Currency">
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="EUR">EUR</option>
+            <option value="AUD">AUD</option>
+            <option value="CAD">CAD</option>
+            <option value="JPY">JPY</option>
+            <option value="NZD">NZD</option>
+            <option value="CHF">CHF</option>
+            <option value="CNY">CNY</option>
+            <option value="Global">Global</option>
+          </select>
+          <select id="newsImpactInput" aria-label="Impact">
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <input id="newsSourceInput" type="url" placeholder="Source link optional" aria-label="Source link" />
+          <textarea id="newsNotesInput" rows="3" placeholder="Notes optional" aria-label="Notes"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button class="ghost-button" type="button" id="cancelAddNewsButton">Cancel</button>
+          <button class="primary-button" type="button" id="saveNewsEventButton" disabled>Save event</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="../supabase-config.js?v=20260530-admin-news"></script>
+    <script src="../supabase-api.js?v=20260530-admin-news"></script>
+    <script src="admin.js?v=20260530-admin-news"></script>
   </body>
 </html>

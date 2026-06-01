@@ -26,8 +26,23 @@ create table if not exists public.user_data (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.news_events (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  event_time timestamptz not null,
+  currency text not null default 'USD',
+  impact text not null default 'High' check (impact in ('High', 'Medium', 'Low')),
+  notes text,
+  source_url text,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists app_users_role_active_idx on public.app_users(role, active);
 create index if not exists user_data_updated_at_idx on public.user_data(updated_at);
+create index if not exists news_events_time_active_idx on public.news_events(event_time, active);
 
 alter table public.app_users enable row level security;
 alter table public.user_data enable row level security;
+alter table public.news_events enable row level security;
