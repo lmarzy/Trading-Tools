@@ -2171,6 +2171,16 @@ function renderAccountBalances() {
     const pnl = accountTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
     const hasBalance = startingBalance > 0;
     const pnlPercent = hasBalance ? Math.max(-100, Math.min(100, (pnl / startingBalance) * 100)) : 0;
+    const settings = appConfig.accountSettings?.[account] || {};
+    const dailyLimit = settings.isProp && hasBalance ? startingBalance * (parseNumber(settings.dailyDrawdown) / 100) : 0;
+    const maxLimit = settings.isProp && hasBalance ? startingBalance * (parseNumber(settings.maxDrawdown) / 100) : 0;
+    const dailyUsed = Math.abs(accountTrades.filter((trade) => trade.tradeDate === toDateKey(new Date())).reduce((sum, trade) => sum + Math.min(0, getTradeAmount(trade)), 0));
+    const maxUsed = Math.max(0, -pnl);
+    const propMetrics = settings.isProp ? `
+      <div class="prop-drawdown-summary">
+        <div class="${dailyLimit && dailyUsed >= dailyLimit ? "breached" : ""}"><span>Daily drawdown</span><strong>${dailyLimit ? `${formatSummaryAmount(dailyUsed)} / ${formatSummaryAmount(dailyLimit)}` : "Not set"}</strong><small>${dailyLimit ? `${formatSummaryAmount(Math.max(0, dailyLimit - dailyUsed))} remaining` : "Set a percentage in account settings"}</small></div>
+        <div class="${maxLimit && maxUsed >= maxLimit ? "breached" : ""}"><span>Maximum drawdown</span><strong>${maxLimit ? `${formatSummaryAmount(maxUsed)} / ${formatSummaryAmount(maxLimit)}` : "Not set"}</strong><small>${maxLimit ? `${formatSummaryAmount(Math.max(0, maxLimit - maxUsed))} remaining` : "Set a percentage in account settings"}</small></div>
+      </div>` : "";
     const card = document.createElement("article");
     card.className = `account-balance-card ${pnl > 0 ? "profit" : pnl < 0 ? "loss" : "flat"}`;
     card.innerHTML = `
@@ -2184,6 +2194,7 @@ function renderAccountBalances() {
         <div><dt>Trades</dt><dd>${accountTrades.length}</dd></div>
         <div><dt>Win</dt><dd>${formatPercent(accountSummary.winRate)}</dd></div>
       </dl>
+      ${propMetrics}
       <div class="account-progress" aria-label="Account performance">
         <span style="width: ${Math.abs(pnlPercent).toFixed(2)}%"></span>
       </div>
@@ -2418,7 +2429,20 @@ function getAutomatedRuleBreaches(trade) {
     if (rule.type === "maxConsecutiveLosses") breached = trade.outcome === "Loss" && consecutiveLosses > limit;
     return breached ? [{ type: rule.type, label: definition?.label || rule.type, limit }] : [];
   });
-  return [...limitBreaches, ...getPlanRestrictionBreaches(trade)];
+  const accountSettings = appConfig.accountSettings?.[trade.account] || {};
+  const startingBalance = parseNumber(accountSettings.startingBalance || appConfig.accountBalances?.[trade.account]);
+  const accountTrades = trades.filter((item) => item.account === trade.account && item.id !== trade.id);
+  const accountTradesWithCandidate = [...accountTrades, trade];
+  const propBreaches = [];
+  if (accountSettings.isProp && startingBalance > 0) {
+    const dailyLimit = startingBalance * (parseNumber(accountSettings.dailyDrawdown) / 100);
+    const maxLimit = startingBalance * (parseNumber(accountSettings.maxDrawdown) / 100);
+    const dailyUsed = Math.abs(accountTradesWithCandidate.filter((item) => item.tradeDate === trade.tradeDate).reduce((total, item) => total + Math.min(0, getTradeAmount(item)), 0));
+    const maxUsed = Math.max(0, -accountTradesWithCandidate.reduce((total, item) => total + getTradeAmount(item), 0));
+    if (dailyLimit && dailyUsed >= dailyLimit) propBreaches.push({ type: `propDailyDrawdown:${trade.account}`, label: `${trade.account} daily drawdown limit reached`, limit: dailyLimit });
+    if (maxLimit && maxUsed >= maxLimit) propBreaches.push({ type: `propMaxDrawdown:${trade.account}`, label: `${trade.account} maximum drawdown limit reached`, limit: maxLimit });
+  }
+  return [...limitBreaches, ...propBreaches, ...getPlanRestrictionBreaches(trade)];
 }
 
 function getReachedStopRules(tradeDate) {
