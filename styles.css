@@ -2460,6 +2460,27 @@ tbody td:last-child {
   background: var(--field-2);
 }
 
+.wizard-account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wizard-account-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wizard-account-fields.regular {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.wizard-account-fields.regular .prop-only {
+  display: none;
+}
+
 .wizard-account-row strong {
   align-self: center;
   color: var(--ink);

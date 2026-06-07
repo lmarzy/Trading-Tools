@@ -3107,18 +3107,13 @@ function renderWizardAccountBuilder() {
                 .map(
                   (account) => `
                     <div class="wizard-account-row">
-                      <strong>${escapeHtml(account)}</strong>
-                      <label>
-                        <span>Starting balance</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
-                          value="${escapeHtml(onboardingDraft.accountBalances?.[account] || "")}"
-                          data-wizard-account-balance="${escapeHtml(account)}"
-                        />
-                      </label>
+                      <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><label class="compact-check"><input type="checkbox" data-wizard-account-setting="isProp" data-account="${escapeHtml(account)}" ${onboardingDraft.accountSettings?.[account]?.isProp ? "checked" : ""} /><span>Prop account</span></label></div>
+                      <div class="wizard-account-fields ${onboardingDraft.accountSettings?.[account]?.isProp ? "" : "regular"}">
+                        <label><span>Starting balance</span><input type="number" min="0" step="0.01" placeholder="0.00" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.startingBalance || onboardingDraft.accountBalances?.[account] || "")}" data-wizard-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
+                        <label class="prop-only"><span>Daily drawdown</span><input type="number" min="0" step="0.01" placeholder="Optional" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.dailyDrawdown || "")}" data-wizard-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}" /></label>
+                        <label class="prop-only"><span>Maximum drawdown</span><input type="number" min="0" step="0.01" placeholder="Optional" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.maxDrawdown || "")}" data-wizard-account-setting="maxDrawdown" data-account="${escapeHtml(account)}" /></label>
+                        <label class="prop-only"><span>Timeframe</span><input type="number" min="1" step="1" placeholder="Days (optional)" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.timeframeDays || "")}" data-wizard-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /></label>
+                      </div>
                       <button type="button" aria-label="Remove ${escapeHtml(account)}" data-wizard-remove-value="${escapeHtml(account)}">x</button>
                     </div>
                   `,
@@ -3500,6 +3495,7 @@ function addWizardValue(builder, input) {
         (balances, account) => ({ ...balances, [account]: onboardingDraft.accountBalances?.[account] || "" }),
         {},
       );
+      onboardingDraft.accountSettings = normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft[key], onboardingDraft.accountBalances);
     }
   }
 
@@ -3528,6 +3524,7 @@ function removeWizardValue(builder, value) {
         (balances, account) => ({ ...balances, [account]: onboardingDraft.accountBalances?.[account] || "" }),
         {},
       );
+      onboardingDraft.accountSettings = normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft[key], onboardingDraft.accountBalances);
     }
   }
 
@@ -4779,15 +4776,19 @@ wizardContent.addEventListener("keydown", (event) => {
 
 wizardContent.addEventListener("input", updateWizardNextState);
 wizardContent.addEventListener("input", (event) => {
-  const account = event.target.dataset.wizardAccountBalance;
-  if (!account) {
+  const account = event.target.dataset.account;
+  const setting = event.target.dataset.wizardAccountSetting;
+  if (!account || !setting) {
     return;
   }
 
-  onboardingDraft.accountBalances = {
-    ...onboardingDraft.accountBalances,
-    [account]: event.target.value.trim(),
+  const value = event.target.type === "checkbox" ? event.target.checked : event.target.value.trim();
+  onboardingDraft.accountSettings = {
+    ...onboardingDraft.accountSettings,
+    [account]: { ...(onboardingDraft.accountSettings?.[account] || {}), [setting]: value },
   };
+  if (setting === "startingBalance") onboardingDraft.accountBalances = { ...onboardingDraft.accountBalances, [account]: value };
+  if (setting === "isProp") renderOnboardingWizard();
 });
 wizardContent.addEventListener("change", updateWizardNextState);
 
