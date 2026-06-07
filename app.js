@@ -1207,6 +1207,13 @@ function normalizeAccountSettings(settings = {}, accounts = [], balances = {}) {
   }, {});
 }
 
+function renderDrawdownOptions(selected = "") {
+  return `<option value="">Optional</option>${Array.from({ length: 20 }, (_, index) => {
+    const value = String(index + 1);
+    return `<option value="${value}" ${String(selected) === value ? "selected" : ""}>${value}%</option>`;
+  }).join("")}`;
+}
+
 function getDefaultOption(key) {
   return appConfig[key][0] || DEFAULT_CONFIG[key][0] || "";
 }
@@ -2865,8 +2872,9 @@ function renderConfig() {
     section.innerHTML = `
       <div class="config-section-heading">
         <h3>${escapeHtml(field.label)}(s)</h3>
-        <div class="config-add-row">
+        <div class="config-add-row ${field.key === "accounts" ? "account-create-row" : ""}">
           <input type="text" placeholder="Add ${escapeHtml(field.label.toLowerCase())}" aria-label="Add ${escapeHtml(field.label)}" />
+          ${field.key === "accounts" ? `<select data-new-account-type aria-label="Account type"><option value="regular">Regular account</option><option value="prop">Prop account</option></select>` : ""}
           <button class="ghost-button" type="button" data-config-action="add" data-config-key="${field.key}">Add</button>
         </div>
       </div>
@@ -2989,12 +2997,12 @@ function renderConfig() {
                   <article class="account-settings-card">
                     <div class="account-settings-head">
                       <strong>${escapeHtml(account)}</strong>
-                      <label class="compact-check"><input type="checkbox" data-account-setting="isProp" data-account="${escapeHtml(account)}" ${appConfig.accountSettings?.[account]?.isProp ? "checked" : ""} /><span>Prop account</span></label>
+                      <label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-account-setting="isProp" data-account="${escapeHtml(account)}" ${appConfig.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label>
                     </div>
                     <div class="account-settings-fields ${appConfig.accountSettings?.[account]?.isProp ? "" : "regular"}">
                       <label><span>Starting balance</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.startingBalance || appConfig.accountBalances?.[account] || "")}" placeholder="0.00" data-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
-                      <label class="prop-only"><span>Daily drawdown</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.dailyDrawdown || "")}" placeholder="Optional" data-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}" /></label>
-                      <label class="prop-only"><span>Maximum drawdown</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.maxDrawdown || "")}" placeholder="Optional" data-account-setting="maxDrawdown" data-account="${escapeHtml(account)}" /></label>
+                      <label class="prop-only"><span>Daily drawdown</span><select data-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.dailyDrawdown)}</select></label>
+                      <label class="prop-only"><span>Maximum drawdown</span><select data-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.maxDrawdown)}</select></label>
                       <label class="prop-only"><span>Timeframe to complete</span><div class="input-with-suffix"><input type="number" min="1" step="1" value="${escapeHtml(appConfig.accountSettings?.[account]?.timeframeDays || "")}" placeholder="Optional" data-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /><span>days</span></div></label>
                     </div>
                   </article>
@@ -3095,8 +3103,12 @@ function renderWizardAccountBuilder() {
     <div class="wizard-value-builder" data-wizard-builder="accounts">
       <label class="wizard-add-row">
         <span>Account</span>
-        <div>
+        <div class="account-create-row">
           <input type="text" placeholder="Example: Vantage" data-wizard-add-input />
+          <select data-wizard-new-account-type aria-label="Account type">
+            <option value="regular">Regular account</option>
+            <option value="prop">Prop account</option>
+          </select>
           <button class="ghost-button" type="button" data-wizard-add-value>Add</button>
         </div>
       </label>
@@ -3107,11 +3119,11 @@ function renderWizardAccountBuilder() {
                 .map(
                   (account) => `
                     <div class="wizard-account-row">
-                      <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><label class="compact-check"><input type="checkbox" data-wizard-account-setting="isProp" data-account="${escapeHtml(account)}" ${onboardingDraft.accountSettings?.[account]?.isProp ? "checked" : ""} /><span>Prop account</span></label></div>
+                      <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-wizard-account-setting="isProp" data-account="${escapeHtml(account)}" ${onboardingDraft.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label></div>
                       <div class="wizard-account-fields ${onboardingDraft.accountSettings?.[account]?.isProp ? "" : "regular"}">
                         <label><span>Starting balance</span><input type="number" min="0" step="0.01" placeholder="0.00" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.startingBalance || onboardingDraft.accountBalances?.[account] || "")}" data-wizard-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
-                        <label class="prop-only"><span>Daily drawdown</span><input type="number" min="0" step="0.01" placeholder="Optional" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.dailyDrawdown || "")}" data-wizard-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}" /></label>
-                        <label class="prop-only"><span>Maximum drawdown</span><input type="number" min="0" step="0.01" placeholder="Optional" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.maxDrawdown || "")}" data-wizard-account-setting="maxDrawdown" data-account="${escapeHtml(account)}" /></label>
+                        <label class="prop-only"><span>Daily drawdown</span><select data-wizard-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.dailyDrawdown)}</select></label>
+                        <label class="prop-only"><span>Maximum drawdown</span><select data-wizard-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.maxDrawdown)}</select></label>
                         <label class="prop-only"><span>Timeframe</span><input type="number" min="1" step="1" placeholder="Days (optional)" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.timeframeDays || "")}" data-wizard-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /></label>
                       </div>
                       <button type="button" aria-label="Remove ${escapeHtml(account)}" data-wizard-remove-value="${escapeHtml(account)}">x</button>
@@ -3496,6 +3508,10 @@ function addWizardValue(builder, input) {
         {},
       );
       onboardingDraft.accountSettings = normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft[key], onboardingDraft.accountBalances);
+      const isProp = builder.querySelector("[data-wizard-new-account-type]")?.value === "prop";
+      values.forEach((account) => {
+        onboardingDraft.accountSettings[account] = { ...onboardingDraft.accountSettings[account], isProp };
+      });
     }
   }
 
@@ -3557,7 +3573,7 @@ function saveOnboardingWizard() {
   showToast("Setup saved");
 }
 
-function addConfigValue(key, value, marketType = "") {
+function addConfigValue(key, value, marketType = "", options = {}) {
   const nextValue = value.trim();
   if (key === "sessions" && (nextValue === NO_SPECIFIC_SESSION || nextValue.toLowerCase() === "no specific session")) {
     showToast("N/A is added automatically.", "warning");
@@ -3593,7 +3609,7 @@ function addConfigValue(key, value, marketType = "") {
   appConfig[key] = [...appConfig[key], nextValue];
   if (key === "accounts") {
     appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
-    appConfig.accountSettings = { ...appConfig.accountSettings, [nextValue]: { isProp: false, startingBalance: "", dailyDrawdown: "", maxDrawdown: "", timeframeDays: "" } };
+    appConfig.accountSettings = { ...appConfig.accountSettings, [nextValue]: { isProp: Boolean(options.isProp), startingBalance: "", dailyDrawdown: "", maxDrawdown: "", timeframeDays: "" } };
   }
   saveConfig();
   syncConfiguredInputs();
@@ -4374,8 +4390,10 @@ configGrid.addEventListener("click", (event) => {
 
   const key = button.dataset.configKey;
   if (button.dataset.configAction === "add") {
-    const input = button.closest(".config-section").querySelector("input");
-    addConfigValue(key, input.value, button.dataset.marketType || "");
+    const section = button.closest(".config-section");
+    const input = section.querySelector("input");
+    const isProp = section.querySelector("[data-new-account-type]")?.value === "prop";
+    addConfigValue(key, input.value, button.dataset.marketType || "", { isProp });
     input.value = "";
   }
 
@@ -4447,7 +4465,8 @@ configGrid.addEventListener("keydown", (event) => {
   if (!section?.dataset.configKey) {
     return;
   }
-  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "");
+  const isProp = section.querySelector("[data-new-account-type]")?.value === "prop";
+  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "", { isProp });
   event.target.value = "";
 });
 
@@ -4467,6 +4486,16 @@ configGrid.addEventListener("input", (event) => {
   saveConfig();
   if (setting === "isProp") renderConfig();
   renderAccountBalances();
+});
+configGrid.addEventListener("change", (event) => {
+  const account = event.target.dataset.account;
+  const setting = event.target.dataset.accountSetting;
+  if (!account || !setting || event.target.type === "checkbox") return;
+  appConfig.accountSettings = {
+    ...appConfig.accountSettings,
+    [account]: { ...(appConfig.accountSettings?.[account] || {}), [setting]: event.target.value },
+  };
+  saveConfig();
 });
 
 tradingRulesOptions.addEventListener("change", updateTradingRulesSummary);
@@ -4791,6 +4820,15 @@ wizardContent.addEventListener("input", (event) => {
   if (setting === "isProp") renderOnboardingWizard();
 });
 wizardContent.addEventListener("change", updateWizardNextState);
+wizardContent.addEventListener("change", (event) => {
+  const account = event.target.dataset.account;
+  const setting = event.target.dataset.wizardAccountSetting;
+  if (!account || !setting || event.target.type === "checkbox") return;
+  onboardingDraft.accountSettings = {
+    ...onboardingDraft.accountSettings,
+    [account]: { ...(onboardingDraft.accountSettings?.[account] || {}), [setting]: event.target.value },
+  };
+});
 
 analyticsTabButtons.forEach((button) => {
   button.addEventListener("click", () => showAnalyticsTab(button.dataset.analyticsTab));

@@ -2451,7 +2451,7 @@ tbody td:last-child {
 
 .wizard-account-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.2fr) auto;
+  grid-template-columns: 1fr auto;
   align-items: end;
   gap: 12px;
   padding: 14px;
@@ -2469,8 +2469,9 @@ tbody td:last-child {
 
 .wizard-account-fields {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .wizard-account-fields.regular {
@@ -3099,8 +3100,8 @@ tbody td:last-child {
 
 .account-settings-fields {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .account-settings-fields.regular {
@@ -3126,6 +3127,74 @@ tbody td:last-child {
 .account-settings-fields input {
   width: 100%;
   min-height: 42px;
+}
+
+.account-settings-fields select,
+.wizard-account-fields select {
+  width: 100%;
+  min-height: 42px;
+}
+
+.prop-account-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prop-account-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.prop-account-toggle i {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+}
+
+.prop-account-toggle i::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.prop-account-toggle input:checked + i {
+  border-color: var(--lime);
+  background: rgba(185, 255, 87, 0.12);
+}
+
+.prop-account-toggle input:checked + i::after {
+  transform: translateX(15px);
+  background: var(--lime);
+}
+
+.account-create-row {
+  grid-template-columns: minmax(170px, 1fr) minmax(150px, 190px) auto !important;
+}
+
+.account-create-row select {
+  width: 100%;
+  min-height: 42px;
+}
+
+@media (max-width: 720px) {
+  .account-create-row {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 900px) {
