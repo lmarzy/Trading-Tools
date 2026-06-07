@@ -2962,7 +2962,8 @@ tbody td:last-child {
 
 .config-grid > .config-section:only-of-type,
 .config-grid > .config-section[data-config-panel="markets"],
-.config-grid > .config-section[data-config-panel="strategies"] {
+.config-grid > .config-section[data-config-panel="strategies"],
+.config-grid > .account-details-section {
   grid-column: 1 / -1;
 }
 

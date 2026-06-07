@@ -2746,6 +2746,7 @@ function closeWeeklyReview() {
 }
 
 function renderConfig() {
+  appConfig.accountSettings = normalizeAccountSettings(appConfig.accountSettings, appConfig.accounts, appConfig.accountBalances);
   configGrid.innerHTML = "";
 
   const marketSection = document.createElement("section");
@@ -2973,7 +2974,7 @@ function renderConfig() {
   configGrid.appendChild(planRestrictionsSection);
 
   const balanceSection = document.createElement("section");
-  balanceSection.className = "config-section";
+  balanceSection.className = "config-section account-details-section";
   balanceSection.dataset.configPanel = "accounts";
   balanceSection.innerHTML = `
     <div class="config-section-heading">
