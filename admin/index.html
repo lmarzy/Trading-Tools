@@ -236,6 +236,21 @@
       </div>
     </dialog>
 
+    <dialog class="trade-modal confirm-modal" id="adminConfirmModal" aria-labelledby="adminConfirmModalTitle">
+      <div class="trade-form confirm-card">
+        <div>
+          <p class="eyebrow" id="adminConfirmModalEyebrow">Confirm action</p>
+          <h2 id="adminConfirmModalTitle">Are you sure?</h2>
+          <p id="adminConfirmModalMessage">This action needs confirmation.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="ghost-button" type="button" id="adminConfirmCancelButton">Cancel</button>
+          <button class="primary-button" type="button" id="adminConfirmActionButton">Confirm</button>
+        </div>
+      </div>
+    </dialog>
+    <div class="toast-stack" id="adminToastStack" aria-live="polite" aria-atomic="true"></div>
+
     <script src="../supabase-config.js?v=20260530-admin-news"></script>
     <script src="../supabase-api.js?v=20260530-admin-news"></script>
     <script src="admin.js?v=20260530-admin-news"></script>

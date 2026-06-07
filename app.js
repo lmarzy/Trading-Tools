@@ -32,8 +32,12 @@ const notesDisclosure = document.querySelector("#notesDisclosure");
 const priceDetailsDisclosure = document.querySelector("#priceDetailsDisclosure");
 const pricePointsPreview = document.querySelector("#pricePointsPreview");
 const disciplineDisclosure = document.querySelector("#disciplineDisclosure");
+const tradingRulesDisclosure = document.querySelector("#tradingRulesDisclosure");
+const tradingRulesOptions = document.querySelector("#tradingRulesOptions");
+const tradingRulesSummary = document.querySelector("#tradingRulesSummary");
 const configModal = document.querySelector("#configModal");
 const configGrid = document.querySelector("#configGrid");
+const configTabs = document.querySelector("#configTabs");
 const openConfigButton = document.querySelector("#openConfigButton");
 const closeConfigButton = document.querySelector("#closeConfigButton");
 const noteModal = document.querySelector("#noteModal");
@@ -65,6 +69,49 @@ const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
 const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
+const adminNavLink = document.querySelector("#adminNavLink");
+const hubWeekAmount = document.querySelector("#hubWeekAmount");
+const hubTrades = document.querySelector("#hubTrades");
+const hubWins = document.querySelector("#hubWins");
+const hubLosses = document.querySelector("#hubLosses");
+const hubWinRate = document.querySelector("#hubWinRate");
+const hubTrainingProgress = document.querySelector("#hubTrainingProgress");
+const hubTrainingProgressBar = document.querySelector("#hubTrainingProgressBar");
+const hubTrainingDetail = document.querySelector("#hubTrainingDetail");
+const hubNewsList = document.querySelector("#hubNewsList");
+const hubReviewStatus = document.querySelector("#hubReviewStatus");
+const hubNewsButton = document.querySelector("#hubNewsButton");
+const hubReviewButton = document.querySelector("#hubReviewButton");
+const reviewWeekRange = document.querySelector("#reviewWeekRange");
+const reviewPrevWeek = document.querySelector("#reviewPrevWeek");
+const reviewNextWeek = document.querySelector("#reviewNextWeek");
+const reviewSummaryGrid = document.querySelector("#reviewSummaryGrid");
+const reviewInsights = document.querySelector("#reviewInsights");
+const reviewTradesList = document.querySelector("#reviewTradesList");
+const weeklyReviewForm = document.querySelector("#weeklyReviewForm");
+const saveWeeklyReviewButton = document.querySelector("#saveWeeklyReviewButton");
+const reviewTabStatus = document.querySelector("#reviewTabStatus");
+const trainingProgressBar = document.querySelector("#trainingProgressBar");
+const trainingHome = document.querySelector("#trainingHome");
+const trainingLessonWorkspace = document.querySelector("#trainingLessonWorkspace");
+const trainingChapterGrid = document.querySelector("#trainingChapterGrid");
+const trainingCourseProgress = document.querySelector("#trainingCourseProgress");
+const trainingCourseProgressBar = document.querySelector("#trainingCourseProgressBar");
+const continueTrainingButton = document.querySelector("#continueTrainingButton");
+const backToTrainingHome = document.querySelector("#backToTrainingHome");
+const trainingStepList = document.querySelector("#trainingStepList");
+const trainingScore = document.querySelector("#trainingScore");
+const trainingStepLabel = document.querySelector("#trainingStepLabel");
+const trainingTitle = document.querySelector("#trainingTitle");
+const trainingContent = document.querySelector("#trainingContent");
+const trainingFeedback = document.querySelector("#trainingFeedback");
+const trainingBackButton = document.querySelector("#trainingBackButton");
+const trainingNextButton = document.querySelector("#trainingNextButton");
+const restartTrainingButton = document.querySelector("#restartTrainingButton");
+const openWeeklyReviewButton = document.querySelector("#openWeeklyReviewButton");
+const closeWeeklyReviewButton = document.querySelector("#closeWeeklyReviewButton");
+const weeklyReviewDrawer = document.querySelector("#weeklyReviewDrawer");
+const weeklyReviewBackdrop = document.querySelector("#weeklyReviewBackdrop");
 const dashboardSectionButtons = document.querySelectorAll("[data-dashboard-section]");
 const dashboardSectionPanels = document.querySelectorAll("[data-dashboard-panel]");
 const analyticsTabButtons = document.querySelectorAll("[data-analytics-tab]");
@@ -74,7 +121,6 @@ const analyticsTabPanels = {
   discipline: document.querySelector("#analyticsDisciplinePanel"),
 };
 const logoutButton = document.querySelector("#logoutButton");
-const adminNavLink = document.querySelector("#adminNavLink");
 const openResetPasscodeButton = document.querySelector("#openResetPasscodeButton");
 const userMenuButton = document.querySelector("#userMenuButton");
 const userPopover = document.querySelector("#userPopover");
@@ -92,6 +138,12 @@ const newsEventsList = document.querySelector("#newsEventsList");
 const newsFilterButtons = document.querySelectorAll("[data-news-filter]");
 const saveStatus = document.querySelector("#saveStatus");
 const toastStack = document.querySelector("#toastStack");
+const confirmModal = document.querySelector("#confirmModal");
+const confirmModalEyebrow = document.querySelector("#confirmModalEyebrow");
+const confirmModalTitle = document.querySelector("#confirmModalTitle");
+const confirmModalMessage = document.querySelector("#confirmModalMessage");
+const confirmCancelButton = document.querySelector("#confirmCancelButton");
+const confirmActionButton = document.querySelector("#confirmActionButton");
 const onboardingModal = document.querySelector("#onboardingModal");
 const onboardingConfigButton = document.querySelector("#onboardingConfigButton");
 const closeOnboardingButton = document.querySelector("#closeOnboardingButton");
@@ -154,7 +206,20 @@ const DEFAULT_CONFIG = {
   strategies: [],
   marketTypes: [],
   accountBalances: {},
+  checklistRules: [],
+  automatedRules: [],
+  blockedTradingDays: [],
+  weeklyReviews: {},
+  trainingProgress: {},
 };
+
+const AUTOMATED_RULE_TYPES = [
+  { key: "maxTradesPerDay", label: "Maximum trades per day", unit: "trades", min: 1, step: 1 },
+  { key: "maxLossesPerDay", label: "Maximum losing trades per day", unit: "losses", min: 1, step: 1 },
+  { key: "maxDailyLoss", label: "Maximum daily loss", unit: "amount", min: 0.01, step: 0.01 },
+  { key: "maxConsecutiveLosses", label: "Stop after consecutive losses", unit: "losses", min: 1, step: 1 },
+];
+const TRADING_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const CONFIG_FIELDS = [
   { key: "accounts", label: "Account", selectIds: ["account"], filterIds: ["accountFilter"] },
@@ -167,6 +232,16 @@ const MARKET_TYPE_DETAILS = {
   Futures: "Use contracts in the trade tracker and position size calculator.",
 };
 const DEFAULT_SESSION_OPTIONS = ["Asia", "London", "New York", "N/A"];
+const NO_SPECIFIC_SESSION = "N/A";
+
+function normalizeSessions(options, fallback = []) {
+  const sessions = normalizeOptions(options, fallback).filter((option) => option !== NO_SPECIFIC_SESSION);
+  return [...sessions, NO_SPECIFIC_SESSION];
+}
+
+function getOrderedSessions() {
+  return normalizeSessions(appConfig.sessions, []);
+}
 const ONBOARDING_STEPS = [
   {
     key: "marketTypes",
@@ -185,13 +260,13 @@ const ONBOARDING_STEPS = [
     key: "sessionTracking",
     label: "Sessions",
     title: "Do you want to track trading sessions?",
-    description: "Sessions are useful if you want to compare trades taken during periods such as Asia, London, New York, or N/A. If you trade setup-first throughout the day, you can skip this.",
+    description: "Sessions are useful if you want to compare trades taken during periods such as Asia, London, or New York. You can also record trades that occur outside a specific session.",
   },
   {
     key: "sessions",
     label: "Sessions",
     title: "Which sessions should appear in the trade form?",
-    description: "Select the session labels you want available on each trade. Keep N/A for trades that do not belong to a specific session.",
+    description: "Select the session labels you want available on each trade. N/A is always available for trades that do not belong to a specific session.",
   },
   {
     key: "accounts",
@@ -223,6 +298,164 @@ const DISCIPLINE_RULES = [
   { key: "heldTooLong", label: "Held too long" },
 ];
 const DISCIPLINE_MAX_SCORE = DISCIPLINE_RULES.length;
+const TRAINING_MODULE_ID = "candlestick-foundations";
+const TRAINING_CHAPTERS = [
+  { id: TRAINING_MODULE_ID, number: "01", title: "Understanding Price Charts", description: "Learn what a market price is and how a chart displays price changing over time.", lessons: 6, duration: "15 min", status: "available", topics: ["Price", "Time", "Charts"] },
+  { id: "candlestick-anatomy", number: "02", title: "Understanding One Candlestick", description: "See exactly how one candlestick is formed and learn every part of it.", lessons: 8, duration: "20 min", status: "sequential", topics: ["Anatomy", "OHLC", "Timeframes"] },
+  { id: "single-candle-patterns", number: "03", title: "Reading Candle Behaviour", description: "Describe what a candle shows using its body, wicks, size, and close.", lessons: 6, duration: "20 min", status: "sequential", topics: ["Bodies", "Wicks", "Strength"] },
+  { id: "price-movement", number: "04", title: "Reading Price Movement", description: "Move beyond one candle and understand upward, downward, and sideways movement.", lessons: 6, duration: "20 min", status: "sequential", topics: ["Direction", "Swings", "Momentum"] },
+  { id: "multi-candle-patterns", number: "05", title: "Common Candlestick Patterns", description: "Recognise useful candle patterns and understand what they do and do not show.", lessons: 7, duration: "25 min", status: "sequential", topics: ["Doji", "Rejection", "Engulfing"] },
+  { id: "context-application", number: "06", title: "Using Candlesticks Properly", description: "Combine candles with direction, chart areas, confirmation, planning, and risk.", lessons: 6, duration: "25 min", status: "sequential", topics: ["Context", "Confirmation", "Planning"] },
+  { id: "candlestick-assessment", number: "07", title: "Guided Chart Practice", description: "Apply the complete process to realistic chart scenarios and build confidence.", lessons: 4, duration: "15 min", status: "sequential", topics: ["Scenarios", "Mistakes", "Review"] },
+];
+const TRAINING_STEPS = [
+  { title: "What Is a Market Price?", type: "lesson", body: "A market price is the latest price at which buyers and sellers agree to trade. As new trades happen, that price can move higher or lower.", points: ["Price changes when new trades happen", "Buyers and sellers meet at a price", "Charts record those changes"], visual: "market-price" },
+  { title: "Price Check", type: "question", prompt: "What does a market chart record?", options: ["How price changes over time", "A guaranteed future price", "Only profitable trades"], answer: 0, explanation: "A chart records how the market price has changed over time.", visual: "market-price" },
+  { title: "Reading a Price Chart", type: "lesson", body: "A chart has two simple directions. Read from left to right to follow time. Look higher or lower to see the price level.", points: ["Left to right shows time passing", "Higher on the chart means a higher price", "Lower on the chart means a lower price"], visual: "chart-axes" },
+  { title: "Chart Axes Check", type: "question", prompt: "What does moving from left to right across a chart show?", options: ["Price rising", "Time passing", "Trade size increasing"], answer: 1, explanation: "The horizontal direction shows time passing.", visual: "chart-axes" },
+  { title: "Line Charts and Candlestick Charts", type: "lesson", body: "A line chart gives a simple view of price direction. A candlestick chart adds more detail by showing four prices for every period.", points: ["Line charts are simple", "Candlestick charts show more detail", "Both display the same market price"], visual: "line-v-candles" },
+  { title: "Choose the Detailed Chart", type: "question", prompt: "Which chart shows the open, high, low, and close for each period?", options: ["A candlestick chart", "A line chart", "Neither chart"], answer: 0, explanation: "Candlestick charts show all four prices for each period.", visual: "line-v-candles" },
+];
+const CANDLESTICK_ANATOMY_STEPS = [
+  {
+    title: "What Is a Candlestick?",
+    type: "lesson",
+    body: "A candlestick is a simple picture of price movement during one period of time. It shows where price started, where it finished, and the highest and lowest prices reached.",
+    points: ["One candle covers one period of time", "It summarises price movement", "It does not predict the next candle"],
+    visual: "candlestick-intro",
+  },
+  {
+    title: "Understand the Purpose",
+    type: "question",
+    prompt: "What is the main purpose of a candlestick?",
+    options: ["To summarise price movement during a period", "To guarantee the next price move", "To show how many traders are watching"],
+    answer: 0,
+    explanation: "A candlestick summarises what price did during a set period. It describes the past; it does not guarantee the future.",
+    visual: "candlestick-intro",
+  },
+  {
+    title: "The Candle Body",
+    type: "lesson",
+    body: "The thick section is called the body. It connects the opening price and closing price. A green body closes above its open, while a red body closes below its open.",
+    points: ["The body joins open and close", "Green closes higher than it opened", "Red closes lower than it opened"],
+    visual: "candle-body",
+  },
+  {
+    type: "question",
+    title: "Read the Body",
+    prompt: "A candle closes above its opening price. Which colour would it normally be?",
+    options: ["Green", "Red", "The colour cannot be known"],
+    answer: 0,
+    explanation: "A candle that closes above its opening price is normally shown as green.",
+    visual: "candle-body",
+  },
+  {
+    title: "Wicks and the Four Prices",
+    type: "lesson",
+    body: "The thin lines above and below the body are called wicks. Together, the candle records four prices: open, high, low, and close. These are often shortened to OHLC.",
+    points: ["Open is the starting price", "Close is the finishing price", "High and low are the furthest prices reached"],
+    visual: "candle-anatomy",
+  },
+  {
+    title: "Find the Closing Price",
+    type: "question",
+    prompt: "Which of the four prices tells you where the candle finished?",
+    options: ["Open", "High", "Close"],
+    answer: 2,
+    explanation: "The close is the final price recorded when the candle period ends.",
+    visual: "candle-anatomy",
+  },
+  {
+    title: "Candles and Timeframes",
+    type: "lesson",
+    body: "The chart timeframe tells you how much time each candle represents. One candle on a five-minute chart covers five minutes. One candle on a one-hour chart covers one hour.",
+    points: ["Every candle uses the selected timeframe", "Shorter timeframes show more detail", "Longer timeframes give a wider view"],
+    visual: "timeframe",
+  },
+  {
+    title: "Timeframe Check",
+    type: "question",
+    prompt: "What does one candle represent on a one-hour chart?",
+    options: ["One minute", "One hour", "One day"],
+    answer: 1,
+    explanation: "Each candle on a one-hour chart summarises one hour of price movement.",
+    visual: "timeframe",
+  },
+];
+const SINGLE_CANDLE_PATTERN_STEPS = [
+  { title: "Start With a Description", type: "lesson", body: "Before trying to predict anything, describe the candle in front of you. Notice its colour, body size, wick size, and where it closed.", points: ["Begin with facts", "Avoid guessing the next move", "Compare it with nearby candles"], visual: "proportions" },
+  { title: "Large and Small Bodies", type: "lesson", body: "A large body shows price moved a greater distance from open to close. A small body shows less movement between the two prices.", points: ["Large bodies show a larger net move", "Small bodies show a smaller net move", "Size is clearer when compared with nearby candles"], visual: "momentum" },
+  { title: "Reading Wicks", type: "lesson", body: "A wick shows that price reached an area but moved away before the candle closed. A long upper wick shows a move higher that was not fully kept. A long lower wick shows the same below.", points: ["Upper wick records movement above the body", "Lower wick records movement below the body", "A wick alone does not guarantee a reversal"], visual: "rejection" },
+  { title: "Where the Candle Closes", type: "lesson", body: "The closing position helps complete the picture. A green candle closing near its high finished strongly. A green candle with a long upper wick gave back part of its move before closing.", points: ["Close near the high shows a strong finish", "Close near the low shows a weak finish", "Colour alone does not tell the full story"], visual: "closes" },
+  { title: "Compare Nearby Candles", type: "lesson", body: "A candle is easier to understand when compared with the candles around it. A body that looks large on its own may be normal for that market.", points: ["Compare body sizes", "Compare wick sizes", "Notice whether movement is increasing or slowing"], visual: "patterns" },
+  { title: "Reading Check", type: "question", prompt: "A green candle has a large body and closes near its high. What can you safely say?", options: ["It finished strongly during that period", "Price must rise next", "It can never reverse"], answer: 0, explanation: "The candle finished strongly during its period. It still cannot guarantee the next move.", visual: "question-control" },
+];
+const PRICE_MOVEMENT_STEPS = [
+  { title: "Look Beyond One Candle", type: "lesson", body: "One candle only describes one period. To understand price movement, step back and look at the path created by several candles.", points: ["Use several candles", "Notice the overall path", "Do not let one candle dominate your view"], visual: "trend-overview" },
+  { title: "Upward Movement", type: "lesson", body: "Price is moving upward when its swings generally reach higher highs and stop at higher lows. Red candles can still appear inside an upward move.", points: ["High points form higher", "Low points form higher", "Small pullbacks are normal"], visual: "uptrend" },
+  { title: "Downward Movement", type: "lesson", body: "Price is moving downward when its swings generally reach lower lows and stop at lower highs. Green candles can still appear inside a downward move.", points: ["Low points form lower", "High points form lower", "Small rallies are normal"], visual: "downtrend" },
+  { title: "Sideways Movement", type: "lesson", body: "Price is sideways when it repeatedly moves between a similar high area and low area without making clear progress.", points: ["Price remains between two areas", "Direction is unclear", "Avoid forcing a trend"], visual: "question-range" },
+  { title: "Momentum and Pullbacks", type: "lesson", body: "Momentum is the strength of a move. A pullback is a temporary move against the wider direction. Neither tells you exactly where price will go next.", points: ["Large directional candles can show momentum", "Pullbacks move against the wider direction", "Watch whether the wider structure remains intact"], visual: "momentum" },
+  { title: "Movement Check", type: "question", prompt: "Price keeps making higher highs and higher lows. How would you describe the wider movement?", options: ["Upward", "Downward", "Sideways"], answer: 0, explanation: "Higher highs and higher lows describe upward price movement.", visual: "uptrend" },
+];
+const MULTI_CANDLE_PATTERN_STEPS = [
+  { title: "What Is a Pattern?", type: "lesson", body: "A candlestick pattern is a recognisable candle shape or group of candles. Patterns help describe recent price behaviour, but they do not guarantee what happens next.", points: ["Patterns are observations", "Patterns are not automatic trade signals", "Context makes patterns more useful"], visual: "patterns" },
+  { title: "Doji: A Small Body", type: "lesson", body: "A doji has an open and close that are very close together. It shows that price moved during the period but finished near where it started.", points: ["Open and close are close together", "It can show hesitation", "It does not guarantee a reversal"], visual: "doji" },
+  { title: "Rejection Candles", type: "lesson", body: "A candle with a long wick and a smaller body is often called a rejection candle. The wick shows price moved into an area and then moved away.", points: ["Long lower wick shows movement away from lower prices", "Long upper wick shows movement away from higher prices", "The chart location matters"], visual: "rejection" },
+  { title: "Engulfing Pattern", type: "lesson", body: "An engulfing pattern uses two candles. The second candle has a body that covers the previous candle's body, showing a clear change in movement during those periods.", points: ["It uses two candles", "The second body covers the first", "It still needs context and confirmation"], visual: "patterns" },
+  { title: "Inside Bar", type: "lesson", body: "An inside bar is smaller and sits within the previous candle's high and low. It shows that price movement has become quieter for that period.", points: ["The smaller candle remains inside the previous range", "It shows reduced movement", "It does not predict breakout direction"], visual: "question-inside" },
+  { title: "Patterns Can Fail", type: "lesson", body: "Every pattern can fail. A pattern is most useful as one piece of information alongside the wider direction, chart area, and the next candles.", points: ["Never treat a pattern as a guarantee", "Look at the wider chart", "Wait to see what follows"], visual: "question-range" },
+  { title: "Pattern Check", type: "question", prompt: "What should a trader assume after seeing an engulfing pattern?", options: ["The market must reverse", "It shows a change in recent movement, but needs context", "The next candle must match it"], answer: 1, explanation: "An engulfing pattern shows a change in recent movement. The wider chart and following candles still matter.", visual: "patterns" },
+];
+const CONTEXT_APPLICATION_STEPS = [
+  { title: "Read the Wider Direction", type: "lesson", body: "Before focusing on one candle, look across the chart. Decide whether price is generally moving up, moving down, or moving sideways.", points: ["Start with the wider view", "One candle should not override the whole chart", "Direction provides useful context"], visual: "momentum" },
+  { title: "Watch Clear Chart Areas", type: "lesson", body: "Previous highs and lows are places where price has changed direction before. Treat them as areas to watch, not exact prices or guaranteed turning points.", points: ["Mark obvious highs and lows", "Use an area rather than a perfect line", "Watch how price behaves when it returns"], visual: "context" },
+  { title: "Wait for Confirmation", type: "lesson", body: "Confirmation means waiting for more evidence after a candle or pattern appears. This might be another candle continuing the move or price holding beyond an area.", points: ["Do not rush after one candle", "Let the next price action add information", "Confirmation reduces guessing, not risk"], visual: "question-context" },
+  { title: "Build a Simple Chart Story", type: "lesson", body: "Combine the information in a clear order: wider direction, important area, candle behaviour, and what happened next. This creates a simple chart story.", points: ["Direction: where is price generally moving?", "Area: is price somewhere important?", "Reaction: what are the candles showing?"], visual: "context" },
+  { title: "Plan Before Acting", type: "lesson", body: "A candle pattern should never replace a trade plan. Before taking a trade, know where the idea is wrong, how much you could lose, and where you may exit.", points: ["Know the invalidation point", "Control the amount at risk", "Never enter only because of a pattern"], visual: "question-range" },
+  { title: "Context Check", type: "question", prompt: "A rejection candle appears at a previous low. What is the most sensible next step?", options: ["Buy immediately", "Check the wider direction and wait for confirmation", "Assume the low can never break"], answer: 1, explanation: "The location and candle are useful information, but the wider direction and confirmation help complete the idea.", visual: "question-context" },
+];
+const FINAL_ASSESSMENT_STEPS = [
+  { title: "Read One Candle", type: "question", prompt: "A red candle has a long lower wick. What can you safely say?", options: ["Price moved below the body before closing", "Price must rise next", "The market has changed direction"], answer: 0, explanation: "The lower wick records movement below the body. It does not guarantee the next move.", visual: "rejection" },
+  { title: "Read a Pattern", type: "question", prompt: "An inside bar appears after a large candle. What does it show most clearly?", options: ["The breakout direction", "Reduced price movement during that candle", "A guaranteed reversal"], answer: 1, explanation: "An inside bar shows reduced movement inside the previous candle's range. It does not predict direction.", visual: "question-inside" },
+  { title: "Use Context", type: "question", prompt: "Which order creates the clearest chart story?", options: ["Pattern, prediction, larger position", "Direction, chart area, candle reaction, confirmation", "Colour, trade, then risk plan"], answer: 1, explanation: "Start with the wider direction and area, then use candle behaviour and confirmation to add detail.", visual: "context" },
+  { title: "The Most Important Lesson", type: "question", prompt: "What is the safest way to use candlesticks?", options: ["As guaranteed signals", "As one part of a wider plan with risk control", "To predict every market move"], answer: 1, explanation: "Candlesticks are useful evidence, but they work best as part of a wider plan with controlled risk.", visual: "question-control" },
+];
+const TRAINING_STEP_MAP = {
+  [TRAINING_MODULE_ID]: TRAINING_STEPS,
+  "candlestick-anatomy": CANDLESTICK_ANATOMY_STEPS,
+  "single-candle-patterns": SINGLE_CANDLE_PATTERN_STEPS,
+  "price-movement": PRICE_MOVEMENT_STEPS,
+  "multi-candle-patterns": MULTI_CANDLE_PATTERN_STEPS,
+  "context-application": CONTEXT_APPLICATION_STEPS,
+  "candlestick-assessment": FINAL_ASSESSMENT_STEPS,
+};
+const FUNDAMENTAL_LESSON_GUIDES = {
+  "candlestick-intro": [
+    ["From movement to candle", "The line shows the path price took during the period. The candle on the right turns that movement into one simple summary."],
+    ["Four facts remain", "The completed candle keeps the open, high, low, and close. It does not show every small move in the order it happened."],
+  ],
+  "candle-body": [
+    ["Focus on the body", "The body connects the opening and closing prices. Its colour tells you whether the candle finished above or below its open."],
+    ["Colour describes the result", "Green means the candle finished higher. Red means it finished lower. Neither colour predicts the next candle."],
+  ],
+  "candle-anatomy": [
+    ["Read the labels", "The high and low sit at the ends of the wicks. The open and close sit at the edges of the body."],
+    ["Use a simple order", "Find the open, then the high and low, and finally the close. This gives you the complete story recorded by the candle."],
+  ],
+  "price-to-candle": [
+    ["Think of a simple graph", "A chart is simply a picture of price over time. Read it from left to right, just like a timeline."],
+    ["What to notice first", "Do not worry about patterns yet. Begin by noticing whether price is generally higher, lower, or around the same place."],
+  ],
+  "ohlc-story": [
+    ["A simple memory aid", "Open means start. Close means finish. High means highest. Low means lowest."],
+    ["Why four prices help", "These four prices give you a useful summary without showing every tiny price change."],
+  ],
+  timeframe: [
+    ["Timeframes are just time", "The timeframe tells you how much time is included in each candle. A five-minute candle takes five minutes to complete."],
+    ["Start with one timeframe", "Beginners do not need to keep switching. Choose one view while you practise reading candles."],
+  ],
+};
 
 let currentUserId = "";
 let currentUserLabel = "";
@@ -241,10 +474,17 @@ let performanceMode = "week";
 let selectedTradeId = "";
 let onboardingStepIndex = 0;
 let onboardingDraft = structuredClone(DEFAULT_CONFIG);
+let activeConfigTab = "markets";
+let reviewWeekOffset = 0;
+let trainingStepIndex = 0;
+let trainingWorkspaceOpen = false;
+let activeTrainingChapterId = TRAINING_MODULE_ID;
+let acknowledgedPreTradeRules = [];
 let newsEvents = [];
 let newsFilter = "today";
 let newsLoaded = false;
 const MOTION_DURATION_MS = 190;
+let pendingConfirmResolve = null;
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -300,6 +540,34 @@ function showToast(message, tone = "saved") {
     toast.classList.add("leaving");
     window.setTimeout(() => toast.remove(), 220);
   }, 2600);
+}
+
+function askForConfirmation({
+  eyebrow = "Confirm action",
+  title = "Are you sure?",
+  message = "This action needs confirmation.",
+  confirmText = "Confirm",
+  tone = "warning",
+} = {}) {
+  confirmModalEyebrow.textContent = eyebrow;
+  confirmModalTitle.textContent = title;
+  confirmModalMessage.textContent = message;
+  confirmActionButton.textContent = confirmText;
+  confirmActionButton.classList.toggle("danger-confirm", tone === "danger");
+  confirmActionButton.classList.toggle("warning-confirm", tone === "warning");
+  openDialog(confirmModal);
+
+  return new Promise((resolve) => {
+    pendingConfirmResolve = resolve;
+  });
+}
+
+function resolveConfirmation(value) {
+  if (pendingConfirmResolve) {
+    pendingConfirmResolve(value);
+    pendingConfirmResolve = null;
+  }
+  closeDialog(confirmModal);
 }
 
 function formatTrialDate(value) {
@@ -747,13 +1015,22 @@ async function hydrateUserStateFromSupabase() {
     appConfig = {
       symbols: flattenSymbolsByMarket(symbolsByMarket),
       symbolsByMarket,
-      sessions: normalizeOptions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions),
+      sessions: Boolean(remoteData.config?.trackSessions) ? normalizeSessions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions) : [],
       trackSessions: Boolean(remoteData.config?.trackSessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
-      strategies: normalizeOptions(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
+      strategies: normalizeStrategies(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
       marketTypes,
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
+      checklistRules: normalizeOptions(remoteData.config?.checklistRules ?? remoteData.config?.tradingRules, DEFAULT_CONFIG.checklistRules),
+      automatedRules: Array.isArray(remoteData.config?.automatedRules) ? remoteData.config.automatedRules : [],
+      blockedTradingDays: normalizeOptions(remoteData.config?.blockedTradingDays, []),
+      weeklyReviews: remoteData.config?.weeklyReviews && typeof remoteData.config.weeklyReviews === "object" ? remoteData.config.weeklyReviews : {},
+      trainingProgress: remoteData.config?.trainingProgress && typeof remoteData.config.trainingProgress === "object" ? remoteData.config.trainingProgress : {},
     };
+    trainingStepIndex = Math.min(
+      TRAINING_STEPS.length - 1,
+      Math.max(0, Number(appConfig.trainingProgress[TRAINING_MODULE_ID]?.step) || 0),
+    );
   } catch (error) {
     if (error.message === "Access denied") {
       showToast("Your access is no longer active.");
@@ -831,6 +1108,10 @@ function normalizeOptions(options, fallback) {
     : [];
   const uniqueOptions = [...new Set(cleaned)];
   return uniqueOptions.length ? uniqueOptions : [...fallback];
+}
+
+function normalizeStrategies(options, fallback = []) {
+  return normalizeOptions(options, fallback).filter((option) => option.toUpperCase() !== "N/A");
 }
 
 function normalizeMarketTypes(options) {
@@ -927,8 +1208,8 @@ function syncConfiguredInputs() {
   populateSelect(dashboardAccountFilter, appConfig.accounts, true);
   populateSelect(marketTypeInput, appConfig.marketTypes);
   populateSelect(marketTypeFilter, appConfig.marketTypes, true);
-  populateSelect(sessionFilter, appConfig.sessions, true);
-  populateSelect(form.session, appConfig.sessions);
+  populateSelect(sessionFilter, getOrderedSessions(), true);
+  populateSelect(form.session, getOrderedSessions());
   populateSelect(form.symbol, getSymbolsForMarket(marketTypeInput.value || getDefaultMarketType()));
   syncMarketTypeField();
   syncSymbolFromMarket();
@@ -1948,6 +2229,23 @@ function openTradeDrawer(id) {
     <div class="drawer-discipline">
       ${renderDisciplineDetails(discipline)}
     </div>
+    <article class="drawer-rules">
+      <span>Personal Checklist</span>
+      <div class="drawer-discipline">${renderTradingRuleDetails(trade)}</div>
+    </article>
+    <article class="drawer-rules">
+      <span>Automated Rule Checks</span>
+      <div class="drawer-discipline">${
+        Array.isArray(trade.ruleBreaches) && trade.ruleBreaches.length
+          ? trade.ruleBreaches.map((rule) => `<span class="bad">× ${escapeHtml(rule.label)}</span>`).join("")
+          : '<span class="good">✓ No limits breached</span>'
+      }</div>
+    </article>
+    ${
+      Array.isArray(trade.continuedAfterRuleWarnings) && trade.continuedAfterRuleWarnings.length
+        ? `<article class="drawer-rules"><span>Pre-trade Warning</span><div class="drawer-discipline"><span class="bad">Continued after a stop rule warning</span></div></article>`
+        : ""
+    }
     <article class="drawer-notes">
       <span>Notes</span>
       <p>${trade.notes ? escapeHtml(trade.notes) : "No notes added."}</p>
@@ -1971,6 +2269,113 @@ function renderDisciplineDetails(discipline) {
   return selectedRules
     .map((rule) => `<span class="${rule.positive ? "good" : "bad"}">✓ ${escapeHtml(rule.label)}</span>`)
     .join("");
+}
+
+function getTradeRules(trade) {
+  return Array.isArray(trade.tradingRules) ? trade.tradingRules : [];
+}
+
+function renderTradingRuleDetails(trade) {
+  const rules = getTradeRules(trade);
+  if (!rules.length) {
+    return '<span class="neutral">No trading rules recorded</span>';
+  }
+
+  return rules
+    .map((item) => `<span class="${item.followed ? "good" : "bad"}">${item.followed ? "✓" : "×"} ${escapeHtml(item.rule)}</span>`)
+    .join("");
+}
+
+function updateTradingRulesSummary() {
+  const inputs = [...tradingRulesOptions.querySelectorAll("[data-trading-rule]")];
+  const followed = inputs.filter((input) => input.checked).length;
+  tradingRulesSummary.textContent = inputs.length ? `${followed}/${inputs.length} followed` : "";
+}
+
+function renderTradingRuleChecklist(selectedRules = []) {
+  const selectedByRule = new Map(selectedRules.map((item) => [item.rule, Boolean(item.followed)]));
+  tradingRulesOptions.innerHTML = appConfig.checklistRules.length
+    ? appConfig.checklistRules
+        .map(
+          (rule) => `
+            <label class="toggle-option trading-rule-option">
+              <input type="checkbox" data-trading-rule="${escapeHtml(rule)}" ${selectedByRule.get(rule) ? "checked" : ""} />
+              <span>${escapeHtml(rule)}</span>
+            </label>
+          `,
+        )
+        .join("")
+    : "";
+  tradingRulesDisclosure.classList.toggle("hidden", !appConfig.checklistRules.length);
+  updateTradingRulesSummary();
+}
+
+function readTradingRules() {
+  return [...tradingRulesOptions.querySelectorAll("[data-trading-rule]")].map((input) => ({
+    rule: input.dataset.tradingRule,
+    followed: input.checked,
+  }));
+}
+
+function getTradeDayName(tradeDate) {
+  const [year, month, day] = String(tradeDate || "").split("-").map(Number);
+  if (!year || !month || !day) return "";
+  return TRADING_DAYS[new Date(year, month - 1, day).getDay() === 0 ? 6 : new Date(year, month - 1, day).getDay() - 1];
+}
+
+function getPlanRestrictionBreaches(trade) {
+  const breaches = [];
+  const tradeDay = getTradeDayName(trade.tradeDate);
+  if (appConfig.blockedTradingDays.includes(tradeDay)) {
+    breaches.push({ type: "blockedTradingDays", label: `${tradeDay || "Selected day"} is marked as a day you do not trade` });
+  }
+  return breaches;
+}
+
+function getAutomatedRuleBreaches(trade) {
+  const sameDayTrades = trades.filter((item) => item.tradeDate === trade.tradeDate && item.id !== trade.id);
+  const dayTradesWithCandidate = [...sameDayTrades, trade];
+  const ordered = dayTradesWithCandidate.slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+  const lossesWithCandidate = dayTradesWithCandidate.filter((item) => item.outcome === "Loss");
+  const dailyLossWithCandidate = Math.abs(dayTradesWithCandidate.reduce((total, item) => total + Math.min(0, getTradeAmount(item)), 0));
+  let consecutiveLosses = 0;
+  for (let index = ordered.length - 1; index >= 0 && ordered[index].outcome === "Loss"; index -= 1) {
+    consecutiveLosses += 1;
+  }
+
+  const limitBreaches = appConfig.automatedRules.flatMap((rule) => {
+    const definition = AUTOMATED_RULE_TYPES.find((item) => item.key === rule.type);
+    const limit = Number(rule.value);
+    let breached = false;
+    if (rule.type === "maxTradesPerDay") breached = dayTradesWithCandidate.length > limit;
+    if (rule.type === "maxLossesPerDay") breached = trade.outcome === "Loss" && lossesWithCandidate.length > limit;
+    if (rule.type === "maxDailyLoss") breached = trade.outcome === "Loss" && dailyLossWithCandidate > limit;
+    if (rule.type === "maxConsecutiveLosses") breached = trade.outcome === "Loss" && consecutiveLosses > limit;
+    return breached ? [{ type: rule.type, label: definition?.label || rule.type, limit }] : [];
+  });
+  return [...limitBreaches, ...getPlanRestrictionBreaches(trade)];
+}
+
+function getReachedStopRules(tradeDate) {
+  const dayTrades = trades.filter((trade) => trade.tradeDate === tradeDate);
+  const ordered = dayTrades.slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+  const losses = dayTrades.filter((trade) => trade.outcome === "Loss");
+  const dailyLoss = Math.abs(dayTrades.reduce((total, trade) => total + Math.min(0, getTradeAmount(trade)), 0));
+  let consecutiveLosses = 0;
+  for (let index = ordered.length - 1; index >= 0 && ordered[index].outcome === "Loss"; index -= 1) {
+    consecutiveLosses += 1;
+  }
+
+  return appConfig.automatedRules.flatMap((rule) => {
+    const definition = AUTOMATED_RULE_TYPES.find((item) => item.key === rule.type);
+    const limit = Number(rule.value);
+    let reached = false;
+    if (rule.type === "maxTradesPerDay") reached = dayTrades.length >= limit;
+    if (rule.type === "maxLossesPerDay") reached = losses.length >= limit;
+    if (rule.type === "maxDailyLoss") reached = dailyLoss >= limit;
+    if (rule.type === "maxConsecutiveLosses") reached = consecutiveLosses >= limit;
+    return reached ? [{ type: rule.type, label: definition?.label || rule.type, limit }] : [];
+  });
 }
 
 function getSelectedTradeIndex() {
@@ -2003,6 +2408,283 @@ function render() {
   renderStrategyBreakdown();
   renderAccountBalances();
   renderTable();
+  renderWeeklyReview();
+  renderTraining();
+  renderHubDashboard();
+}
+
+function renderHubDashboard() {
+  if (!hubWeekAmount) return;
+  const weekKeys = new Set(getWeekdays().map((day) => day.key));
+  const weekTrades = trades.filter((trade) => weekKeys.has(trade.tradeDate));
+  const amount = weekTrades.reduce((total, trade) => total + getTradeAmount(trade), 0);
+  const wins = weekTrades.filter((trade) => trade.outcome === "Win").length;
+  const losses = weekTrades.filter((trade) => trade.outcome === "Loss").length;
+  hubWeekAmount.textContent = formatSummaryAmount(amount);
+  hubWeekAmount.className = amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "";
+  hubTrades.textContent = String(weekTrades.length);
+  hubWins.textContent = String(wins);
+  hubLosses.textContent = String(losses);
+  hubWinRate.textContent = `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`;
+  const completed = TRAINING_CHAPTERS.filter((chapter) => getTrainingProgress(chapter.id).completed).length;
+  const trainingPercent = Math.round((completed / TRAINING_CHAPTERS.length) * 100);
+  hubTrainingProgress.textContent = `${trainingPercent}%`;
+  hubTrainingProgressBar.style.width = `${trainingPercent}%`;
+  const nextChapter = TRAINING_CHAPTERS.find((chapter) => !getTrainingProgress(chapter.id).completed);
+  hubTrainingDetail.textContent = nextChapter ? `Next: ${nextChapter.title}` : "Course complete.";
+  const todayEvents = newsEvents.filter((event) => toLocalDateKey(event.date) === toLocalDateKey());
+  hubNewsList.innerHTML = todayEvents.length
+    ? todayEvents.slice(0, 6).map((event) => `<button type="button" data-hub-news><span>${escapeHtml(formatNewsEventTime(event.date))}</span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.currency || "")} · ${escapeHtml(event.impact || "")}</small></button>`).join("")
+    : '<div class="hub-news-empty">No economic events scheduled for today.</div>';
+  hubReviewStatus.textContent = appConfig.weeklyReviews[getWeekdays()[0].key]?.completedAt ? "Complete" : "Incomplete";
+}
+
+
+function trainingCandleSvg(type) {
+  const candle = (x, open, close, high, low, colour, label = "", width = 22) => {
+    const top = Math.min(open, close);
+    const height = Math.max(4, Math.abs(open - close));
+    return `<g><line x1="${x}" y1="${high}" x2="${x}" y2="${low}" stroke="${colour}" stroke-width="2"/><rect x="${x - width / 2}" y="${top}" width="${width}" height="${height}" rx="2" fill="${colour}"/><text x="${x}" y="258" text-anchor="middle">${label}</text></g>`;
+  };
+  const sequence = (startX = 46, width = 22) => [
+    [150, 132, 118, 166, "#ff7a7a"], [136, 112, 98, 150, "#b9ff57"], [116, 128, 105, 142, "#ff7a7a"],
+    [132, 102, 88, 145, "#b9ff57"], [106, 84, 72, 119, "#b9ff57"], [88, 98, 76, 111, "#ff7a7a"],
+    [102, 78, 67, 113, "#b9ff57"], [82, 64, 53, 94, "#b9ff57"], [68, 79, 57, 91, "#ff7a7a"],
+    [82, 60, 48, 94, "#b9ff57"], [63, 72, 52, 84, "#ff7a7a"], [76, 55, 43, 87, "#b9ff57"],
+  ].map((values, index) => candle(startX + index * 39, ...values, "", width)).join("");
+  const axes = `<g class="chart-axis"><text x="485" y="54">109</text><text x="485" y="106">105</text><text x="485" y="158">100</text><text x="485" y="210">96</text><text x="34" y="258">09:00</text><text x="220" y="258">09:30</text><text x="410" y="258">10:00</text></g>`;
+  let content = "";
+  if (type === "market-price") content = `<text x="270" y="28" text-anchor="middle">Each completed trade can update the market price</text><rect x="40" y="62" width="130" height="92" rx="10" fill="#202220" stroke="#454945"/><text x="105" y="88" text-anchor="middle">Buyer offers</text><text x="105" y="126" text-anchor="middle" class="diagram-value">100.20</text><rect x="370" y="62" width="130" height="92" rx="10" fill="#202220" stroke="#454945"/><text x="435" y="88" text-anchor="middle">Seller accepts</text><text x="435" y="126" text-anchor="middle" class="diagram-value">100.20</text><path d="M178 108H240M300 108H362" stroke="#b9ff57" stroke-width="2"/><circle cx="270" cy="108" r="38" fill="rgba(185,255,87,.12)" stroke="#b9ff57"/><text x="270" y="104" text-anchor="middle">Trade</text><text x="270" y="122" text-anchor="middle">100.20</text><path d="M270 148V188" stroke="#858b85"/><text x="270" y="214" text-anchor="middle">The chart records the new price</text>`;
+  if (type === "chart-axes") content = `<path d="M62 28V226H510" fill="none" stroke="#858b85" stroke-width="2"/><path class="price-path" d="M74 194L125 172L176 181L227 136L278 148L329 104L380 116L431 72L492 84" fill="none"/><text x="24" y="40">Higher</text><text x="24" y="218">Lower</text><text x="64" y="252">Earlier</text><text x="464" y="252">Later</text><path d="M82 236H482" stroke="#626862"/><path d="M474 230L484 236L474 242" fill="none" stroke="#626862"/><text x="270" y="252" text-anchor="middle">TIME</text><text x="18" y="132" transform="rotate(-90 18 132)" text-anchor="middle">PRICE</text>`;
+  if (type === "line-v-candles") content = `<text x="135" y="28" text-anchor="middle">Line chart</text><path class="price-path" d="M30 190L72 164L114 176L156 128L198 142L240 88" fill="none"/><circle cx="30" cy="190" r="3" fill="#b9ff57"/><circle cx="72" cy="164" r="3" fill="#b9ff57"/><circle cx="114" cy="176" r="3" fill="#b9ff57"/><circle cx="156" cy="128" r="3" fill="#b9ff57"/><circle cx="198" cy="142" r="3" fill="#b9ff57"/><circle cx="240" cy="88" r="3" fill="#b9ff57"/><path d="M270 34V226" stroke="#626862" stroke-dasharray="5 6"/><text x="405" y="28" text-anchor="middle">Candlestick chart</text>${candle(310,190,164,150,204,"#b9ff57","",24)}${candle(350,164,176,148,190,"#ff7a7a","",24)}${candle(390,176,128,116,188,"#b9ff57","",24)}${candle(430,128,142,118,154,"#ff7a7a","",24)}${candle(470,142,88,76,152,"#b9ff57","",24)}<text x="135" y="236" text-anchor="middle">Shows direction simply</text><text x="405" y="236" text-anchor="middle">Shows OHLC for each period</text>`;
+  if (type === "trend-overview") content = `${sequence(46,20)}<path d="M40 198L120 164L198 174L275 126L352 136L472 62" fill="none" stroke="#b9ff57" stroke-width="2" stroke-dasharray="5 5"/><text x="270" y="242" text-anchor="middle">Step back to see the overall path</text>`;
+  if (type === "uptrend") content = `<path d="M40 204L120 132L190 176L280 88L350 132L470 48" fill="none" stroke="#b9ff57" stroke-width="3"/><circle cx="120" cy="132" r="6" fill="#151715" stroke="#b9ff57" stroke-width="2"/><circle cx="190" cy="176" r="6" fill="#151715" stroke="#b9ff57" stroke-width="2"/><circle cx="280" cy="88" r="6" fill="#151715" stroke="#b9ff57" stroke-width="2"/><circle cx="350" cy="132" r="6" fill="#151715" stroke="#b9ff57" stroke-width="2"/><text x="120" y="116" text-anchor="middle">High</text><text x="190" y="198" text-anchor="middle">Higher low</text><text x="280" y="72" text-anchor="middle">Higher high</text><text x="350" y="154" text-anchor="middle">Higher low</text>`;
+  if (type === "downtrend") content = `<path d="M40 54L120 126L190 82L280 170L350 128L470 218" fill="none" stroke="#ff7a7a" stroke-width="3"/><circle cx="120" cy="126" r="6" fill="#151715" stroke="#ff7a7a" stroke-width="2"/><circle cx="190" cy="82" r="6" fill="#151715" stroke="#ff7a7a" stroke-width="2"/><circle cx="280" cy="170" r="6" fill="#151715" stroke="#ff7a7a" stroke-width="2"/><circle cx="350" cy="128" r="6" fill="#151715" stroke="#ff7a7a" stroke-width="2"/><text x="120" y="148" text-anchor="middle">Low</text><text x="190" y="66" text-anchor="middle">Lower high</text><text x="280" y="192" text-anchor="middle">Lower low</text><text x="350" y="112" text-anchor="middle">Lower high</text>`;
+  if (type === "candlestick-intro") content = `
+    <text x="122" y="30" text-anchor="middle">Price moves during the period</text>
+    <path class="price-path" d="M34 166 C60 148 76 102 104 116 S142 196 172 202 S214 132 240 145 S270 72 302 84" fill="none"/>
+    <circle cx="34" cy="166" r="5" fill="#151715" stroke="#b9ff57" stroke-width="2"/>
+    <circle cx="172" cy="202" r="5" fill="#151715" stroke="#b9ff57" stroke-width="2"/>
+    <circle cx="270" cy="72" r="5" fill="#151715" stroke="#b9ff57" stroke-width="2"/>
+    <circle cx="302" cy="84" r="5" fill="#151715" stroke="#b9ff57" stroke-width="2"/>
+    <text x="24" y="184">Open</text><text x="151" y="222">Low</text><text x="254" y="58">High</text><text x="308" y="87">Close</text>
+    <path d="M330 138H365" stroke="#b9ff57" stroke-width="2"/><path d="M356 130L367 138L356 146" fill="none" stroke="#b9ff57" stroke-width="2"/>
+    <text x="440" y="30" text-anchor="middle">Becomes one candlestick</text>
+    ${candle(430, 166, 84, 72, 202, "#b9ff57", "", 48)}
+    <path d="M456 72H486M456 84H486M456 166H486M456 202H486" stroke="#858b85"/>
+    <text x="530" y="76" text-anchor="end">High</text><text x="530" y="90" text-anchor="end">Close</text><text x="530" y="170" text-anchor="end">Open</text><text x="530" y="206" text-anchor="end">Low</text>`;
+  if (type === "candle-body") content = `
+    <text x="140" y="28" text-anchor="middle">Green candle</text>
+    ${candle(140, 184, 76, 52, 210, "#b9ff57", "", 58)}
+    <path d="M82 76H105M82 184H105" stroke="#858b85"/>
+    <text x="28" y="80">Close</text><text x="28" y="188">Open</text>
+    <path d="M106 130H174" stroke="#ffffff" stroke-width="2"/>
+    <text x="140" y="126" text-anchor="middle">Body</text>
+    <text x="140" y="238" text-anchor="middle">Finished higher</text>
+    <path d="M270 35V230" stroke="#626862" stroke-dasharray="5 6"/>
+    <text x="400" y="28" text-anchor="middle">Red candle</text>
+    ${candle(400, 76, 184, 52, 210, "#ff7a7a", "", 58)}
+    <path d="M435 76H458M435 184H458" stroke="#858b85"/>
+    <text x="464" y="80">Open</text><text x="464" y="188">Close</text>
+    <path d="M366 130H434" stroke="#ffffff" stroke-width="2"/>
+    <text x="400" y="126" text-anchor="middle">Body</text>
+    <text x="400" y="238" text-anchor="middle">Finished lower</text>`;
+  if (type === "candle-anatomy") content = `
+    ${candle(270, 176, 88, 42, 224, "#b9ff57", "", 70)}
+    <path d="M306 42H376M306 88H376M306 176H376M306 224H376" stroke="#858b85"/>
+    <text x="528" y="47" text-anchor="end">HIGH · highest price</text>
+    <text x="528" y="93" text-anchor="end">CLOSE · finishing price</text>
+    <text x="528" y="181" text-anchor="end">OPEN · starting price</text>
+    <text x="528" y="229" text-anchor="end">LOW · lowest price</text>
+    <path d="M132 42H250M132 88H232M132 176H232M132 224H250" stroke="#626862" stroke-dasharray="4 4"/>
+    <text x="22" y="47">Upper wick</text><text x="22" y="136">Candle body</text><text x="22" y="229">Lower wick</text>
+    <path d="M112 132H230" stroke="#ffffff" stroke-width="2"/>`;
+  if (type === "price-to-candle") content = `<path class="price-path" d="M38 158 C76 138 86 98 124 112 S170 190 212 202 S270 132 304 145 S355 72 410 84" fill="none"/><g class="price-points"><circle cx="38" cy="158" r="5"/><circle cx="212" cy="202" r="5"/><circle cx="355" cy="72" r="5"/><circle cx="410" cy="84" r="5"/></g><text x="25" y="145">Open</text><text x="184" y="224">Low</text><text x="338" y="58">High</text><text x="416" y="82">Close</text><path d="M430 55V215" stroke="#626862" stroke-dasharray="4 5"/>${candle(460, 158, 84, 72, 202, "#b9ff57", "Result", 30)}`;
+  if (type === "ohlc-story") content = `${sequence(42, 20)}<rect x="368" y="32" width="72" height="196" rx="8" fill="none" stroke="#b9ff57" stroke-width="2"/><text x="334" y="28">Focus candle</text><path d="M442 48H468M442 84H468M442 158H468M442 208H468" stroke="#7d847d"/><text x="472" y="53">High</text><text x="472" y="89">Close</text><text x="472" y="163">Open</text><text x="472" y="213">Low</text>`;
+  if (type === "timeframe") content = `${candle(48, 164, 146, 134, 180, "#b9ff57", "5m", 20)}${candle(92, 148, 118, 105, 159, "#b9ff57", "5m", 20)}${candle(136, 120, 136, 110, 151, "#ff7a7a", "5m", 20)}${candle(180, 138, 96, 82, 146, "#b9ff57", "5m", 20)}${candle(224, 98, 108, 88, 124, "#ff7a7a", "5m", 20)}${candle(268, 110, 72, 60, 119, "#b9ff57", "5m", 20)}<path d="M305 42V218" stroke="#626862" stroke-dasharray="5 6"/><path d="M322 136H354" stroke="#b9ff57" stroke-width="2"/><path d="M345 128L356 136L345 144" fill="none" stroke="#b9ff57" stroke-width="2"/>${candle(410, 164, 72, 60, 180, "#b9ff57", "30m", 48)}<text x="156" y="32">Six smaller candles</text><text x="410" y="32" text-anchor="middle">One combined candle</text>`;
+  if (type === "proportions") content = `${candle(70, 188, 72, 60, 205, "#b9ff57", "Control", 34)}${candle(190, 142, 126, 55, 215, "#b9ff57", "Indecision", 34)}${candle(310, 188, 118, 48, 205, "#b9ff57", "Giveback", 34)}${candle(430, 88, 174, 60, 205, "#ff7a7a", "Seller control", 34)}<path d="M48 222H92M168 222H212M288 222H332M408 222H452" stroke="#626862"/>`;
+  if (type === "anatomy") content = `${candle(210, 155, 75, 35, 215, "#b9ff57")}<text x="275" y="82">Close</text><line x1="235" y1="76" x2="265" y2="76"/><text x="275" y="162">Open</text><line x1="235" y1="156" x2="265" y2="156"/><text x="275" y="40">High</text><text x="275" y="220">Low</text><text x="95" y="118">Body</text><line x1="135" y1="115" x2="180" y2="115"/><text x="100" y="55">Upper wick</text><text x="100" y="205">Lower wick</text>`;
+  if (type === "direction") content = `${candle(145, 175, 70, 40, 210, "#b9ff57", "Bullish")}${candle(355, 70, 175, 40, 210, "#ff7a7a", "Bearish")}`;
+  if (type === "rejection") content = `${candle(250, 125, 85, 55, 225, "#b9ff57")}<path d="M330 205 L285 205" stroke="#b9ff57" stroke-width="3"/><text x="340" y="210">Buyers reject lower prices</text>`;
+  if (type === "momentum") content = `${candle(80, 145, 125, 105, 165, "#b9ff57")}${candle(150, 130, 150, 110, 170, "#ff7a7a")}${candle(220, 145, 120, 100, 165, "#b9ff57")}${candle(310, 160, 65, 45, 180, "#b9ff57")}${candle(390, 70, 48, 35, 90, "#b9ff57")}<text x="145" y="230">Compression</text><text x="335" y="230">Expansion</text>`;
+  if (type === "closes") content = `${candle(150, 180, 60, 45, 205, "#b9ff57", "Strong close")}${candle(365, 180, 115, 45, 205, "#b9ff57", "Weak close")}<path d="M390 50L390 105" stroke="#ff7a7a" stroke-width="3"/><text x="420" y="78">Giveback</text>`;
+  if (type === "doji") content = `${candle(110, 170, 100, 75, 195, "#b9ff57")}${candle(200, 105, 102, 65, 145, "#eeeeee", "Doji")}${candle(290, 105, 160, 80, 185, "#ff7a7a")}<text x="200" y="225">Open ≈ close</text>`;
+  if (type === "patterns") content = `${candle(95, 105, 145, 80, 165, "#ff7a7a")}${candle(165, 155, 65, 45, 175, "#b9ff57")}<text x="130" y="225">Engulfing</text>${candle(340, 70, 165, 45, 190, "#ff7a7a")}${candle(410, 110, 135, 90, 155, "#b9ff57")}<text x="375" y="225">Inside bar</text>`;
+  if (type === "context" || type === "question-context") content = `<rect x="25" y="175" width="470" height="30" fill="rgba(185,255,87,.08)"/><line x1="25" y1="175" x2="495" y2="175" stroke="#b9ff57" stroke-dasharray="7 7"/><text x="35" y="195">Tested support</text>${candle(90, 90, 130, 70, 155, "#ff7a7a")}${candle(165, 125, 155, 105, 175, "#ff7a7a")}${candle(250, 150, 112, 90, 215, "#b9ff57")}${candle(335, 115, 75, 55, 135, "#b9ff57")}${candle(420, 80, 55, 40, 100, "#b9ff57")}`;
+  if (type === "question-control") content = `${candle(110, 180, 110, 45, 205, "#b9ff57", "A")}${candle(250, 185, 55, 45, 205, "#b9ff57", "B")}${candle(390, 130, 115, 75, 170, "#b9ff57", "C")}`;
+  if (type === "question-inside") content = `${candle(115, 70, 185, 45, 210, "#ff7a7a")}${candle(210, 135, 110, 95, 165, "#b9ff57")}${candle(290, 120, 140, 105, 155, "#ff7a7a")}${candle(365, 132, 122, 112, 148, "#b9ff57")}<path d="M170 45V210M170 45H405M170 210H405" stroke="#eeeeee" stroke-dasharray="5 6" fill="none"/><text x="270" y="235">Ranges contract inside the first candle</text>`;
+  if (type === "question-range") content = `<rect x="25" y="65" width="470" height="125" fill="rgba(255,255,255,.025)" stroke="#777" stroke-dasharray="6 7"/><text x="35" y="55">Choppy range</text>${candle(80, 105, 140, 80, 165, "#ff7a7a")}${candle(145, 145, 95, 75, 170, "#b9ff57")}${candle(210, 100, 135, 80, 155, "#ff7a7a")}${candle(285, 140, 85, 70, 160, "#b9ff57")}${candle(360, 90, 130, 75, 150, "#ff7a7a")}${candle(430, 130, 100, 80, 155, "#b9ff57")}`;
+  const noGrid = ["market-price", "candlestick-intro", "candle-body", "candle-anatomy", "line-v-candles"].includes(type);
+  return `<svg class="training-chart" viewBox="0 0 540 280" role="img" aria-label="Candlestick lesson diagram">${noGrid ? "" : `<g class="chart-grid"><path d="M20 50H520M20 100H520M20 150H520M20 200H520M50 24V238M150 24V238M250 24V238M350 24V238M450 24V238"/></g>`}${content}${["ohlc-story"].includes(type) ? axes : ""}</svg>`;
+}
+
+function getActiveTrainingSteps() {
+  return TRAINING_STEP_MAP[activeTrainingChapterId] || [];
+}
+
+function getTrainingProgress(chapterId = activeTrainingChapterId) {
+  return appConfig.trainingProgress[chapterId] || { answers: {}, completed: false, step: 0 };
+}
+
+function openTrainingWorkspace(chapterId = activeTrainingChapterId) {
+  activeTrainingChapterId = chapterId;
+  const steps = getActiveTrainingSteps();
+  trainingStepIndex = Math.min(steps.length - 1, Math.max(0, Number(getTrainingProgress().step) || 0));
+  trainingWorkspaceOpen = true;
+  trainingHome.classList.add("hidden");
+  trainingLessonWorkspace.classList.remove("hidden");
+  renderTraining();
+}
+
+function showTrainingHome() {
+  trainingWorkspaceOpen = false;
+  trainingHome.classList.remove("hidden");
+  trainingLessonWorkspace.classList.add("hidden");
+  renderTraining();
+}
+
+function renderTraining() {
+  if (!trainingContent) return;
+  const progress = getTrainingProgress();
+  const completedChapters = TRAINING_CHAPTERS.filter((chapter) => getTrainingProgress(chapter.id).completed).length;
+  const coursePercent = Math.round((completedChapters / TRAINING_CHAPTERS.length) * 100);
+  trainingCourseProgress.textContent = `${coursePercent}%`;
+  trainingCourseProgressBar.style.width = `${coursePercent}%`;
+  continueTrainingButton.textContent = progress.completed ? "Review chapter" : progress.step ? "Continue learning" : "Start learning";
+  trainingChapterGrid.innerHTML = TRAINING_CHAPTERS.map((chapter) => {
+    const chapterIndex = TRAINING_CHAPTERS.findIndex((item) => item.id === chapter.id);
+    const available = Boolean(TRAINING_STEP_MAP[chapter.id]) && (chapterIndex === 0 || getTrainingProgress(TRAINING_CHAPTERS[chapterIndex - 1].id).completed);
+    const chapterProgress = getTrainingProgress(chapter.id);
+    const chapterSteps = TRAINING_STEP_MAP[chapter.id] || [];
+    const chapterPercent = chapterProgress.completed ? 100 : Math.round(((chapterProgress.step || 0) / Math.max(1, chapterSteps.length)) * 100);
+    return `<article class="training-chapter-card ${available ? "" : "locked"}">
+      <div class="training-chapter-visual">${trainingCandleSvg(chapter.id === TRAINING_MODULE_ID ? "patterns" : chapter.id === "single-candle-patterns" ? "doji" : chapter.id === "multi-candle-patterns" ? "patterns" : "context")}</div>
+      <div class="training-chapter-content">
+        <div class="training-chapter-heading"><span>Chapter ${chapter.number}</span><small>${available ? `${chapterPercent}% complete` : "Coming next"}</small></div>
+        <h3>${escapeHtml(chapter.title)}</h3><p>${escapeHtml(chapter.description)}</p>
+        <div class="training-topic-list">${chapter.topics.map((topic) => `<span>${escapeHtml(topic)}</span>`).join("")}</div>
+        <div class="training-chapter-footer"><span>${chapter.lessons} lessons · ${chapter.duration}</span><button type="button" data-training-chapter="${chapter.id}" ${available ? "" : "disabled"}>${available ? (chapterProgress.completed ? "Review" : chapterProgress.step ? "Continue" : "Start chapter") : "Locked"}</button></div>
+      </div>
+    </article>`;
+  }).join("");
+  if (!trainingWorkspaceOpen) return;
+  const steps = getActiveTrainingSteps();
+  const step = steps[trainingStepIndex];
+  const activeChapter = TRAINING_CHAPTERS.find((chapter) => chapter.id === activeTrainingChapterId);
+  const railEyebrow = trainingLessonWorkspace.querySelector(".training-rail .eyebrow");
+  const railTitle = trainingLessonWorkspace.querySelector(".training-rail h2");
+  const railDescription = trainingLessonWorkspace.querySelector(".training-rail h2 + p");
+  if (activeChapter && railEyebrow && railTitle && railDescription) {
+    railEyebrow.textContent = `Chapter ${activeChapter.number}`;
+    railTitle.textContent = activeChapter.title;
+    railDescription.textContent = activeChapter.description;
+  }
+  const score = Object.entries(progress.answers || {}).filter(([index, answer]) => Number(answer) === steps[Number(index)]?.answer).length;
+  trainingProgressBar.style.width = `${((trainingStepIndex + 1) / steps.length) * 100}%`;
+  const questionCount = steps.filter((item) => item.type === "question").length;
+  trainingScore.textContent = `${score} / ${questionCount}`;
+  trainingStepLabel.textContent = `${step.type === "question" ? "Knowledge Check" : "Lesson"} ${trainingStepIndex + 1} of ${steps.length}`;
+  trainingTitle.textContent = step.title;
+  trainingStepList.innerHTML = steps.map((item, index) => `<li class="${index === trainingStepIndex ? "active" : ""} ${index < trainingStepIndex || progress.completed ? "complete" : ""}"><button type="button" data-training-step="${index}"><span>${index + 1}</span>${escapeHtml(item.title)}</button></li>`).join("");
+  trainingContent.innerHTML = `${trainingCandleSvg(step.visual)}<div class="training-copy"><p>${escapeHtml(step.body || step.prompt)}</p>${
+    step.type === "question"
+      ? `<div class="training-options">${step.options.map((option, index) => `<button type="button" data-training-answer="${index}" class="${Number(progress.answers?.[trainingStepIndex]) === index ? "selected" : ""}">${escapeHtml(option)}</button>`).join("")}</div>`
+      : `<div class="training-key-points">${step.points.map((point) => `<span>${escapeHtml(point)}</span>`).join("")}</div>
+        ${
+          activeTrainingChapterId === TRAINING_MODULE_ID && FUNDAMENTAL_LESSON_GUIDES[step.visual]
+            ? `<div class="training-deep-dive">${FUNDAMENTAL_LESSON_GUIDES[step.visual].map(([title, text], index) => `<details ${index === 0 ? "open" : ""}><summary>${escapeHtml(title)}</summary><p>${escapeHtml(text)}</p></details>`).join("")}</div>`
+            : ""
+        }`
+  }</div>`;
+  const selectedAnswer = progress.answers?.[trainingStepIndex];
+  trainingFeedback.classList.toggle("hidden", selectedAnswer === undefined);
+  if (selectedAnswer !== undefined) {
+    const correct = Number(selectedAnswer) === step.answer;
+    trainingFeedback.className = `training-feedback ${correct ? "correct" : "incorrect"}`;
+    trainingFeedback.innerHTML = `<strong>${correct ? "Correct" : "Not quite"}</strong><span>${escapeHtml(step.explanation)}</span>`;
+  }
+  trainingBackButton.disabled = trainingStepIndex === 0;
+  trainingNextButton.disabled = step.type === "question" && selectedAnswer === undefined;
+  trainingNextButton.textContent = trainingStepIndex === steps.length - 1 ? "Complete chapter" : "Continue";
+}
+
+function getWeeklyReviewContext() {
+  const weekdays = getWeekdays(new Date(), reviewWeekOffset);
+  const startKey = weekdays[0].key;
+  const end = new Date(weekdays[0].date);
+  end.setDate(end.getDate() + 6);
+  const endKey = toDateKey(end);
+  const weekTrades = trades.filter((trade) => trade.tradeDate >= startKey && trade.tradeDate <= endKey);
+  return { weekdays, startKey, end, endKey, weekTrades };
+}
+
+function getTopReviewValue(weekTrades, key) {
+  const totals = new Map();
+  weekTrades.forEach((trade) => {
+    const value = trade[key] || "-";
+    const current = totals.get(value) || { amount: 0, trades: 0 };
+    current.amount += getTradeAmount(trade);
+    current.trades += 1;
+    totals.set(value, current);
+  });
+  return [...totals.entries()].sort((a, b) => b[1].amount - a[1].amount)[0];
+}
+
+function renderWeeklyReview() {
+  if (!reviewSummaryGrid) return;
+  const { weekdays, startKey, end, weekTrades } = getWeeklyReviewContext();
+  const wins = weekTrades.filter((trade) => trade.outcome === "Win").length;
+  const losses = weekTrades.filter((trade) => trade.outcome === "Loss").length;
+  const amount = weekTrades.reduce((total, trade) => total + getTradeAmount(trade), 0);
+  const points = weekTrades.reduce((total, trade) => total + (getTradePoints(trade) || 0), 0);
+  const breaches = weekTrades.reduce((total, trade) => total + (trade.ruleBreaches?.length || 0), 0);
+  const bestStrategy = getTopReviewValue(weekTrades, "strategy");
+  const bestSymbol = getTopReviewValue(weekTrades, "symbol");
+  const mistakes = DISCIPLINE_RULES.filter((rule) => !rule.positive)
+    .map((rule) => ({ label: rule.label, count: weekTrades.filter((trade) => getTradeDiscipline(trade)[rule.key]).length }))
+    .sort((a, b) => b.count - a.count);
+  reviewWeekRange.textContent = `${formatShortDate(weekdays[0].date)} - ${formatShortDate(end)}`;
+  reviewSummaryGrid.innerHTML = [
+    ["Trades", weekTrades.length],
+    ["P/L", formatSummaryAmount(amount)],
+    ["Win Rate", `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`],
+    ["Points", formatPoints(points)],
+    ["Rule Breaches", breaches],
+  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  reviewInsights.innerHTML = `
+    <div><span>Best strategy</span><strong>${escapeHtml(bestStrategy?.[0] || "-")}</strong><small>${bestStrategy ? formatSummaryAmount(bestStrategy[1].amount) : "No data"}</small></div>
+    <div><span>Best symbol</span><strong>${escapeHtml(bestSymbol?.[0] || "-")}</strong><small>${bestSymbol ? formatSummaryAmount(bestSymbol[1].amount) : "No data"}</small></div>
+    <div><span>Most common mistake</span><strong>${escapeHtml(mistakes[0]?.count ? mistakes[0].label : "-")}</strong><small>${mistakes[0]?.count || 0} recorded</small></div>
+    <div><span>Continued after warning</span><strong>${weekTrades.filter((trade) => trade.continuedAfterRuleWarnings?.length).length}</strong><small>trades</small></div>
+  `;
+  reviewTradesList.innerHTML = weekTrades.length
+    ? weekTrades.slice().sort((a, b) => b.tradeDate.localeCompare(a.tradeDate)).map((trade) => `<button type="button" data-review-trade="${trade.id}"><span>${escapeHtml(trade.tradeDate)} · ${escapeHtml(trade.symbol)}</span><strong class="${getTradeAmount(trade) > 0 ? "amount-win" : getTradeAmount(trade) < 0 ? "amount-loss" : ""}">${formatSummaryAmount(getTradeAmount(trade))}</strong></button>`).join("")
+    : '<p class="muted">No trades recorded for this week.</p>';
+  const review = appConfig.weeklyReviews[startKey] || {};
+  ["wentWell", "improve", "lesson", "nextFocus", "rating"].forEach((name) => { weeklyReviewForm.elements[name].value = review[name] || ""; });
+  saveWeeklyReviewButton.textContent = review.completedAt ? "Update review" : "Complete review";
+  const currentWeekKey = getWeekdays()[0].key;
+  reviewTabStatus.classList.toggle("hidden", Boolean(appConfig.weeklyReviews[currentWeekKey]?.completedAt));
+}
+
+function openWeeklyReview() {
+  renderWeeklyReview();
+  weeklyReviewDrawer.classList.remove("hidden", "is-closing");
+  weeklyReviewBackdrop.classList.remove("hidden", "is-closing");
+  document.body.classList.add("modal-open");
+}
+
+function closeWeeklyReview() {
+  if (weeklyReviewDrawer.classList.contains("hidden")) return;
+  weeklyReviewDrawer.classList.add("is-closing");
+  weeklyReviewBackdrop.classList.add("is-closing");
+  window.setTimeout(() => {
+    weeklyReviewDrawer.classList.add("hidden");
+    weeklyReviewDrawer.classList.remove("is-closing");
+    weeklyReviewBackdrop.classList.add("hidden");
+    weeklyReviewBackdrop.classList.remove("is-closing");
+    document.body.classList.remove("modal-open");
+  }, MOTION_DURATION_MS);
 }
 
 function renderConfig() {
@@ -2010,9 +2692,10 @@ function renderConfig() {
 
   const marketSection = document.createElement("section");
   marketSection.className = "config-section";
+  marketSection.dataset.configPanel = "markets";
   marketSection.innerHTML = `
     <div class="config-section-heading">
-      <h3>Market Types</h3>
+      <h3>Market Type(s)</h3>
     </div>
     <div class="market-type-config">
       ${MARKET_TYPE_OPTIONS.map(
@@ -2032,11 +2715,12 @@ function renderConfig() {
 
   const sessionTrackingSection = document.createElement("section");
   sessionTrackingSection.className = "config-section";
+  sessionTrackingSection.dataset.configPanel = "sessions";
   sessionTrackingSection.innerHTML = `
     <div class="config-section-heading">
-      <h3>Sessions</h3>
+      <h3>Session(s)</h3>
     </div>
-    <p class="config-note">Track sessions if you want to compare trades by time context, such as Asia, London, New York, or N/A. Skip this if sessions are not part of your process.</p>
+    <p class="config-note">Track sessions if you want to compare trades by time context. N/A is always available for setup-based trades outside a session.</p>
     <div class="market-type-config">
       <label class="toggle-option config-session-toggle">
         <input type="checkbox" data-track-sessions-toggle ${appConfig.trackSessions ? "checked" : ""} />
@@ -2049,12 +2733,13 @@ function renderConfig() {
   appConfig.marketTypes.forEach((marketType) => {
     const section = document.createElement("section");
     section.className = "config-section";
+    section.dataset.configPanel = "symbols";
     section.dataset.configKey = "symbolsByMarket";
     section.dataset.marketType = marketType;
     const symbols = getSymbolsForMarket(marketType);
     section.innerHTML = `
       <div class="config-section-heading">
-        <h3>${escapeHtml(marketType)} Symbols</h3>
+        <h3>${escapeHtml(marketType)} Symbol(s)</h3>
         <div class="config-add-row">
           <input type="text" placeholder="Add ${escapeHtml(marketType.toLowerCase())} symbol" aria-label="Add ${escapeHtml(marketType)} symbol" />
           <button class="ghost-button" type="button" data-config-action="add" data-config-key="symbolsByMarket" data-market-type="${escapeHtml(marketType)}">Add</button>
@@ -2083,10 +2768,11 @@ function renderConfig() {
   if (appConfig.trackSessions) {
     const sessionSection = document.createElement("section");
     sessionSection.className = "config-section";
+    sessionSection.dataset.configPanel = "sessions";
     sessionSection.dataset.configKey = "sessions";
     sessionSection.innerHTML = `
       <div class="config-section-heading">
-        <h3>Session Values</h3>
+        <h3>Session Value(s)</h3>
         <div class="config-add-row">
           <input type="text" placeholder="Add session" aria-label="Add Session" />
           <button class="ghost-button" type="button" data-config-action="add" data-config-key="sessions">Add</button>
@@ -2094,8 +2780,8 @@ function renderConfig() {
       </div>
       <div class="config-list">
         ${
-          appConfig.sessions.length
-            ? appConfig.sessions
+          appConfig.sessions.filter((option) => option !== NO_SPECIFIC_SESSION).length
+            ? appConfig.sessions.filter((option) => option !== NO_SPECIFIC_SESSION)
                 .map(
                   (option) => `
                     <span class="config-pill">
@@ -2115,10 +2801,11 @@ function renderConfig() {
   CONFIG_FIELDS.forEach((field) => {
     const section = document.createElement("section");
     section.className = "config-section";
+    section.dataset.configPanel = field.key === "accounts" ? "accounts" : "strategies";
     section.dataset.configKey = field.key;
     section.innerHTML = `
       <div class="config-section-heading">
-        <h3>${escapeHtml(field.label)}</h3>
+        <h3>${escapeHtml(field.label)}(s)</h3>
         <div class="config-add-row">
           <input type="text" placeholder="Add ${escapeHtml(field.label.toLowerCase())}" aria-label="Add ${escapeHtml(field.label)}" />
           <button class="ghost-button" type="button" data-config-action="add" data-config-key="${field.key}">Add</button>
@@ -2144,11 +2831,95 @@ function renderConfig() {
     configGrid.appendChild(section);
   });
 
+  const rulesSection = document.createElement("section");
+  rulesSection.className = "config-section";
+  rulesSection.dataset.configPanel = "rules";
+  rulesSection.dataset.configKey = "checklistRules";
+  rulesSection.innerHTML = `
+    <div class="config-section-heading">
+      <div>
+        <h3>Personal Checklist</h3>
+        <p class="config-note">Add personal checks to confirm on each trade.</p>
+      </div>
+      <div class="config-add-row">
+        <input type="text" placeholder="Add checklist item" aria-label="Add Checklist Item" />
+        <button class="ghost-button" type="button" data-config-action="add" data-config-key="checklistRules">Add</button>
+      </div>
+    </div>
+    <div class="config-list">
+      ${
+        appConfig.checklistRules.length
+          ? appConfig.checklistRules
+              .map(
+                (rule) => `
+                  <span class="config-pill">
+                    ${escapeHtml(rule)}
+                    <button type="button" aria-label="Remove ${escapeHtml(rule)}" data-config-action="remove" data-config-key="checklistRules" data-config-value="${escapeHtml(rule)}">x</button>
+                  </span>
+                `,
+              )
+              .join("")
+          : '<span class="muted">No checklist items added yet.</span>'
+      }
+    </div>
+  `;
+  configGrid.appendChild(rulesSection);
+
+  const automatedRulesSection = document.createElement("section");
+  automatedRulesSection.className = "config-section";
+  automatedRulesSection.dataset.configPanel = "rules";
+  automatedRulesSection.innerHTML = `
+    <div class="config-section-heading">
+      <div>
+        <h3>Automated Rules</h3>
+        <p class="config-note">The app checks these limits whenever a trade is added.</p>
+      </div>
+      <div class="config-add-row automated-rule-add">
+        <select aria-label="Automated rule type" data-automated-rule-type>
+          ${AUTOMATED_RULE_TYPES.map((rule) => `<option value="${rule.key}">${rule.label}</option>`).join("")}
+        </select>
+        <input type="number" min="1" step="1" value="1" aria-label="Rule limit" data-automated-rule-value />
+        <button class="ghost-button" type="button" data-automated-rule-add>Add</button>
+      </div>
+    </div>
+    <div class="config-list">
+      ${
+        appConfig.automatedRules.length
+          ? appConfig.automatedRules.map((rule) => {
+              const definition = AUTOMATED_RULE_TYPES.find((item) => item.key === rule.type);
+              return `<span class="config-pill">${escapeHtml(definition?.label || rule.type)}: ${escapeHtml(rule.value)}
+                <button type="button" aria-label="Remove rule" data-automated-rule-remove="${escapeHtml(rule.type)}">x</button>
+              </span>`;
+            }).join("")
+          : '<span class="muted">No automated limits added yet.</span>'
+      }
+    </div>
+  `;
+  configGrid.appendChild(automatedRulesSection);
+
+  const planRestrictionsSection = document.createElement("section");
+  planRestrictionsSection.className = "config-section";
+  planRestrictionsSection.dataset.configPanel = "rules";
+  planRestrictionsSection.classList.add("rule-restrictions-section");
+  planRestrictionsSection.innerHTML = `
+    <div class="config-section-heading">
+      <div>
+        <h3>Days I Do Not Trade</h3>
+        <p class="config-note">Optional. The app will warn you before adding a trade on any selected day.</p>
+      </div>
+    </div>
+    <div class="blocked-days-grid">
+      ${TRADING_DAYS.map((day) => `<label class="blocked-day-option"><input type="checkbox" data-rule-restriction="blockedTradingDays" value="${day}" ${appConfig.blockedTradingDays.includes(day) ? "checked" : ""} /><span><strong>${day.slice(0, 3)}</strong><small>${day}</small></span></label>`).join("")}
+    </div>
+  `;
+  configGrid.appendChild(planRestrictionsSection);
+
   const balanceSection = document.createElement("section");
   balanceSection.className = "config-section";
+  balanceSection.dataset.configPanel = "accounts";
   balanceSection.innerHTML = `
     <div class="config-section-heading">
-      <h3>Starting Balances</h3>
+      <h3>Starting Balance(s)</h3>
     </div>
     <div class="balance-config-list">
       ${
@@ -2175,6 +2946,17 @@ function renderConfig() {
     </div>
   `;
   configGrid.appendChild(balanceSection);
+  showConfigTab(activeConfigTab);
+}
+
+function showConfigTab(tabName) {
+  activeConfigTab = tabName;
+  configTabs.querySelectorAll("[data-config-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.configTab === tabName);
+  });
+  configGrid.querySelectorAll("[data-config-panel]").forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.configPanel !== tabName);
+  });
 }
 
 function openConfigModal() {
@@ -2448,7 +3230,7 @@ function renderOnboardingWizard() {
           <input type="radio" name="wizardSessionTracking" value="yes" data-wizard-session-tracking ${onboardingDraft.trackSessions === true ? "checked" : ""} />
           <span>
             <strong>Track sessions</strong>
-            <small>Show Session in trades, filters, table columns, and analytics. Useful for Asia, London, New York, or N/A tracking.</small>
+            <small>Show Session in trades, filters, table columns, and analytics. Setup-based trades can use N/A.</small>
           </span>
         </label>
         <label class="wizard-option-card">
@@ -2572,7 +3354,7 @@ function persistWizardStep() {
       showToast("Choose at least one session", "warning");
       return false;
     }
-    onboardingDraft.sessions = normalizeOptions(selected, []);
+    onboardingDraft.sessions = normalizeSessions(selected, []);
     return true;
   }
 
@@ -2638,6 +3420,11 @@ function addWizardValue(builder, input) {
     input.focus();
     return;
   }
+  if (key === "strategies" && values.some((value) => value.toUpperCase() === "N/A")) {
+    showToast("N/A is only available for sessions.", "warning");
+    input.focus();
+    return;
+  }
 
   if (key === "symbols") {
     const current = onboardingDraft.symbolsByMarket?.[marketType] || [];
@@ -2692,12 +3479,17 @@ function saveOnboardingWizard() {
   appConfig = {
     symbols: flattenSymbolsByMarket(symbolsByMarket),
     symbolsByMarket,
-    sessions: onboardingDraft.trackSessions ? normalizeOptions(onboardingDraft.sessions, []) : [],
+    sessions: onboardingDraft.trackSessions ? normalizeSessions(onboardingDraft.sessions, []) : [],
     trackSessions: Boolean(onboardingDraft.trackSessions),
     accounts: normalizeOptions(onboardingDraft.accounts, []),
-    strategies: normalizeOptions(onboardingDraft.strategies, []),
+    strategies: normalizeStrategies(onboardingDraft.strategies, []),
     marketTypes: normalizeMarketTypes(onboardingDraft.marketTypes),
     accountBalances: normalizeAccountBalances(onboardingDraft.accountBalances, onboardingDraft.accounts),
+    checklistRules: normalizeOptions(appConfig.checklistRules, DEFAULT_CONFIG.checklistRules),
+    automatedRules: Array.isArray(appConfig.automatedRules) ? appConfig.automatedRules : [],
+    blockedTradingDays: normalizeOptions(appConfig.blockedTradingDays, []),
+    weeklyReviews: appConfig.weeklyReviews && typeof appConfig.weeklyReviews === "object" ? appConfig.weeklyReviews : {},
+    trainingProgress: appConfig.trainingProgress && typeof appConfig.trainingProgress === "object" ? appConfig.trainingProgress : {},
   };
   saveConfig();
   syncConfiguredInputs();
@@ -2709,6 +3501,14 @@ function saveOnboardingWizard() {
 
 function addConfigValue(key, value, marketType = "") {
   const nextValue = value.trim();
+  if (key === "sessions" && (nextValue === NO_SPECIFIC_SESSION || nextValue.toLowerCase() === "no specific session")) {
+    showToast("N/A is added automatically.", "warning");
+    return;
+  }
+  if (key === "strategies" && nextValue.toUpperCase() === "N/A") {
+    showToast("N/A is only available for sessions.", "warning");
+    return;
+  }
   if (key === "symbolsByMarket") {
     const currentSymbols = getSymbolsForMarket(marketType);
     if (!nextValue || currentSymbols.includes(nextValue)) {
@@ -2744,15 +3544,20 @@ function addConfigValue(key, value, marketType = "") {
   showToast("Config value added");
 }
 
-function removeConfigValue(key, value, marketType = "") {
+async function removeConfigValue(key, value, marketType = "") {
   if (key === "symbolsByMarket") {
     const currentSymbols = getSymbolsForMarket(marketType);
     if (currentSymbols.length <= 1) {
-      window.alert(`Keep at least one symbol for ${marketType}.`);
+      showToast(`Keep at least one symbol for ${marketType}.`, "warning");
       return;
     }
 
-    const confirmed = window.confirm(`Remove "${value}" from your ${marketType} symbols?\n\nExisting trades will keep their saved value.`);
+    const confirmed = await askForConfirmation({
+      title: `Remove ${value}?`,
+      message: `Remove "${value}" from your ${marketType} symbols? Existing trades will keep their saved value.`,
+      confirmText: "Remove",
+      tone: "warning",
+    });
     if (!confirmed) {
       return;
     }
@@ -2771,12 +3576,17 @@ function removeConfigValue(key, value, marketType = "") {
     return;
   }
 
-  if (appConfig[key].length <= 1) {
-    window.alert("Keep at least one value in each list.");
+  if (key !== "checklistRules" && appConfig[key].length <= 1) {
+    showToast("Keep at least one value in each list.", "warning");
     return;
   }
 
-  const confirmed = window.confirm(`Remove "${value}" from your ${key} list?\n\nExisting trades will keep their saved value.`);
+  const confirmed = await askForConfirmation({
+    title: `Remove ${value}?`,
+    message: `Remove "${value}" from your ${key} list? Existing trades will keep their saved value.`,
+    confirmText: "Remove",
+    tone: "warning",
+  });
   if (!confirmed) {
     return;
   }
@@ -2870,7 +3680,7 @@ function renderDisciplineBadge(trade) {
 }
 
 function updateModalScrollLock() {
-  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal].some((modal) => modal.open);
+  const hasOpenModal = [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal, confirmModal].some((modal) => modal.open);
   document.body.classList.toggle("modal-open", hasOpenModal);
 }
 
@@ -2903,10 +3713,29 @@ function openTradeModal() {
   form.tradeDate.focus();
 }
 
-function startAddTradeFlow() {
+async function startAddTradeFlow() {
   if (!userConfigComplete()) {
     maybeOpenConfigForNewUser();
     return;
+  }
+
+  const tradeDate = toDateKey(new Date());
+  const reachedRules = getReachedStopRules(tradeDate);
+  const dayRestrictions = getPlanRestrictionBreaches({ tradeDate });
+  const preTradeWarnings = [...reachedRules, ...dayRestrictions];
+  acknowledgedPreTradeRules = [];
+  if (preTradeWarnings.length) {
+    const confirmed = await askForConfirmation({
+      eyebrow: "Trading plan warning",
+      title: `${preTradeWarnings.length} trading ${preTradeWarnings.length === 1 ? "rule needs" : "rules need"} attention`,
+      message: `${preTradeWarnings.map((rule) => rule.label).join(", ")}. Continue and add a trade anyway?`,
+      confirmText: "Continue anyway",
+      tone: "warning",
+    });
+    if (!confirmed) {
+      return;
+    }
+    acknowledgedPreTradeRules = preTradeWarnings.map((rule) => rule.type);
   }
 
   resetForm();
@@ -2916,6 +3745,7 @@ function startAddTradeFlow() {
 function closeTradeModal() {
   closeDialog(tradeModal);
   resetForm();
+  acknowledgedPreTradeRules = [];
 }
 
 function openNoteModal(id) {
@@ -3070,6 +3900,9 @@ function readForm() {
       exitedEarly: form.exitedEarly.checked,
       heldTooLong: form.heldTooLong.checked,
     },
+    tradingRules: readTradingRules(),
+    ruleBreaches: [],
+    continuedAfterRuleWarnings: existingId ? trades.find((trade) => trade.id === existingId)?.continuedAfterRuleWarnings || [] : [...acknowledgedPreTradeRules],
     notes: form.notes.value.trim(),
     createdAt: existingId
       ? trades.find((trade) => trade.id === existingId)?.createdAt
@@ -3129,6 +3962,8 @@ function resetForm() {
     form[rule.key].checked = false;
   });
   disciplineDisclosure.open = false;
+  renderTradingRuleChecklist([]);
+  tradingRulesDisclosure.open = false;
   form.notes.value = "";
   notesDisclosure.open = false;
   formTitle.textContent = "Add trade";
@@ -3142,6 +3977,7 @@ function startEdit(id) {
     return;
   }
 
+  acknowledgedPreTradeRules = [];
   tradeIdInput.value = trade.id;
   editingTradeId = trade.id;
   form.tradeDate.value = trade.tradeDate;
@@ -3169,6 +4005,8 @@ function startEdit(id) {
     form[rule.key].checked = Boolean(discipline[rule.key]);
   });
   disciplineDisclosure.open = DISCIPLINE_RULES.some((rule) => Boolean(discipline[rule.key]));
+  renderTradingRuleChecklist(getTradeRules(trade));
+  tradingRulesDisclosure.open = getTradeRules(trade).length > 0;
   form.notes.value = trade.notes;
   notesDisclosure.open = Boolean(trade.notes);
   formTitle.textContent = "Edit trade";
@@ -3177,15 +4015,19 @@ function startEdit(id) {
   openTradeModal();
 }
 
-function deleteTrade(id) {
+async function deleteTrade(id) {
   const trade = trades.find((item) => item.id === id);
   if (!trade) {
     return;
   }
 
-  const confirmed = window.confirm(
-    `Delete this ${trade.symbol} trade from ${trade.tradeDate}?\n\nThis cannot be undone.`,
-  );
+  const confirmed = await askForConfirmation({
+    eyebrow: "Delete trade",
+    title: `Delete ${trade.symbol} trade?`,
+    message: `Delete this ${trade.symbol} trade from ${trade.tradeDate}? This cannot be undone.`,
+    confirmText: "Delete trade",
+    tone: "danger",
+  });
   if (!confirmed) {
     return;
   }
@@ -3276,14 +4118,30 @@ function exportCsv() {
   showToast("CSV exported");
 }
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const trade = readForm();
   const validationMessage = validateTrade(trade);
   if (validationMessage) {
-    window.alert(validationMessage);
+    showToast(validationMessage, "warning");
     return;
+  }
+
+  trade.ruleBreaches = getAutomatedRuleBreaches(trade);
+  const unacknowledgedBreaches = trade.ruleBreaches.filter((rule) => !trade.continuedAfterRuleWarnings.includes(rule.type));
+  if (unacknowledgedBreaches.length) {
+    const confirmed = await askForConfirmation({
+      eyebrow: "Trading rule warning",
+      title: `${unacknowledgedBreaches.length} rule ${unacknowledgedBreaches.length === 1 ? "limit" : "limits"} reached`,
+      message: `${unacknowledgedBreaches.map((rule) => rule.label).join(", ")}. Add this trade anyway?`,
+      confirmText: "Add anyway",
+      tone: "warning",
+    });
+    if (!confirmed) {
+      return;
+    }
+    trade.continuedAfterRuleWarnings = [...new Set([...trade.continuedAfterRuleWarnings, ...unacknowledgedBreaches.map((rule) => rule.type)])];
   }
 
   const existingIndex = trades.findIndex((item) => item.id === trade.id);
@@ -3300,6 +4158,7 @@ form.addEventListener("submit", (event) => {
   currentTablePage = 1;
   render();
   closeDialog(tradeModal);
+  acknowledgedPreTradeRules = [];
 });
 
 tableBody.addEventListener("click", (event) => {
@@ -3358,6 +4217,17 @@ newsFilterButtons.forEach((button) => {
     renderNewsEvents();
   });
 });
+confirmCancelButton.addEventListener("click", () => resolveConfirmation(false));
+confirmActionButton.addEventListener("click", () => resolveConfirmation(true));
+confirmModal.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  resolveConfirmation(false);
+});
+confirmModal.addEventListener("click", (event) => {
+  if (event.target === confirmModal) {
+    resolveConfirmation(false);
+  }
+});
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
 ["direction", "entryPrice", "exitPrice"].forEach((name) => {
   form[name].addEventListener("input", updatePricePointsPreview);
@@ -3397,6 +4267,8 @@ userMenuButton.addEventListener("click", () => {
   userPopover.classList.toggle("hidden", isOpen);
   userMenuButton.setAttribute("aria-expanded", String(!isOpen));
 });
+hubNewsButton.addEventListener("click", openNewsDrawer);
+hubReviewButton.addEventListener("click", openWeeklyReview);
 prevPageButton.addEventListener("click", () => {
   currentTablePage = Math.max(1, currentTablePage - 1);
   renderTable();
@@ -3408,6 +4280,32 @@ nextPageButton.addEventListener("click", () => {
 exportButton.addEventListener("click", exportCsv);
 
 configGrid.addEventListener("click", (event) => {
+  const automatedAddButton = event.target.closest("[data-automated-rule-add]");
+  if (automatedAddButton) {
+    const section = automatedAddButton.closest(".config-section");
+    const type = section.querySelector("[data-automated-rule-type]").value;
+    const definition = AUTOMATED_RULE_TYPES.find((item) => item.key === type);
+    const value = Number(section.querySelector("[data-automated-rule-value]").value);
+    if (!definition || !Number.isFinite(value) || value < definition.min) {
+      showToast("Enter a valid rule limit.", "warning");
+      return;
+    }
+    appConfig.automatedRules = [...appConfig.automatedRules.filter((rule) => rule.type !== type), { type, value }];
+    saveConfig();
+    renderConfig();
+    showToast("Automated rule saved");
+    return;
+  }
+
+  const automatedRemoveButton = event.target.closest("[data-automated-rule-remove]");
+  if (automatedRemoveButton) {
+    appConfig.automatedRules = appConfig.automatedRules.filter((rule) => rule.type !== automatedRemoveButton.dataset.automatedRuleRemove);
+    saveConfig();
+    renderConfig();
+    showToast("Automated rule removed", "warning");
+    return;
+  }
+
   const button = event.target.closest("button[data-config-action]");
   if (!button) {
     return;
@@ -3426,10 +4324,30 @@ configGrid.addEventListener("click", (event) => {
 });
 
 configGrid.addEventListener("change", (event) => {
+  const restriction = event.target.closest("[data-rule-restriction]");
+  if (!restriction) return;
+  const key = restriction.dataset.ruleRestriction;
+  appConfig[key] = [...configGrid.querySelectorAll(`[data-rule-restriction="${key}"]:checked`)].map((input) => input.value);
+  saveConfig();
+  showToast("Trading restriction saved");
+});
+
+configGrid.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-automated-rule-type]");
+  if (!select) {
+    return;
+  }
+  const definition = AUTOMATED_RULE_TYPES.find((item) => item.key === select.value);
+  const input = select.closest(".config-section").querySelector("[data-automated-rule-value]");
+  input.min = String(definition.min);
+  input.step = String(definition.step);
+});
+
+configGrid.addEventListener("change", (event) => {
   if (event.target.matches("[data-track-sessions-toggle]")) {
     appConfig.trackSessions = event.target.checked;
-    if (appConfig.trackSessions && !appConfig.sessions.length) {
-      appConfig.sessions = [...DEFAULT_SESSION_OPTIONS];
+    if (appConfig.trackSessions) {
+      appConfig.sessions = normalizeSessions(appConfig.sessions, DEFAULT_SESSION_OPTIONS);
     }
     if (!appConfig.trackSessions) {
       appConfig.sessions = [];
@@ -3484,6 +4402,15 @@ configGrid.addEventListener("input", (event) => {
   };
   saveConfig();
   renderAccountBalances();
+});
+
+tradingRulesOptions.addEventListener("change", updateTradingRulesSummary);
+
+configTabs.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-config-tab]");
+  if (button) {
+    showConfigTab(button.dataset.configTab);
+  }
 });
 
 configModal.addEventListener("click", (event) => {
@@ -3604,14 +4531,18 @@ confirmResetPasscodeButton.addEventListener("click", async () => {
   modal.addEventListener("close", updateModalScrollLock);
 });
 
-clearButton.addEventListener("click", () => {
+clearButton.addEventListener("click", async () => {
   if (!trades.length) {
     return;
   }
 
-  const confirmed = window.confirm(
-    `Clear all ${trades.length} trades for this user?\n\nThis cannot be undone.`,
-  );
+  const confirmed = await askForConfirmation({
+    eyebrow: "Clear trades",
+    title: "Clear all trades?",
+    message: `Clear all ${trades.length} trades for this user? This cannot be undone.`,
+    confirmText: "Clear trades",
+    tone: "danger",
+  });
   if (!confirmed) {
     return;
   }
@@ -3626,6 +4557,94 @@ clearButton.addEventListener("click", () => {
 
 navButtons.forEach((button) => {
   button.addEventListener("click", () => showView(button.dataset.viewTarget));
+});
+
+reviewPrevWeek.addEventListener("click", () => {
+  reviewWeekOffset -= 1;
+  renderWeeklyReview();
+});
+openWeeklyReviewButton.addEventListener("click", openWeeklyReview);
+closeWeeklyReviewButton.addEventListener("click", closeWeeklyReview);
+weeklyReviewBackdrop.addEventListener("click", closeWeeklyReview);
+reviewNextWeek.addEventListener("click", () => {
+  reviewWeekOffset += 1;
+  renderWeeklyReview();
+});
+weeklyReviewForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const { startKey } = getWeeklyReviewContext();
+  appConfig.weeklyReviews = {
+    ...appConfig.weeklyReviews,
+    [startKey]: {
+      wentWell: weeklyReviewForm.elements.wentWell.value.trim(),
+      improve: weeklyReviewForm.elements.improve.value.trim(),
+      lesson: weeklyReviewForm.elements.lesson.value.trim(),
+      nextFocus: weeklyReviewForm.elements.nextFocus.value.trim(),
+      rating: weeklyReviewForm.elements.rating.value,
+      completedAt: new Date().toISOString(),
+    },
+  };
+  saveConfig();
+  renderWeeklyReview();
+  showToast("Weekly review saved");
+});
+reviewTradesList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-review-trade]");
+  if (button) openTradeDrawer(button.dataset.reviewTrade);
+});
+trainingContent.addEventListener("click", (event) => {
+  const answerButton = event.target.closest("[data-training-answer]");
+  if (!answerButton) return;
+  const progress = getTrainingProgress();
+  appConfig.trainingProgress = {
+    ...appConfig.trainingProgress,
+    [activeTrainingChapterId]: {
+      ...progress,
+      step: trainingStepIndex,
+      answers: { ...(progress.answers || {}), [trainingStepIndex]: Number(answerButton.dataset.trainingAnswer) },
+    },
+  };
+  saveConfig();
+  renderTraining();
+});
+continueTrainingButton.addEventListener("click", openTrainingWorkspace);
+backToTrainingHome.addEventListener("click", showTrainingHome);
+trainingChapterGrid.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-training-chapter]");
+  if (button && !button.disabled) openTrainingWorkspace(button.dataset.trainingChapter);
+});
+trainingStepList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-training-step]");
+  if (!button) return;
+  trainingStepIndex = Number(button.dataset.trainingStep);
+  renderTraining();
+});
+trainingBackButton.addEventListener("click", () => {
+  trainingStepIndex = Math.max(0, trainingStepIndex - 1);
+  renderTraining();
+});
+trainingNextButton.addEventListener("click", () => {
+  const progress = getTrainingProgress();
+  const steps = getActiveTrainingSteps();
+  if (trainingStepIndex < steps.length - 1) {
+    trainingStepIndex += 1;
+    appConfig.trainingProgress = { ...appConfig.trainingProgress, [activeTrainingChapterId]: { ...progress, step: trainingStepIndex } };
+    saveConfig();
+    renderTraining();
+    return;
+  }
+  appConfig.trainingProgress = { ...appConfig.trainingProgress, [activeTrainingChapterId]: { ...progress, completed: true, completedAt: new Date().toISOString() } };
+  saveConfig();
+  showTrainingHome();
+  showToast("Chapter completed");
+});
+restartTrainingButton.addEventListener("click", async () => {
+  const confirmed = await askForConfirmation({ title: "Restart this module?", message: "Your answers and completion progress will be cleared.", confirmText: "Restart", tone: "warning" });
+  if (!confirmed) return;
+  trainingStepIndex = 0;
+  appConfig.trainingProgress = { ...appConfig.trainingProgress, [activeTrainingChapterId]: { answers: {}, completed: false, step: 0 } };
+  saveConfig();
+  renderTraining();
 });
 
 onboardingConfigButton.addEventListener("click", () => {
@@ -4060,6 +5079,19 @@ document.addEventListener("click", (event) => {
 });
 
 async function initialiseApp() {
+  const pageParams = new URLSearchParams(window.location.search);
+  const requestedView = pageParams.get("view");
+  const standalone = pageParams.get("standalone");
+  const activeRoute = standalone || "dashboard";
+  document.querySelectorAll(".header-route-nav a").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    const route = href.includes("journal") ? "journal" : href.includes("calculator") ? "calculator" : href.includes("training") ? "training" : "dashboard";
+    link.classList.toggle("active", route === activeRoute);
+    if (route === activeRoute) link.setAttribute("aria-current", "page");
+  });
+  if (standalone) {
+    document.body.classList.add("training-standalone");
+  }
   syncConfiguredInputs();
   resetForm();
   resetCalculator();
@@ -4068,6 +5100,10 @@ async function initialiseApp() {
   if (sessionStorage.getItem(AUTH_STORAGE_KEY)) {
     maybeOpenConfigForNewUser();
   }
+  if (requestedView === "training") showView("trainingView");
+  else if (requestedView === "tracker") showView("trackerView");
+  else if (requestedView === "calculator") showView("calculatorView");
+  else showView("dashboardView");
 }
 
 initialiseApp();

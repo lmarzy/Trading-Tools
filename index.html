@@ -45,9 +45,11 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <nav class="app-nav" aria-label="App tools">
-            <button class="nav-button active" type="button" data-view-target="trackerView">Trade Tracker</button>
-            <button class="nav-button" type="button" data-view-target="calculatorView">Position Size Calculator</button>
+          <nav class="header-route-nav" aria-label="Main navigation">
+            <a href="./">Dashboard</a>
+            <a href="journal/">Journal</a>
+            <a href="calculator/">Calculator</a>
+            <a href="training/">Training</a>
           </nav>
           <button class="news-alert-button" type="button" id="newsAlertButton" aria-label="Open news alerts">
             <span aria-hidden="true">!</span>
@@ -76,7 +78,36 @@
         </div>
       </section>
 
-      <section class="app-view active" id="trackerView">
+      <section class="app-view active" id="dashboardView">
+        <div class="hub-command-grid">
+          <div class="hub-command-main">
+            <section class="hub-panel">
+              <div class="hub-panel-heading"><div><span>Trading Overview</span><h2>This Week</h2></div><a href="journal/">Open Journal →</a></div>
+              <div class="hub-stat-grid">
+                <article><span>Trades</span><strong id="hubTrades">0</strong></article>
+                <article><span>Wins</span><strong id="hubWins">0</strong></article>
+                <article><span>Losses</span><strong id="hubLosses">0</strong></article>
+                <article><span>Win Rate</span><strong id="hubWinRate">0%</strong></article>
+                <article class="hub-amount-stat"><span>Amount</span><strong id="hubWeekAmount">0.00</strong></article>
+              </div>
+            </section>
+            <section class="hub-panel hub-training-panel">
+              <div class="hub-panel-heading"><div><span>Training Academy</span><h2 id="hubTrainingTitle">Learn Candlesticks</h2></div><a href="training/">Continue Learning →</a></div>
+              <div class="hub-training-body"><strong id="hubTrainingProgress">0%</strong><div><div class="training-progress-track"><i id="hubTrainingProgressBar"></i></div><p id="hubTrainingDetail">Start your first chapter.</p></div></div>
+            </section>
+            <section class="hub-review-strip">
+              <div><span>Weekly Review</span><strong id="hubReviewStatus">Incomplete</strong><p>Reflect on your trades and set next week’s focus.</p></div>
+              <button class="ghost-button" type="button" id="hubReviewButton">Open Review</button>
+            </section>
+          </div>
+          <aside class="hub-panel hub-news-panel">
+            <div class="hub-panel-heading"><div><span>News & Events</span><h2>Today</h2></div><button type="button" id="hubNewsButton">View all →</button></div>
+            <div class="hub-news-list" id="hubNewsList"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="app-view" id="trackerView">
       <div class="view-header">
         <h2>Trade Tracker</h2>
         <div class="view-actions">
@@ -95,8 +126,9 @@
         <button type="button" data-dashboard-section="balances">Account balances</button>
         <button type="button" data-dashboard-section="equity">Equity Curve</button>
         <button type="button" data-dashboard-section="analytics">Analytics</button>
-        <button type="button" data-dashboard-section="performance">Weekly Monthly breakdown</button>
+        <button type="button" data-dashboard-section="performance">Performance</button>
         <button type="button" data-dashboard-section="strategies">Strategy Breakdown</button>
+        <button class="review-action-button" type="button" id="openWeeklyReviewButton">Weekly Review <span class="tab-status-dot" id="reviewTabStatus" aria-label="Review incomplete"></span></button>
       </div>
 
       <div class="dashboard-sections">
@@ -207,7 +239,41 @@
         </div>
         <div class="strategy-grid" id="strategyGrid"></div>
       </section>
+
       </div>
+
+      <aside class="side-drawer weekly-review-drawer hidden" id="weeklyReviewDrawer" aria-label="Weekly Review">
+        <div class="weekly-heading side-drawer-header">
+          <div>
+            <p class="eyebrow">Reflect and improve</p>
+            <h2>Weekly Review</h2>
+          </div>
+          <div class="weekly-review-nav"><button class="icon-button" type="button" id="reviewPrevWeek" aria-label="Previous week">←</button>
+            <strong id="reviewWeekRange"></strong>
+            <button class="icon-button" type="button" id="reviewNextWeek" aria-label="Next week">→</button>
+            <button class="icon-button" type="button" id="closeWeeklyReviewButton" aria-label="Close weekly review">×</button>
+          </div>
+        </div>
+        <div class="weekly-review-drawer-content">
+          <div class="review-summary-grid" id="reviewSummaryGrid"></div>
+          <div class="review-layout">
+            <section class="review-panel review-insights-panel"><h3>Week Insights</h3><div class="review-insights" id="reviewInsights"></div></section>
+            <section class="review-panel review-form-panel">
+              <h3>Review & Next Steps</h3>
+              <form class="weekly-review-form" id="weeklyReviewForm">
+                <label><span>What went well?</span><textarea name="wentWell" rows="3"></textarea></label>
+                <label><span>What needs improvement?</span><textarea name="improve" rows="3"></textarea></label>
+                <label><span>Biggest lesson</span><textarea name="lesson" rows="3"></textarea></label>
+                <label><span>Focus for next week</span><textarea name="nextFocus" rows="3"></textarea></label>
+                <label><span>Overall week rating</span><select name="rating"><option value="">Select rating</option><option value="1">1 / 5</option><option value="2">2 / 5</option><option value="3">3 / 5</option><option value="4">4 / 5</option><option value="5">5 / 5</option></select></label>
+                <button class="primary-button" type="submit" id="saveWeeklyReviewButton">Complete review</button>
+              </form>
+            </section>
+          </div>
+          <section class="review-panel review-trades-panel"><h3>Trades This Week</h3><div class="review-trades-list" id="reviewTradesList"></div></section>
+        </div>
+      </aside>
+      <button class="drawer-backdrop hidden" id="weeklyReviewBackdrop" type="button" aria-label="Close weekly review"></button>
 
       <dialog class="trade-modal" id="tradeModal">
         <form class="trade-form" id="tradeForm" autocomplete="off">
@@ -386,6 +452,14 @@
             </div>
           </details>
 
+          <details class="notes-disclosure trading-rules-disclosure hidden" id="tradingRulesDisclosure">
+            <summary>
+              Personal checklist
+              <span id="tradingRulesSummary"></span>
+            </summary>
+            <div class="trading-rules-options" id="tradingRulesOptions"></div>
+          </details>
+
           <details class="notes-disclosure" id="notesDisclosure">
             <summary>Add note</summary>
             <label>
@@ -407,6 +481,14 @@
             </div>
           </div>
 
+          <nav class="config-tabs" id="configTabs" aria-label="Configuration sections">
+            <button type="button" class="active" data-config-tab="markets">Market Type(s)</button>
+            <button type="button" data-config-tab="symbols">Symbol(s)</button>
+            <button type="button" data-config-tab="sessions">Session(s)</button>
+            <button type="button" data-config-tab="accounts">Account(s)</button>
+            <button type="button" data-config-tab="strategies">Strategy(s)</button>
+            <button type="button" data-config-tab="rules">Rule(s)</button>
+          </nav>
           <div class="config-grid" id="configGrid"></div>
         </form>
       </dialog>
@@ -576,6 +658,53 @@
           </div>
         </div>
       </dialog>
+
+      <section class="app-view" id="trainingView" aria-label="Training">
+        <section class="training-home" id="trainingHome">
+          <div class="training-hero">
+            <div>
+              <p class="eyebrow">TRADERS HUB Academy</p>
+              <h1>Learn Candlesticks</h1>
+              <p>Start with price charts, master candlesticks step by step, then practise using them responsibly.</p>
+              <div class="training-hero-meta"><span>7 guided modules</span><span>43 short lessons</span><span>Approx. 2 hours 15 minutes</span></div>
+            </div>
+            <div class="training-course-progress">
+              <span>Course progress</span><strong id="trainingCourseProgress">0%</strong>
+              <div class="training-progress-track"><span id="trainingCourseProgressBar"></span></div>
+              <button class="primary-button" type="button" id="continueTrainingButton">Start learning</button>
+            </div>
+          </div>
+          <div class="training-chapter-grid" id="trainingChapterGrid"></div>
+        </section>
+        <div class="training-shell hidden" id="trainingLessonWorkspace">
+          <aside class="training-rail">
+            <div>
+              <button class="training-back-link" type="button" id="backToTrainingHome">← Course overview</button>
+              <p class="eyebrow">Chapter 01</p>
+              <h2>Candle Fundamentals</h2>
+              <p>Understand what an individual candle communicates before studying named patterns.</p>
+            </div>
+            <div class="training-progress-track"><span id="trainingProgressBar"></span></div>
+            <ol class="training-step-list" id="trainingStepList"></ol>
+            <div class="training-score-card">
+              <span>Knowledge check</span>
+              <strong id="trainingScore">0 / 4</strong>
+            </div>
+          </aside>
+          <section class="training-stage">
+            <div class="training-stage-header">
+              <div><p class="eyebrow" id="trainingStepLabel">Lesson</p><h2 id="trainingTitle"></h2></div>
+              <button class="ghost-button" type="button" id="restartTrainingButton">Restart module</button>
+            </div>
+            <div class="training-content" id="trainingContent"></div>
+            <div class="training-feedback hidden" id="trainingFeedback" aria-live="polite"></div>
+            <div class="training-actions">
+              <button class="ghost-button" type="button" id="trainingBackButton">Back</button>
+              <button class="primary-button" type="button" id="trainingNextButton">Continue</button>
+            </div>
+          </section>
+        </div>
+      </section>
 
       <section class="app-view" id="calculatorView" aria-label="Position Size Calculator">
         <div class="view-header">
@@ -751,6 +880,19 @@
       </div>
     </aside>
     <button class="drawer-backdrop hidden" id="newsDrawerBackdrop" type="button" aria-label="Close news alerts"></button>
+    <dialog class="trade-modal confirm-modal" id="confirmModal" aria-labelledby="confirmModalTitle">
+      <div class="trade-form confirm-card">
+        <div>
+          <p class="eyebrow" id="confirmModalEyebrow">Confirm action</p>
+          <h2 id="confirmModalTitle">Are you sure?</h2>
+          <p id="confirmModalMessage">This action needs confirmation.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="ghost-button" type="button" id="confirmCancelButton">Cancel</button>
+          <button class="primary-button" type="button" id="confirmActionButton">Confirm</button>
+        </div>
+      </div>
+    </dialog>
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
     <script src="supabase-config.js?v=20260530-admin-news"></script>

@@ -49,6 +49,13 @@ const adminNewsStatusFilter = document.querySelector("#adminNewsStatusFilter");
 const adminNewsSortSelect = document.querySelector("#adminNewsSortSelect");
 const adminNewsList = document.querySelector("#adminNewsList");
 const adminEmptyNewsEvents = document.querySelector("#adminEmptyNewsEvents");
+const adminToastStack = document.querySelector("#adminToastStack");
+const adminConfirmModal = document.querySelector("#adminConfirmModal");
+const adminConfirmModalEyebrow = document.querySelector("#adminConfirmModalEyebrow");
+const adminConfirmModalTitle = document.querySelector("#adminConfirmModalTitle");
+const adminConfirmModalMessage = document.querySelector("#adminConfirmModalMessage");
+const adminConfirmCancelButton = document.querySelector("#adminConfirmCancelButton");
+const adminConfirmActionButton = document.querySelector("#adminConfirmActionButton");
 
 const DEFAULT_NEWS_EVENT_TITLES = [
   "Non-Farm Payrolls",
@@ -75,6 +82,7 @@ let adminNewsLoaded = false;
 let currentAdminHash = sessionStorage.getItem(AUTH_HASH_KEY) || "";
 let editingNewsEventId = "";
 const MOTION_DURATION_MS = 190;
+let pendingConfirmResolve = null;
 
 function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   if (!button) {
@@ -103,6 +111,47 @@ function setButtonLoading(button, isLoading, loadingText = "Loading...") {
   button.classList.remove("is-loading");
   delete button.dataset.defaultText;
   delete button.dataset.defaultAriaLabel;
+}
+
+function showToast(message, tone = "saved") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${tone}`;
+  toast.textContent = message;
+  adminToastStack.appendChild(toast);
+  window.setTimeout(() => {
+    toast.classList.add("leaving");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 2600);
+}
+
+function askForConfirmation({
+  eyebrow = "Confirm action",
+  title = "Are you sure?",
+  message = "This action needs confirmation.",
+  confirmText = "Confirm",
+  tone = "warning",
+} = {}) {
+  adminConfirmModalEyebrow.textContent = eyebrow;
+  adminConfirmModalTitle.textContent = title;
+  adminConfirmModalMessage.textContent = message;
+  adminConfirmActionButton.textContent = confirmText;
+  adminConfirmActionButton.classList.toggle("danger-confirm", tone === "danger");
+  adminConfirmActionButton.classList.toggle("warning-confirm", tone === "warning");
+  adminConfirmModal.classList.remove("is-closing");
+  adminConfirmModal.showModal();
+  document.body.classList.add("modal-open");
+
+  return new Promise((resolve) => {
+    pendingConfirmResolve = resolve;
+  });
+}
+
+function resolveConfirmation(value) {
+  if (pendingConfirmResolve) {
+    pendingConfirmResolve(value);
+    pendingConfirmResolve = null;
+  }
+  closeAdminDialog(adminConfirmModal);
 }
 
 function setNewUserFormLoading(isLoading) {
@@ -812,8 +861,9 @@ generateUserCodeButton.addEventListener("click", async () => {
     addUserResultStep.classList.remove("hidden");
     renderPasscodes();
     renderActivity();
+    showToast("User created");
   } catch {
-    window.alert("Could not create that user. The code may already exist, so try generating another one.");
+    showToast("Could not create that user. Try generating another code.", "warning");
   } finally {
     setNewUserFormLoading(false);
   }
@@ -924,21 +974,22 @@ adminPasscodeList.addEventListener("click", async (event) => {
       statusSelect.dataset.originalValue = statusSelect.value;
       setButtonLoading(button, false);
       button.disabled = true;
-      button.textContent = "Saved";
-      window.setTimeout(() => {
-        button.textContent = "Save";
-      }, 1100);
+      showToast("User saved");
     } catch {
-      window.alert("Could not save that user.");
+      showToast("Could not save that user.", "warning");
       setButtonLoading(button, false);
       updateRowSaveState(row);
     }
   }
 
   if (button.dataset.passcodeAction === "reset-code") {
-    const confirmed = window.confirm(
-      `Generate a new code for ${passcode.label}?\n\nTheir current code will stop working immediately.`,
-    );
+    const confirmed = await askForConfirmation({
+      eyebrow: "Reset code",
+      title: `Reset ${passcode.label}'s code?`,
+      message: "Their current code will stop working immediately.",
+      confirmText: "Reset code",
+      tone: "warning",
+    });
     if (!confirmed) {
       return;
     }
@@ -962,8 +1013,9 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.code = savedUser.passcode_code || nextCode;
       renderPasscodes();
       renderActivity();
+      showToast("User code reset");
     } catch {
-      window.alert("Could not reset that user's code.");
+      showToast("Could not reset that user's code.", "warning");
       setButtonLoading(button, false);
     }
   }
@@ -1013,16 +1065,21 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
       renderPasscodes();
       renderActivity();
+      showToast(nextActive ? "User enabled" : "User disabled");
     } catch {
-      window.alert(`Could not ${nextActive ? "enable" : "disable"} that user.`);
+      showToast(`Could not ${nextActive ? "enable" : "disable"} that user.`, "warning");
       setButtonLoading(button, false);
     }
   }
 
   if (button.dataset.passcodeAction === "remove") {
-    const confirmed = window.confirm(
-      `Permanently remove ${passcode.label}?\n\nUsually it is safer to set the user to Inactive instead. This cannot be undone.`,
-    );
+    const confirmed = await askForConfirmation({
+      eyebrow: "Remove user",
+      title: `Remove ${passcode.label}?`,
+      message: "Usually it is safer to set the user to Inactive instead. This cannot be undone.",
+      confirmText: "Remove user",
+      tone: "danger",
+    });
     if (!confirmed) {
       return;
     }
@@ -1033,8 +1090,9 @@ adminPasscodeList.addEventListener("click", async (event) => {
       adminConfig.passcodes.splice(index, 1);
       renderPasscodes();
       renderActivity();
+      showToast("User removed", "warning");
     } catch {
-      window.alert("Could not remove that user.");
+      showToast("Could not remove that user.", "warning");
       setButtonLoading(button, false);
     }
   }
@@ -1129,8 +1187,9 @@ saveNewsEventButton.addEventListener("click", async () => {
     }
     renderNewsEvents();
     closeNewsModal();
+    showToast(editingNewsEventId ? "Event saved" : "Event added");
   } catch {
-    window.alert("Could not save that news event.");
+    showToast("Could not save that news event.", "warning");
   } finally {
     setButtonLoading(saveNewsEventButton, false);
     updateSaveNewsButtonState();
@@ -1162,14 +1221,21 @@ adminNewsList.addEventListener("click", async (event) => {
       });
       syncNewsEventFromResult(newsEvent, result.event);
       renderNewsEvents();
+      showToast(newsEvent.active ? "Event enabled" : "Event disabled");
     } catch {
-      window.alert("Could not update that event.");
+      showToast("Could not update that event.", "warning");
       setButtonLoading(button, false);
     }
   }
 
   if (button.dataset.newsAction === "remove") {
-    const confirmed = window.confirm(`Remove ${newsEvent.title}? This cannot be undone.`);
+    const confirmed = await askForConfirmation({
+      eyebrow: "Remove event",
+      title: `Remove ${newsEvent.title}?`,
+      message: "This event will no longer appear in News & Alerts. This cannot be undone.",
+      confirmText: "Remove event",
+      tone: "danger",
+    });
     if (!confirmed) {
       return;
     }
@@ -1179,8 +1245,9 @@ adminNewsList.addEventListener("click", async (event) => {
       await callNewsEvents("delete", { id: newsEvent.id });
       adminConfig.newsEvents.splice(index, 1);
       renderNewsEvents();
+      showToast("Event removed", "warning");
     } catch {
-      window.alert("Could not remove that event.");
+      showToast("Could not remove that event.", "warning");
       setButtonLoading(button, false);
     }
   }
@@ -1189,6 +1256,18 @@ adminNewsList.addEventListener("click", async (event) => {
 [adminNewsSearch, adminNewsImpactFilter, adminNewsStatusFilter, adminNewsSortSelect].forEach((control) => {
   control.addEventListener("input", renderNewsEvents);
   control.addEventListener("change", renderNewsEvents);
+});
+
+adminConfirmCancelButton.addEventListener("click", () => resolveConfirmation(false));
+adminConfirmActionButton.addEventListener("click", () => resolveConfirmation(true));
+adminConfirmModal.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  resolveConfirmation(false);
+});
+adminConfirmModal.addEventListener("click", (event) => {
+  if (event.target === adminConfirmModal) {
+    resolveConfirmation(false);
+  }
 });
 
 adminLogoutButton.addEventListener("click", logoutAdmin);
