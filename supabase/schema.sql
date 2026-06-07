@@ -21,7 +21,7 @@ create table if not exists public.app_users (
 
 create table if not exists public.user_data (
   user_id uuid primary key references public.app_users(id) on delete cascade,
-  config_json jsonb not null default '{"symbols":[],"sessions":[],"accounts":[],"strategies":[],"marketTypes":[],"accountBalances":{},"checklistRules":[],"automatedRules":[],"blockedTradingDays":[],"weeklyReviews":{},"trainingProgress":{}}'::jsonb,
+  config_json jsonb not null default '{"symbols":[],"sessions":[],"accounts":[],"strategies":[],"marketTypes":[],"accountBalances":{},"accountSettings":{},"checklistRules":[],"automatedRules":[],"blockedTradingDays":[],"weeklyReviews":{},"trainingProgress":{}}'::jsonb,
   trades_json jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );

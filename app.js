@@ -206,6 +206,7 @@ const DEFAULT_CONFIG = {
   strategies: [],
   marketTypes: [],
   accountBalances: {},
+  accountSettings: {},
   checklistRules: [],
   automatedRules: [],
   blockedTradingDays: [],
@@ -1062,6 +1063,7 @@ async function hydrateUserStateFromSupabase() {
       strategies: normalizeStrategies(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
       marketTypes,
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
+      accountSettings: normalizeAccountSettings(remoteData.config?.accountSettings, remoteData.config?.accounts, remoteData.config?.accountBalances),
       checklistRules: normalizeOptions(remoteData.config?.checklistRules ?? remoteData.config?.tradingRules, DEFAULT_CONFIG.checklistRules),
       automatedRules: Array.isArray(remoteData.config?.automatedRules) ? remoteData.config.automatedRules : [],
       blockedTradingDays: normalizeOptions(remoteData.config?.blockedTradingDays, []),
@@ -1189,6 +1191,20 @@ function normalizeAccountBalances(balances = {}, accounts = []) {
     normalized[account] = value > 0 ? String(value) : "";
   });
   return normalized;
+}
+
+function normalizeAccountSettings(settings = {}, accounts = [], balances = {}) {
+  return normalizeOptions(accounts, DEFAULT_CONFIG.accounts).reduce((normalized, account) => {
+    const source = settings?.[account] || {};
+    normalized[account] = {
+      isProp: Boolean(source.isProp),
+      startingBalance: String(source.startingBalance || balances?.[account] || ""),
+      dailyDrawdown: String(source.dailyDrawdown || ""),
+      maxDrawdown: String(source.maxDrawdown || ""),
+      timeframeDays: String(source.timeframeDays || ""),
+    };
+    return normalized;
+  }, {});
 }
 
 function getDefaultOption(key) {
@@ -2961,25 +2977,26 @@ function renderConfig() {
   balanceSection.dataset.configPanel = "accounts";
   balanceSection.innerHTML = `
     <div class="config-section-heading">
-      <h3>Starting Balance(s)</h3>
+      <h3>Account Detail(s)</h3>
     </div>
-    <div class="balance-config-list">
+    <div class="account-settings-list">
       ${
         appConfig.accounts.length
           ? appConfig.accounts
               .map(
                 (account) => `
-                  <label>
-                    <span>${escapeHtml(account)}</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value="${escapeHtml(appConfig.accountBalances?.[account] || "")}"
-                      placeholder="0.00"
-                      data-balance-account="${escapeHtml(account)}"
-                    />
-                  </label>
+                  <article class="account-settings-card">
+                    <div class="account-settings-head">
+                      <strong>${escapeHtml(account)}</strong>
+                      <label class="compact-check"><input type="checkbox" data-account-setting="isProp" data-account="${escapeHtml(account)}" ${appConfig.accountSettings?.[account]?.isProp ? "checked" : ""} /><span>Prop account</span></label>
+                    </div>
+                    <div class="account-settings-fields ${appConfig.accountSettings?.[account]?.isProp ? "" : "regular"}">
+                      <label><span>Starting balance</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.startingBalance || appConfig.accountBalances?.[account] || "")}" placeholder="0.00" data-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
+                      <label class="prop-only"><span>Daily drawdown</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.dailyDrawdown || "")}" placeholder="Optional" data-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}" /></label>
+                      <label class="prop-only"><span>Maximum drawdown</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.maxDrawdown || "")}" placeholder="Optional" data-account-setting="maxDrawdown" data-account="${escapeHtml(account)}" /></label>
+                      <label class="prop-only"><span>Timeframe to complete</span><div class="input-with-suffix"><input type="number" min="1" step="1" value="${escapeHtml(appConfig.accountSettings?.[account]?.timeframeDays || "")}" placeholder="Optional" data-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /><span>days</span></div></label>
+                    </div>
+                  </article>
                 `,
               )
               .join("")
@@ -3527,6 +3544,7 @@ function saveOnboardingWizard() {
     strategies: normalizeStrategies(onboardingDraft.strategies, []),
     marketTypes: normalizeMarketTypes(onboardingDraft.marketTypes),
     accountBalances: normalizeAccountBalances(onboardingDraft.accountBalances, onboardingDraft.accounts),
+    accountSettings: normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft.accounts, onboardingDraft.accountBalances),
     checklistRules: normalizeOptions(appConfig.checklistRules, DEFAULT_CONFIG.checklistRules),
     automatedRules: Array.isArray(appConfig.automatedRules) ? appConfig.automatedRules : [],
     blockedTradingDays: normalizeOptions(appConfig.blockedTradingDays, []),
@@ -3577,6 +3595,7 @@ function addConfigValue(key, value, marketType = "") {
   appConfig[key] = [...appConfig[key], nextValue];
   if (key === "accounts") {
     appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
+    appConfig.accountSettings = { ...appConfig.accountSettings, [nextValue]: { isProp: false, startingBalance: "", dailyDrawdown: "", maxDrawdown: "", timeframeDays: "" } };
   }
   saveConfig();
   syncConfiguredInputs();
@@ -3637,6 +3656,8 @@ async function removeConfigValue(key, value, marketType = "") {
   if (key === "accounts") {
     const { [value]: _removed, ...remainingBalances } = appConfig.accountBalances;
     appConfig.accountBalances = remainingBalances;
+    const { [value]: _removedSettings, ...remainingSettings } = appConfig.accountSettings;
+    appConfig.accountSettings = remainingSettings;
   }
   saveConfig();
   syncConfiguredInputs();
@@ -4433,16 +4454,20 @@ configGrid.addEventListener("keydown", (event) => {
 });
 
 configGrid.addEventListener("input", (event) => {
-  const account = event.target.dataset.balanceAccount;
-  if (!account) {
+  const account = event.target.dataset.account;
+  const setting = event.target.dataset.accountSetting;
+  if (!account || !setting) {
     return;
   }
 
-  appConfig.accountBalances = {
-    ...appConfig.accountBalances,
-    [account]: event.target.value.trim(),
+  const value = event.target.type === "checkbox" ? event.target.checked : event.target.value.trim();
+  appConfig.accountSettings = {
+    ...appConfig.accountSettings,
+    [account]: { ...(appConfig.accountSettings?.[account] || {}), [setting]: value },
   };
+  if (setting === "startingBalance") appConfig.accountBalances = { ...appConfig.accountBalances, [account]: value };
   saveConfig();
+  if (setting === "isProp") renderConfig();
   renderAccountBalances();
 });
 

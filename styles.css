@@ -3049,6 +3049,69 @@ tbody td:last-child {
   min-height: 44px;
 }
 
+.account-settings-list {
+  display: grid;
+  gap: 10px;
+}
+
+.account-settings-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-2);
+}
+
+.account-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-settings-head strong {
+  color: var(--ink);
+  font-size: 0.84rem;
+}
+
+.account-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.account-settings-fields.regular {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 320px;
+}
+
+.account-settings-fields.regular .prop-only {
+  display: none;
+}
+
+.account-settings-fields label {
+  display: grid;
+  gap: 6px;
+}
+
+.account-settings-fields label > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.account-settings-fields input {
+  width: 100%;
+  min-height: 42px;
+}
+
+@media (max-width: 900px) {
+  .account-settings-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .market-type-config {
   display: grid;
   grid-template-columns: 1fr;
