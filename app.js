@@ -231,12 +231,53 @@ const MARKET_TYPE_DETAILS = {
   CFD: "Use lots in the trade tracker and position size calculator.",
   Futures: "Use contracts in the trade tracker and position size calculator.",
 };
-const DEFAULT_SESSION_OPTIONS = ["Asia", "London", "New York", "N/A"];
+const SESSION_DEFINITIONS = {
+  Sydney: { timeZone: "Australia/Sydney", start: 8, end: 17 },
+  Tokyo: { timeZone: "Asia/Tokyo", start: 9, end: 18 },
+  "Singapore/HK": { timeZone: "Asia/Singapore", start: 9, end: 17 },
+  Frankfurt: { timeZone: "Europe/Berlin", start: 8, end: 17 },
+  London: { timeZone: "Europe/London", start: 8, end: 17 },
+  "New York": { timeZone: "America/New_York", start: 8, end: 17 },
+};
+const DEFAULT_SESSION_OPTIONS = [...Object.keys(SESSION_DEFINITIONS), "N/A"];
 const NO_SPECIFIC_SESSION = "N/A";
 
 function normalizeSessions(options, fallback = []) {
   const sessions = normalizeOptions(options, fallback).filter((option) => option !== NO_SPECIFIC_SESSION);
   return [...sessions, NO_SPECIFIC_SESSION];
+}
+
+function getTimeZoneOffset(date, timeZone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second)) - date.getTime();
+}
+
+function getSessionLocalDate(timeZone, hour) {
+  const now = new Date();
+  const zoneDate = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  const estimate = new Date(Date.UTC(Number(zoneDate.year), Number(zoneDate.month) - 1, Number(zoneDate.day), hour));
+  return new Date(estimate.getTime() - getTimeZoneOffset(estimate, timeZone));
+}
+
+function getSessionDisplayLabel(session) {
+  const definition = SESSION_DEFINITIONS[session];
+  if (!definition) return session;
+  const formatter = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${session} (${formatter.format(getSessionLocalDate(definition.timeZone, definition.start))}–${formatter.format(getSessionLocalDate(definition.timeZone, definition.end))} local)`;
 }
 
 function getOrderedSessions() {
@@ -1162,10 +1203,10 @@ function getOnboardingSteps() {
   return ONBOARDING_STEPS.filter((step) => step.key !== "sessions" || onboardingDraft.trackSessions === true);
 }
 
-function createOption(value) {
+function createOption(value, label = value) {
   const option = document.createElement("option");
   option.value = value;
-  option.textContent = value;
+  option.textContent = label;
   return option;
 }
 
@@ -1177,8 +1218,9 @@ function populateSelect(select, options, includeAll = false) {
     select.appendChild(createOption("All"));
   }
 
+  const isSessionSelect = select === form.session || select === sessionFilter;
   options.forEach((option) => {
-    select.appendChild(createOption(option));
+    select.appendChild(createOption(option, isSessionSelect ? getSessionDisplayLabel(option) : option));
   });
 
   if ([...select.options].some((option) => option.value === currentValue)) {
@@ -2785,7 +2827,7 @@ function renderConfig() {
                 .map(
                   (option) => `
                     <span class="config-pill">
-                      ${escapeHtml(option)}
+                      ${escapeHtml(getSessionDisplayLabel(option))}
                       <button type="button" aria-label="Remove ${escapeHtml(option)}" data-config-action="remove" data-config-key="sessions" data-config-value="${escapeHtml(option)}">x</button>
                     </span>
                   `,
@@ -3252,11 +3294,11 @@ function renderOnboardingWizard() {
         <p>${escapeHtml(step.description)}</p>
       </div>
       <div class="wizard-session-list">
-        ${DEFAULT_SESSION_OPTIONS.map(
+        ${DEFAULT_SESSION_OPTIONS.filter((session) => session !== NO_SPECIFIC_SESSION).map(
           (session) => `
             <label class="wizard-session-option">
               <input type="checkbox" value="${escapeHtml(session)}" data-wizard-session ${selectedSessions.includes(session) ? "checked" : ""} />
-              <span>${escapeHtml(session)}</span>
+              <span>${escapeHtml(getSessionDisplayLabel(session))}</span>
             </label>
           `,
         ).join("")}
