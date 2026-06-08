@@ -325,6 +325,12 @@ const ONBOARDING_STEPS = [
     placeholder: "Example: Trendlines, ORB",
   },
   {
+    key: "rules",
+    label: "Rules",
+    title: "Would you like to set some trading boundaries?",
+    description: "Rules are optional. Add a simple limit or select days you do not trade, and the app will warn you before a rule is breached.",
+  },
+  {
     key: "summary",
     label: "Summary",
     title: "Review your setup",
@@ -3164,6 +3170,10 @@ function renderWizardAccountBuilder() {
 
 function wizardCurrentStepHasValue() {
   const step = getOnboardingSteps()[onboardingStepIndex];
+  if (step.key === "rules") {
+    return true;
+  }
+
   if (step.key === "summary") {
     return (
       CONFIG_FIELDS.every((field) => (onboardingDraft[field.key] || []).length > 0) &&
@@ -3220,9 +3230,10 @@ function renderOnboardingWizard() {
   const steps = getOnboardingSteps();
   const step = steps[onboardingStepIndex];
   const isSummary = step.key === "summary";
+  const isRules = step.key === "rules";
   wizardProgress.textContent = `Step ${onboardingStepIndex + 1} of ${steps.length}`;
   wizardBackButton.disabled = onboardingStepIndex === 0;
-  wizardNextButton.textContent = isSummary ? "Save setup" : "Next";
+  wizardNextButton.textContent = isSummary ? "Save setup" : isRules && !onboardingDraft.automatedRules.length && !onboardingDraft.blockedTradingDays.length ? "Skip for now" : "Next";
   let stepContent = "";
 
   if (isSummary) {
@@ -3262,6 +3273,15 @@ function renderOnboardingWizard() {
         <div>
           <span>Market Types</span>
           <strong>${escapeHtml(onboardingDraft.marketTypes.join(", ") || "Not set")}</strong>
+        </div>
+        <div>
+          <span>Rules</span>
+          <strong>${escapeHtml(
+            [
+              ...onboardingDraft.automatedRules.map((rule) => AUTOMATED_RULE_TYPES.find((item) => item.key === rule.type)?.label || rule.type),
+              ...(onboardingDraft.blockedTradingDays.length ? [`No trading: ${onboardingDraft.blockedTradingDays.join(", ")}`] : []),
+            ].join(" | ") || "Skipped",
+          )}</strong>
         </div>
       </div>
     `;
@@ -3364,6 +3384,44 @@ function renderOnboardingWizard() {
       ${renderWizardAccountBuilder()}
       <p class="wizard-hint">Add each account, then enter its starting balance so account-level P/L can be tracked correctly.</p>
     `;
+  } else if (step.key === "rules") {
+    stepContent = `
+      <div class="wizard-copy">
+        <span>${escapeHtml(step.label)} · Optional</span>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.description)}</p>
+      </div>
+      <div class="wizard-rules-grid">
+        <section class="wizard-rule-panel">
+          <div>
+            <strong>Automated limit</strong>
+            <p>Choose a limit the app should check before a new trade.</p>
+          </div>
+          <div class="wizard-rule-add">
+            <select aria-label="Rule type" data-wizard-rule-type>
+              ${AUTOMATED_RULE_TYPES.map((rule) => `<option value="${rule.key}">${rule.label}</option>`).join("")}
+            </select>
+            <input type="number" min="1" step="1" value="1" aria-label="Rule limit" data-wizard-rule-value />
+            <button class="ghost-button" type="button" data-wizard-rule-add>Add</button>
+          </div>
+          <div class="config-list">
+            ${onboardingDraft.automatedRules.length
+              ? onboardingDraft.automatedRules.map((rule) => `<span class="config-pill">${escapeHtml(AUTOMATED_RULE_TYPES.find((item) => item.key === rule.type)?.label || rule.type)}: ${escapeHtml(rule.value)}<button type="button" data-wizard-rule-remove="${escapeHtml(rule.type)}" aria-label="Remove rule">x</button></span>`).join("")
+              : '<span class="muted">No limits added.</span>'}
+          </div>
+        </section>
+        <section class="wizard-rule-panel">
+          <div>
+            <strong>Days I do not trade</strong>
+            <p>Select any days when you want the app to warn you before recording a trade.</p>
+          </div>
+          <div class="blocked-days-grid">
+            ${TRADING_DAYS.map((day) => `<label class="blocked-day-option"><input type="checkbox" value="${day}" data-wizard-blocked-day ${onboardingDraft.blockedTradingDays.includes(day) ? "checked" : ""} /><span><strong>${day.slice(0, 3)}</strong><small>${day}</small></span></label>`).join("")}
+          </div>
+        </section>
+      </div>
+      <p class="wizard-hint">You can skip this step and configure more detailed rules later.</p>
+    `;
   } else {
     stepContent = `
       <div class="wizard-copy">
@@ -3449,6 +3507,14 @@ function persistWizardStep() {
     return true;
   }
 
+  if (step.key === "rules") {
+    onboardingDraft.blockedTradingDays = normalizeOptions(
+      [...wizardContent.querySelectorAll("[data-wizard-blocked-day]:checked")].map((input) => input.value),
+      [],
+    );
+    return true;
+  }
+
   const values = onboardingDraft[step.key] || [];
   if (!values.length) {
     showToast(`Add at least one ${step.label.toLowerCase()} value`, "warning");
@@ -3493,6 +3559,14 @@ function stashWizardStep() {
   if (step.key === "sessions") {
     onboardingDraft.sessions = normalizeOptions(
       [...wizardContent.querySelectorAll("[data-wizard-session]:checked")].map((input) => input.value),
+      [],
+    );
+    return;
+  }
+
+  if (step.key === "rules") {
+    onboardingDraft.blockedTradingDays = normalizeOptions(
+      [...wizardContent.querySelectorAll("[data-wizard-blocked-day]:checked")].map((input) => input.value),
       [],
     );
     return;
@@ -3584,8 +3658,8 @@ function saveOnboardingWizard() {
     accountBalances: normalizeAccountBalances(onboardingDraft.accountBalances, onboardingDraft.accounts),
     accountSettings: normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft.accounts, onboardingDraft.accountBalances),
     checklistRules: normalizeOptions(appConfig.checklistRules, DEFAULT_CONFIG.checklistRules),
-    automatedRules: Array.isArray(appConfig.automatedRules) ? appConfig.automatedRules : [],
-    blockedTradingDays: normalizeOptions(appConfig.blockedTradingDays, []),
+    automatedRules: Array.isArray(onboardingDraft.automatedRules) ? onboardingDraft.automatedRules : [],
+    blockedTradingDays: normalizeOptions(onboardingDraft.blockedTradingDays, []),
     weeklyReviews: appConfig.weeklyReviews && typeof appConfig.weeklyReviews === "object" ? appConfig.weeklyReviews : {},
     trainingProgress: appConfig.trainingProgress && typeof appConfig.trainingProgress === "object" ? appConfig.trainingProgress : {},
   };
@@ -4796,6 +4870,24 @@ wizardNextButton.addEventListener("click", () => {
 });
 
 wizardContent.addEventListener("click", (event) => {
+  const ruleAddButton = event.target.closest("[data-wizard-rule-add]");
+  if (ruleAddButton) {
+    const type = wizardContent.querySelector("[data-wizard-rule-type]")?.value;
+    const value = wizardContent.querySelector("[data-wizard-rule-value]")?.value;
+    if (type && Number(value) > 0) {
+      onboardingDraft.automatedRules = [...onboardingDraft.automatedRules.filter((rule) => rule.type !== type), { type, value }];
+      renderOnboardingWizard();
+    }
+    return;
+  }
+
+  const ruleRemoveButton = event.target.closest("[data-wizard-rule-remove]");
+  if (ruleRemoveButton) {
+    onboardingDraft.automatedRules = onboardingDraft.automatedRules.filter((rule) => rule.type !== ruleRemoveButton.dataset.wizardRuleRemove);
+    renderOnboardingWizard();
+    return;
+  }
+
   const addButton = event.target.closest("[data-wizard-add-value]");
   if (addButton) {
     const builder = addButton.closest("[data-wizard-builder]");
@@ -4812,6 +4904,16 @@ wizardContent.addEventListener("click", (event) => {
     if (builder) {
       removeWizardValue(builder, removeButton.dataset.wizardRemoveValue);
     }
+  }
+});
+
+wizardContent.addEventListener("change", (event) => {
+  if (event.target.matches("[data-wizard-blocked-day]")) {
+    onboardingDraft.blockedTradingDays = normalizeOptions(
+      [...wizardContent.querySelectorAll("[data-wizard-blocked-day]:checked")].map((input) => input.value),
+      [],
+    );
+    renderOnboardingWizard();
   }
 });
 

@@ -82,6 +82,12 @@ textarea,
   background-color: var(--field-2);
 }
 
+@media (max-width: 720px) {
+  .wizard-rule-add {
+    grid-template-columns: 1fr;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -2589,6 +2595,42 @@ tbody td:last-child {
 .wizard-account-row button:hover {
   border-color: rgba(255, 91, 91, 0.55);
   color: var(--loss);
+}
+
+.wizard-rules-grid {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.wizard-rule-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--field-2);
+}
+
+.wizard-rule-panel p {
+  margin: 4px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.wizard-rule-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 120px) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wizard-rule-add select,
+.wizard-rule-add input {
+  width: 100%;
+  min-width: 0;
 }
 
 .wizard-market-types {
