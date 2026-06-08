@@ -3815,6 +3815,39 @@ function showView(viewId) {
   });
 }
 
+function getViewFromRoute(route) {
+  if (route === "journal" || route === "tracker") return "trackerView";
+  if (route === "calculator") return "calculatorView";
+  if (route === "training") return "trainingView";
+  return "dashboardView";
+}
+
+function getRouteFromView(viewId) {
+  if (viewId === "trackerView") return "journal";
+  if (viewId === "calculatorView") return "calculator";
+  if (viewId === "trainingView") return "training";
+  return "dashboard";
+}
+
+function updateActiveRoute(route) {
+  document.querySelectorAll("[data-app-route]").forEach((link) => {
+    const isActive = link.dataset.appRoute === route;
+    link.classList.toggle("active", isActive);
+    if (isActive) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+}
+
+function navigateToRoute(route, { replace = false } = {}) {
+  const normalizedRoute = getRouteFromView(getViewFromRoute(route));
+  showView(getViewFromRoute(normalizedRoute));
+  updateActiveRoute(normalizedRoute);
+  const url = new URL(window.location.href);
+  url.search = normalizedRoute === "dashboard" ? "" : `?view=${normalizedRoute === "journal" ? "tracker" : normalizedRoute}`;
+  window.history[replace ? "replaceState" : "pushState"]({ route: normalizedRoute }, "", url);
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
 function showDashboardSection(sectionName) {
   dashboardSectionButtons.forEach((button) => {
     const isActive = button.dataset.dashboardSection === sectionName;
@@ -4777,6 +4810,18 @@ navButtons.forEach((button) => {
   button.addEventListener("click", () => showView(button.dataset.viewTarget));
 });
 
+document.querySelectorAll("[data-app-route]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    navigateToRoute(link.dataset.appRoute);
+  });
+});
+
+window.addEventListener("popstate", () => {
+  const requestedView = new URLSearchParams(window.location.search).get("view") || "dashboard";
+  navigateToRoute(requestedView, { replace: true });
+});
+
 reviewPrevWeek.addEventListener("click", () => {
   reviewWeekOffset -= 1;
   renderWeeklyReview();
@@ -5340,17 +5385,6 @@ document.addEventListener("click", (event) => {
 async function initialiseApp() {
   const pageParams = new URLSearchParams(window.location.search);
   const requestedView = pageParams.get("view");
-  const standalone = pageParams.get("standalone");
-  const activeRoute = standalone || (requestedView === "tracker" ? "journal" : requestedView || "dashboard");
-  document.querySelectorAll(".header-route-nav a").forEach((link) => {
-    const href = link.getAttribute("href") || "";
-    const route = href.includes("standalone=journal") ? "journal" : href.includes("view=calculator") ? "calculator" : href.includes("view=training") ? "training" : "dashboard";
-    link.classList.toggle("active", route === activeRoute);
-    if (route === activeRoute) link.setAttribute("aria-current", "page");
-  });
-  if (standalone) {
-    document.body.classList.add("training-standalone");
-  }
   syncConfiguredInputs();
   resetForm();
   resetCalculator();
@@ -5359,10 +5393,7 @@ async function initialiseApp() {
   if (sessionStorage.getItem(AUTH_STORAGE_KEY)) {
     maybeOpenConfigForNewUser();
   }
-  if (requestedView === "training") showView("trainingView");
-  else if (requestedView === "tracker") showView("trackerView");
-  else if (requestedView === "calculator") showView("calculatorView");
-  else showView("dashboardView");
+  navigateToRoute(requestedView || "dashboard", { replace: true });
 }
 
 initialiseApp();
