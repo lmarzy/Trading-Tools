@@ -2315,6 +2315,8 @@ tbody td:last-child {
 .wizard-content {
   display: grid;
   gap: 0;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .wizard-layout {
@@ -2452,6 +2454,7 @@ tbody td:last-child {
 .wizard-value-builder {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .wizard-add-row {
@@ -2471,6 +2474,12 @@ tbody td:last-child {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
+  min-width: 0;
+}
+
+.wizard-add-row input,
+.wizard-add-row select {
+  min-width: 0;
 }
 
 .wizard-chip-list {
@@ -2483,6 +2492,7 @@ tbody td:last-child {
 .wizard-account-list {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .wizard-account-row {
@@ -2494,6 +2504,7 @@ tbody td:last-child {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--field-2);
+  min-width: 0;
 }
 
 .wizard-account-head {
@@ -2506,7 +2517,7 @@ tbody td:last-child {
 .wizard-account-fields {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -3136,7 +3147,7 @@ tbody td:last-child {
 
 .account-settings-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -3219,7 +3230,8 @@ tbody td:last-child {
 }
 
 .account-create-row {
-  grid-template-columns: minmax(170px, 1fr) minmax(150px, 190px) auto !important;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) auto !important;
+  min-width: 0;
 }
 
 .account-create-row select {
@@ -3227,15 +3239,13 @@ tbody td:last-child {
   min-height: 42px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1050px) {
   .account-create-row {
     grid-template-columns: 1fr !important;
   }
-}
-
-@media (max-width: 900px) {
+  .wizard-account-fields,
   .account-settings-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 
