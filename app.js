@@ -5341,10 +5341,10 @@ async function initialiseApp() {
   const pageParams = new URLSearchParams(window.location.search);
   const requestedView = pageParams.get("view");
   const standalone = pageParams.get("standalone");
-  const activeRoute = standalone || "dashboard";
+  const activeRoute = standalone || (requestedView === "tracker" ? "journal" : requestedView || "dashboard");
   document.querySelectorAll(".header-route-nav a").forEach((link) => {
     const href = link.getAttribute("href") || "";
-    const route = href.includes("journal") ? "journal" : href.includes("calculator") ? "calculator" : href.includes("training") ? "training" : "dashboard";
+    const route = href.includes("standalone=journal") ? "journal" : href.includes("view=calculator") ? "calculator" : href.includes("view=training") ? "training" : "dashboard";
     link.classList.toggle("active", route === activeRoute);
     if (route === activeRoute) link.setAttribute("aria-current", "page");
   });
