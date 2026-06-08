@@ -291,6 +291,8 @@ body:not(.app-checking) .app-loading-screen {
 }
 
 .topbar {
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
