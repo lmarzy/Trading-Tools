@@ -138,7 +138,6 @@ body.modal-open {
 }
 
 body.auth-locked .app-shell,
-body.app-checking .app-shell,
 body.admin-checking .app-shell {
   filter: blur(18px);
   pointer-events: none;
@@ -298,6 +297,13 @@ body:not(.app-checking) .app-loading-screen {
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 34px;
+}
+
+.header-route-nav,
+.header-route-nav a {
+  position: relative;
+  z-index: 11;
+  pointer-events: auto;
 }
 
 .topbar-actions {
