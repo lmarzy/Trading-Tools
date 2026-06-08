@@ -926,46 +926,52 @@ async function setAppUnlocked(
 ) {
   document.body.classList.add("app-checking");
   passcodeGate.setAttribute("hidden", "");
-  if (userId) {
-    if (refreshUser && passcodeHash && /^[a-f0-9]{64}$/i.test(passcodeHash)) {
-      try {
-        const result = await callSupabaseFunction("login", { passcodeHash });
-        if (!result.user) {
-          setAppLocked();
-          return;
+  try {
+    if (userId) {
+      if (refreshUser && passcodeHash && /^[a-f0-9]{64}$/i.test(passcodeHash)) {
+        try {
+          const result = await callSupabaseFunction("login", { passcodeHash });
+          if (!result.user) {
+            setAppLocked();
+            return;
+          }
+          if (result.user?.id === userId) {
+            userLabel = result.user.label || userLabel;
+            userEmail = result.user.email || "";
+            userRole = result.user.role || userRole;
+            trialEnabled = Boolean(result.user.trialEnabled);
+            trialEndsAt = result.user.trialEndsAt || "";
+          }
+        } catch {
+          // Keep the local session usable if the profile refresh cannot complete.
         }
-        if (result.user?.id === userId) {
-          userLabel = result.user.label || userLabel;
-          userEmail = result.user.email || "";
-          userRole = result.user.role || userRole;
-          trialEnabled = Boolean(result.user.trialEnabled);
-          trialEndsAt = result.user.trialEndsAt || "";
-        }
-      } catch {
-        // Keep the local session usable if the profile refresh cannot complete.
       }
-    }
 
-    sessionStorage.setItem(AUTH_STORAGE_KEY, userId);
-    sessionStorage.setItem(AUTH_LABEL_KEY, userLabel || userId);
-    sessionStorage.setItem(AUTH_EMAIL_KEY, userEmail || "");
-    sessionStorage.setItem(AUTH_ROLE_KEY, userRole || "user");
-    sessionStorage.setItem(AUTH_TRIAL_ENABLED_KEY, trialEnabled ? "true" : "false");
-    sessionStorage.setItem(AUTH_TRIAL_ENDS_KEY, trialEndsAt || "");
-    if (passcodeHash) {
-      sessionStorage.setItem(AUTH_HASH_KEY, passcodeHash);
+      sessionStorage.setItem(AUTH_STORAGE_KEY, userId);
+      sessionStorage.setItem(AUTH_LABEL_KEY, userLabel || userId);
+      sessionStorage.setItem(AUTH_EMAIL_KEY, userEmail || "");
+      sessionStorage.setItem(AUTH_ROLE_KEY, userRole || "user");
+      sessionStorage.setItem(AUTH_TRIAL_ENABLED_KEY, trialEnabled ? "true" : "false");
+      sessionStorage.setItem(AUTH_TRIAL_ENDS_KEY, trialEndsAt || "");
+      if (passcodeHash) {
+        sessionStorage.setItem(AUTH_HASH_KEY, passcodeHash);
+      }
+      currentUserLabel = userLabel || userId;
+      userMenuName.textContent = currentUserLabel;
+      userMenuEmail.textContent = userEmail || "";
+      userMenuRole.textContent = userRole === "admin" ? "Admin" : "User";
+      userMenuButton.textContent = getUserInitials(currentUserLabel);
+      adminNavLink.classList.toggle("hidden", userRole !== "admin");
+      updateTrialBanner(trialEnabled, trialEndsAt);
+      await loadUserState(userId, userLabel || userId);
+      loadNewsEvents();
     }
-    currentUserLabel = userLabel || userId;
-    userMenuName.textContent = currentUserLabel;
-    userMenuEmail.textContent = userEmail || "";
-    userMenuRole.textContent = userRole === "admin" ? "Admin" : "User";
-    userMenuButton.textContent = getUserInitials(currentUserLabel);
-    adminNavLink.classList.toggle("hidden", userRole !== "admin");
-    updateTrialBanner(trialEnabled, trialEndsAt);
-    await loadUserState(userId, userLabel || userId);
-    loadNewsEvents();
+  } catch (error) {
+    console.error("Unable to finish loading the user session", error);
+    setSaveStatus("pending", "Could not finish loading saved data");
+  } finally {
+    document.body.classList.remove("auth-locked", "app-checking");
   }
-  document.body.classList.remove("auth-locked", "app-checking");
 }
 
 function setAppLocked() {
