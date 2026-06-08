@@ -2402,8 +2402,11 @@ tbody td:last-child {
   display: grid;
   align-content: center;
   gap: 22px;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   padding: 42px 0 42px 48px;
+  overflow-x: clip;
 }
 
 .wizard-copy {
@@ -2491,13 +2494,17 @@ tbody td:last-child {
 
 .wizard-account-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
 }
 
 .wizard-account-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: end;
   gap: 12px;
   padding: 14px;
@@ -2505,6 +2512,8 @@ tbody td:last-child {
   border-radius: 14px;
   background: var(--field-2);
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .wizard-account-head {
@@ -2512,13 +2521,17 @@ tbody td:last-child {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
+  padding-right: 48px;
 }
 
 .wizard-account-fields {
   display: grid;
-  grid-column: 1 / -1;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .wizard-account-fields.regular {
@@ -2539,6 +2552,17 @@ tbody td:last-child {
 .wizard-account-row label {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.wizard-account-row input,
+.wizard-account-row select,
+.wizard-account-row .input-with-suffix {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .wizard-account-row label span {
@@ -2550,6 +2574,9 @@ tbody td:last-child {
 }
 
 .wizard-account-row button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   width: 42px;
   height: 42px;
   border: 1px solid var(--line);
