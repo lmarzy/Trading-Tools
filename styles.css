@@ -291,7 +291,7 @@ body:not(.app-checking) .app-loading-screen {
 
 .topbar {
   position: relative;
-  z-index: 10;
+  z-index: 100;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -302,7 +302,7 @@ body:not(.app-checking) .app-loading-screen {
 .header-route-nav,
 .header-route-nav a {
   position: relative;
-  z-index: 11;
+  z-index: 101;
   pointer-events: auto;
 }
 
@@ -3745,6 +3745,44 @@ body.training-standalone #newsAlertButton {
   font-size: 2.8rem;
 }
 
+.training-path-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.training-path-nav button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--field);
+  color: var(--muted-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.training-path-nav button:hover,
+.training-path-nav button.active {
+  border-color: var(--line-hot);
+  color: var(--value);
+}
+
+.training-path-nav button.active {
+  background: var(--lime-soft);
+}
+
+.training-path-nav span {
+  font-weight: 850;
+}
+
+.training-path-nav small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
 .training-chapter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4177,6 +4215,10 @@ body.training-standalone #newsAlertButton {
 }
 
 @media (max-width: 900px) {
+  .training-path-nav {
+    grid-template-columns: 1fr;
+  }
+
   .review-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4860,7 +4902,8 @@ a.icon-button {
 .primary-button.is-loading,
 .ghost-button.is-loading,
 .danger-button.is-loading,
-.icon-button.is-loading {
+.icon-button.is-loading,
+.user-popover-link.is-loading {
   position: relative;
   display: inline-grid;
   place-items: center;
@@ -4871,7 +4914,8 @@ a.icon-button {
 .primary-button.is-loading::after,
 .ghost-button.is-loading::after,
 .danger-button.is-loading::after,
-.icon-button.is-loading::after {
+.icon-button.is-loading::after,
+.user-popover-link.is-loading::after {
   width: 16px;
   height: 16px;
   border: 2px solid currentcolor;
@@ -5035,6 +5079,31 @@ button:disabled,
   color: #626262;
   opacity: 1;
   transform: none;
+}
+
+.primary-button.is-loading:disabled,
+.top-action.is-loading:disabled {
+  border-color: transparent;
+  background: var(--lime);
+  color: transparent;
+}
+
+.ghost-button.is-loading:disabled,
+.danger-button.is-loading:disabled,
+.icon-button.is-loading:disabled,
+.user-popover-link.is-loading:disabled {
+  border-color: var(--line);
+  background: var(--field-2);
+  color: transparent;
+  opacity: 1;
+}
+
+.user-popover-link.is-loading {
+  min-height: 42px;
+}
+
+.user-popover-link.is-loading::after {
+  color: var(--lime);
 }
 
 .icon-button.delete {
@@ -5426,7 +5495,8 @@ button:disabled,
 }
 
 .hidden {
-  display: none;
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .toast-stack {

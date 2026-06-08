@@ -5,6 +5,7 @@ const AUTH_ROLE_KEY = "trade-tools:unlocked-role";
 const AUTH_HASH_KEY = "trade-tools:unlocked-passcode-hash";
 const AUTH_TRIAL_ENABLED_KEY = "trade-tools:unlocked-trial-enabled";
 const AUTH_TRIAL_ENDS_KEY = "trade-tools:unlocked-trial-ends";
+const ONBOARDING_DISMISSED_KEY = "trade-tools:onboarding-dismissed-user";
 const TABLE_PAGE_SIZE = 10;
 const PASSCODE_SALT = "trade-tools-v1";
 const PASSCODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ2346789";
@@ -98,6 +99,10 @@ const trainingChapterGrid = document.querySelector("#trainingChapterGrid");
 const trainingCourseProgress = document.querySelector("#trainingCourseProgress");
 const trainingCourseProgressBar = document.querySelector("#trainingCourseProgressBar");
 const continueTrainingButton = document.querySelector("#continueTrainingButton");
+const trainingPathNav = document.querySelector("#trainingPathNav");
+const trainingPathTitle = document.querySelector("#trainingPathTitle");
+const trainingPathDescription = document.querySelector("#trainingPathDescription");
+const trainingPathMeta = document.querySelector("#trainingPathMeta");
 const backToTrainingHome = document.querySelector("#backToTrainingHome");
 const trainingStepList = document.querySelector("#trainingStepList");
 const trainingScore = document.querySelector("#trainingScore");
@@ -160,6 +165,14 @@ const closeTradeDrawerButton = document.querySelector("#closeTradeDrawerButton")
 const drawerPrevButton = document.querySelector("#drawerPrevButton");
 const drawerNextButton = document.querySelector("#drawerNextButton");
 const drawerEditButton = document.querySelector("#drawerEditButton");
+
+// Dialogs must live outside hidden app views or their backdrop can block the
+// page while the dialog itself remains invisible.
+[tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal, confirmModal].forEach((modal) => {
+  if (modal?.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+});
 
 const totalTradesEl = document.querySelector("#totalTrades");
 const summarySymbolSplit = document.querySelector("#summarySymbolSplit");
@@ -356,6 +369,21 @@ const TRAINING_CHAPTERS = [
   { id: "context-application", number: "06", title: "Using Candlesticks Properly", description: "Combine candles with direction, chart areas, confirmation, planning, and risk.", lessons: 6, duration: "25 min", status: "sequential", topics: ["Context", "Confirmation", "Planning"] },
   { id: "candlestick-assessment", number: "07", title: "Guided Chart Practice", description: "Apply the complete process to realistic chart scenarios and build confidence.", lessons: 4, duration: "15 min", status: "sequential", topics: ["Scenarios", "Mistakes", "Review"] },
   { id: "fvg-foundations", number: "08", title: "Fair Value Gaps", description: "Learn how to identify, assess, and responsibly use fair value gaps from first principles.", lessons: 14, duration: "40 min", status: "sequential", topics: ["Imbalance", "Mitigation", "Context"] },
+  { id: "inverse-fvg", number: "09", title: "Inverse Fair Value Gaps", description: "Understand how a failed fair value gap can become an area to watch from the opposite direction.", lessons: 12, duration: "35 min", status: "sequential", topics: ["Invalidation", "Role Reversal", "Confirmation"] },
+];
+const TRAINING_PATHS = [
+  {
+    id: "candlesticks",
+    title: "Price & Candlesticks",
+    description: "Build a complete foundation in price charts, candles, patterns, context, and responsible application.",
+    chapterIds: TRAINING_CHAPTERS.filter((chapter) => chapter.id !== "fvg-foundations").map((chapter) => chapter.id),
+  },
+  {
+    id: "fvg",
+    title: "Fair Value Gaps",
+    description: "Learn imbalances and fair value gaps independently, from identification through mitigation and planning.",
+    chapterIds: ["fvg-foundations", "inverse-fvg"],
+  },
 ];
 const TRAINING_STEPS = [
   { title: "What Is a Market Price?", type: "lesson", body: "A market price is the latest price at which buyers and sellers agree to trade. As new trades happen, that price can move higher or lower.", points: ["Price changes when new trades happen", "Buyers and sellers meet at a price", "Charts record those changes"], visual: "market-price" },
@@ -486,6 +514,20 @@ const FVG_FOUNDATION_STEPS = [
   { title: "Avoid the Common Mistake", type: "question", prompt: "What is the safest response when you spot an FVG?", options: ["Enter immediately because every gap fills", "Use it as one piece of context and wait for a planned setup", "Increase risk because the zone is precise"], answer: 1, explanation: "An FVG is useful context, but it should be combined with confirmation, invalidation, and controlled risk.", visual: "fvg-plan" },
   { title: "Final FVG Scenario", type: "question", prompt: "Price is trending upward, forms a clear bullish FVG with strong displacement, then returns into the zone. What should you do next?", options: ["Assume price must rise", "Check for confirmation and only act if it fits your risk plan", "Move the zone until it creates a winning trade"], answer: 1, explanation: "The context is constructive, but confirmation and a defined risk plan are still required before acting.", visual: "fvg-context" },
 ];
+const INVERSE_FVG_STEPS = [
+  { title: "From FVG to Inverse FVG", type: "lesson", body: "An inverse fair value gap begins as a normal FVG. It becomes relevant only after price decisively trades through the original zone, invalidating its first directional idea.", points: ["Begin with a clearly identified FVG", "Price must trade through the original zone", "The failed gap may later be watched from the opposite side"], visual: "ifvg-transition" },
+  { title: "Invalidation Check", type: "question", prompt: "What must happen before an FVG can be considered as a possible inverse FVG?", options: ["Price must decisively trade through it", "Price must touch its edge once", "The gap must remain completely untouched"], answer: 0, explanation: "An inverse FVG starts with invalidation: price trades through the original fair value gap.", visual: "ifvg-transition" },
+  { title: "What Role Reversal Means", type: "lesson", body: "After invalidation, traders may watch the old FVG from the opposite side. A former bullish area may act as resistance, while a former bearish area may act as support. This is called role reversal.", points: ["Bullish FVG can become bearish IFVG", "Bearish FVG can become bullish IFVG", "The zone is watched, not assumed to hold"], visual: "ifvg-role-reversal" },
+  { title: "Bearish Inverse FVG", type: "lesson", body: "A bearish IFVG begins with a bullish FVG that fails. Price closes through the zone, moves below it, then returns from underneath. Traders watch for a bearish reaction at the former gap.", points: ["Original zone was bullish", "Price invalidated it by trading lower", "The return approaches from below"], visual: "ifvg-bearish" },
+  { title: "Bullish Inverse FVG", type: "lesson", body: "A bullish IFVG begins with a bearish FVG that fails. Price trades above the zone, then returns from above. Traders watch whether the former bearish area now supports price.", points: ["Original zone was bearish", "Price invalidated it by trading higher", "The return approaches from above"], visual: "ifvg-bullish" },
+  { title: "Direction Check", type: "question", prompt: "A bullish FVG fails and price later returns to it from below. What is the zone now being watched as?", options: ["A possible bearish IFVG", "A guaranteed bullish FVG", "A new candlestick"], answer: 0, explanation: "The failed bullish FVG may be watched as a bearish inverse FVG when price returns from below.", visual: "ifvg-bearish" },
+  { title: "Mitigation or Inversion?", type: "lesson", body: "A normal mitigation returns into a gap while its original directional idea remains valid. An inversion requires price to trade through the gap first, then approach it from the opposite side.", points: ["Mitigation approaches a still-valid FVG", "Inversion follows a decisive failure", "Always identify which side price approaches from"], visual: "ifvg-compare" },
+  { title: "Read the Wider Context", type: "lesson", body: "An IFVG is more useful when the failure agrees with wider structure. Look for a clear change in direction, strong displacement through the zone, and a return that fits the new market story.", points: ["Look for decisive displacement through the gap", "Check whether structure supports the new direction", "Weak drifting movement gives weaker evidence"], visual: "ifvg-context" },
+  { title: "Wait for Confirmation", type: "lesson", body: "The return to an IFVG is not automatically an entry. Watch how price behaves at the zone and require whatever confirmation your plan defines before considering a trade.", points: ["The zone can fail again", "Use a defined confirmation process", "Never increase risk because a label sounds advanced"], visual: "ifvg-confirmation" },
+  { title: "Context Check", type: "question", prompt: "Which situation gives an inverse FVG the clearest context?", options: ["A decisive break through the gap followed by a structured return", "Price drifting randomly around the gap", "Entering before the original gap fails"], answer: 0, explanation: "A decisive invalidation and structured return provide clearer evidence of role reversal.", visual: "ifvg-context" },
+  { title: "Plan Risk and Invalidation", type: "lesson", body: "Before acting, decide what would prove the inverse idea wrong. The invalidation point, entry trigger, target, and risk amount should all be defined before entering.", points: ["Define where the role-reversal idea fails", "Keep risk controlled", "Accept that an IFVG is still only one piece of evidence"], visual: "ifvg-confirmation" },
+  { title: "Final IFVG Scenario", type: "question", prompt: "A bearish FVG is broken strongly to the upside. Price later returns from above and begins holding over the old zone. What is the responsible interpretation?", options: ["It may be a bullish IFVG, but confirmation and risk planning are still required", "The market must rise", "The original bearish FVG is still automatically valid"], answer: 0, explanation: "The failed bearish gap may now act as a bullish inverse FVG, but it remains a context tool rather than a guarantee.", visual: "ifvg-bullish" },
+];
 const TRAINING_STEP_MAP = {
   [TRAINING_MODULE_ID]: TRAINING_STEPS,
   "candlestick-anatomy": CANDLESTICK_ANATOMY_STEPS,
@@ -495,6 +537,7 @@ const TRAINING_STEP_MAP = {
   "context-application": CONTEXT_APPLICATION_STEPS,
   "candlestick-assessment": FINAL_ASSESSMENT_STEPS,
   "fvg-foundations": FVG_FOUNDATION_STEPS,
+  "inverse-fvg": INVERSE_FVG_STEPS,
 };
 const FUNDAMENTAL_LESSON_GUIDES = {
   "candlestick-intro": [
@@ -545,6 +588,7 @@ let reviewWeekOffset = 0;
 let trainingStepIndex = 0;
 let trainingWorkspaceOpen = false;
 let activeTrainingChapterId = TRAINING_MODULE_ID;
+let activeTrainingPathId = "candlesticks";
 let acknowledgedPreTradeRules = [];
 let newsEvents = [];
 let newsFilter = "today";
@@ -994,6 +1038,7 @@ async function logout() {
     sessionStorage.removeItem(AUTH_HASH_KEY);
     sessionStorage.removeItem(AUTH_TRIAL_ENABLED_KEY);
     sessionStorage.removeItem(AUTH_TRIAL_ENDS_KEY);
+    sessionStorage.removeItem(ONBOARDING_DISMISSED_KEY);
     currentUserId = "";
     currentUserLabel = "";
     adminNavLink.classList.add("hidden");
@@ -1001,6 +1046,7 @@ async function logout() {
     userMenuButton.setAttribute("aria-expanded", "false");
     passcodeInput.value = "";
     passcodeError.textContent = "";
+    navigateToRoute("dashboard", { replace: true });
     setAppLocked();
   } finally {
     setButtonLoading(logoutButton, false);
@@ -2641,6 +2687,13 @@ function trainingCandleSvg(type) {
   if (type === "fvg-mitigation") content = `<rect x="172" y="124" width="310" height="34" rx="5" fill="rgba(185,255,87,.13)" stroke="#b9ff57"/><text x="410" y="145" text-anchor="middle">FVG zone</text>${candle(70, 192, 168, 152, 208, "#b9ff57")}${candle(130, 170, 82, 66, 184, "#b9ff57")}${candle(190, 96, 82, 72, 124, "#b9ff57")}${candle(250, 84, 104, 74, 116, "#ff7a7a")}${candle(310, 106, 132, 96, 146, "#ff7a7a")}${candle(370, 134, 116, 108, 154, "#b9ff57")}${candle(430, 118, 88, 78, 132, "#b9ff57")}<path d="M250 66C330 76 338 112 338 130" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="5 5"/><path d="M330 120L338 132L346 120" fill="none" stroke="#ffffff" stroke-width="2"/><text x="300" y="54" text-anchor="middle">Price returns into the gap</text>`;
   if (type === "fvg-context") content = `<path d="M36 210L110 174L176 188L248 126L318 146L390 82L486 52" fill="none" stroke="#b9ff57" stroke-width="3"/><rect x="240" y="132" width="154" height="28" rx="4" fill="rgba(185,255,87,.14)" stroke="#b9ff57"/><text x="317" y="151" text-anchor="middle">Bullish FVG</text><circle cx="176" cy="188" r="6" fill="#151715" stroke="#b9ff57" stroke-width="2"/><circle cx="318" cy="146" r="6" fill="#151715" stroke="#b9ff57" stroke-width="2"/><text x="176" y="212" text-anchor="middle">Higher low</text><text x="420" y="224" text-anchor="middle">Supports wider upward structure</text>`;
   if (type === "fvg-plan") content = `<rect x="120" y="116" width="300" height="36" rx="5" fill="rgba(185,255,87,.14)" stroke="#b9ff57"/><text x="270" y="139" text-anchor="middle">FVG · area to watch</text><path d="M72 202L142 174L210 190L280 92L344 74L438 48" fill="none" stroke="#b9ff57" stroke-width="3"/><path d="M280 92C260 110 246 126 238 142" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="5 5"/><circle cx="238" cy="142" r="6" fill="#151715" stroke="#ffffff" stroke-width="2"/><line x1="120" y1="176" x2="420" y2="176" stroke="#ff7a7a" stroke-dasharray="6 6"/><text x="426" y="180">Invalidation</text><text x="270" y="224" text-anchor="middle">Wait for confirmation · define risk · accept that the setup can fail</text>`;
+  if (type === "ifvg-transition") content = `<rect x="80" y="112" width="380" height="34" rx="5" fill="rgba(185,255,87,.12)" stroke="#b9ff57"/><text x="270" y="134" text-anchor="middle">Original bullish FVG</text><path d="M42 198L112 174L178 82L242 72L306 98L366 162L430 190L496 154" fill="none" stroke="#ffffff" stroke-width="3"/><path d="M330 92L390 182" stroke="#ff7a7a" stroke-width="3"/><text x="390" y="210" text-anchor="middle">Price trades through · original idea fails</text>`;
+  if (type === "ifvg-role-reversal") content = `<rect x="86" y="112" width="368" height="34" rx="5" fill="rgba(255,122,122,.12)" stroke="#ff7a7a"/><text x="270" y="134" text-anchor="middle">Same zone · watched from the opposite side</text><path d="M42 194L112 164L178 78L246 70L314 170L382 194L446 140L496 166" fill="none" stroke="#ffffff" stroke-width="3"/><path d="M446 140L446 112" stroke="#ff7a7a" stroke-width="2" stroke-dasharray="5 5"/><text x="442" y="96" text-anchor="middle">Return from below</text>`;
+  if (type === "ifvg-bearish") content = `<rect x="92" y="108" width="356" height="36" rx="5" fill="rgba(255,122,122,.13)" stroke="#ff7a7a"/><text x="270" y="131" text-anchor="middle">Failed bullish FVG → possible bearish IFVG</text><path d="M40 196L108 164L172 72L236 84L300 174L362 202L424 140L494 176" fill="none" stroke="#ff7a7a" stroke-width="3"/><circle cx="424" cy="140" r="6" fill="#151715" stroke="#ffffff" stroke-width="2"/><text x="424" y="222" text-anchor="middle">Return from below · watch for bearish confirmation</text>`;
+  if (type === "ifvg-bullish") content = `<rect x="92" y="116" width="356" height="36" rx="5" fill="rgba(185,255,87,.13)" stroke="#b9ff57"/><text x="270" y="139" text-anchor="middle">Failed bearish FVG → possible bullish IFVG</text><path d="M40 62L108 94L172 196L236 180L300 84L362 58L424 126L494 92" fill="none" stroke="#b9ff57" stroke-width="3"/><circle cx="424" cy="126" r="6" fill="#151715" stroke="#ffffff" stroke-width="2"/><text x="424" y="222" text-anchor="middle">Return from above · watch for bullish confirmation</text>`;
+  if (type === "ifvg-compare") content = `<text x="135" y="28" text-anchor="middle">Mitigation</text><rect x="34" y="118" width="202" height="30" rx="4" fill="rgba(185,255,87,.12)" stroke="#b9ff57"/><path d="M34 202L90 164L144 76L198 94L224 132L238 96" fill="none" stroke="#b9ff57" stroke-width="3"/><text x="135" y="230" text-anchor="middle">Returns without trading through</text><path d="M270 30V232" stroke="#626862" stroke-dasharray="5 6"/><text x="405" y="28" text-anchor="middle">Inversion</text><rect x="304" y="118" width="202" height="30" rx="4" fill="rgba(255,122,122,.12)" stroke="#ff7a7a"/><path d="M304 202L350 164L400 76L446 174L482 198L506 138" fill="none" stroke="#ff7a7a" stroke-width="3"/><text x="405" y="230" text-anchor="middle">Trades through, then returns opposite-side</text>`;
+  if (type === "ifvg-context") content = `<rect x="126" y="112" width="300" height="32" rx="4" fill="rgba(255,122,122,.12)" stroke="#ff7a7a"/><path d="M38 54L102 82L166 62L230 126L294 104L358 180L422 146L500 210" fill="none" stroke="#ff7a7a" stroke-width="3"/><text x="190" y="44">Lower high</text><text x="374" y="210">Lower low</text><circle cx="422" cy="146" r="6" fill="#151715" stroke="#ffffff" stroke-width="2"/><text x="270" y="134" text-anchor="middle">Bearish IFVG agrees with downward structure</text>`;
+  if (type === "ifvg-confirmation") content = `<rect x="100" y="110" width="340" height="34" rx="4" fill="rgba(255,122,122,.12)" stroke="#ff7a7a"/><text x="270" y="132" text-anchor="middle">IFVG area to watch</text><path d="M44 194L110 164L176 76L242 180L306 202L372 136L438 170L500 210" fill="none" stroke="#ffffff" stroke-width="3"/><circle cx="372" cy="136" r="6" fill="#151715" stroke="#ff7a7a" stroke-width="2"/><line x1="100" y1="78" x2="440" y2="78" stroke="#ff7a7a" stroke-dasharray="6 6"/><text x="446" y="82">Invalidation</text><text x="270" y="230" text-anchor="middle">Observe reaction · require confirmation · define invalidation</text>`;
   const noGrid = ["market-price", "candlestick-intro", "candle-body", "candle-anatomy", "line-v-candles"].includes(type);
   return `<svg class="training-chart" viewBox="0 0 540 280" role="img" aria-label="Candlestick lesson diagram">${noGrid ? "" : `<g class="chart-grid"><path d="M20 50H520M20 100H520M20 150H520M20 200H520M50 24V238M150 24V238M250 24V238M350 24V238M450 24V238"/></g>`}${content}${["ohlc-story"].includes(type) ? axes : ""}</svg>`;
 }
@@ -2655,6 +2708,7 @@ function getTrainingProgress(chapterId = activeTrainingChapterId) {
 
 function openTrainingWorkspace(chapterId = activeTrainingChapterId) {
   activeTrainingChapterId = chapterId;
+  activeTrainingPathId = TRAINING_PATHS.find((path) => path.chapterIds.includes(chapterId))?.id || activeTrainingPathId;
   const steps = getActiveTrainingSteps();
   trainingStepIndex = Math.min(steps.length - 1, Math.max(0, Number(getTrainingProgress().step) || 0));
   trainingWorkspaceOpen = true;
@@ -2670,24 +2724,47 @@ function showTrainingHome() {
   renderTraining();
 }
 
+function getActiveTrainingPath() {
+  return TRAINING_PATHS.find((path) => path.id === activeTrainingPathId) || TRAINING_PATHS[0];
+}
+
+function getTrainingPathChapters(path = getActiveTrainingPath()) {
+  return path.chapterIds.map((id) => TRAINING_CHAPTERS.find((chapter) => chapter.id === id)).filter(Boolean);
+}
+
 function renderTraining() {
   if (!trainingContent) return;
   const progress = getTrainingProgress();
-  const completedChapters = TRAINING_CHAPTERS.filter((chapter) => getTrainingProgress(chapter.id).completed).length;
-  const coursePercent = Math.round((completedChapters / TRAINING_CHAPTERS.length) * 100);
+  const activePath = getActiveTrainingPath();
+  const pathChapters = getTrainingPathChapters(activePath);
+  const completedChapters = pathChapters.filter((chapter) => getTrainingProgress(chapter.id).completed).length;
+  const coursePercent = Math.round((completedChapters / pathChapters.length) * 100);
+  const nextChapter = pathChapters.find((chapter) => !getTrainingProgress(chapter.id).completed) || pathChapters[0];
+  const totalLessons = pathChapters.reduce((total, chapter) => total + chapter.lessons, 0);
+  trainingPathTitle.textContent = activePath.title;
+  trainingPathDescription.textContent = activePath.description;
+  trainingPathMeta.innerHTML = `<span>${pathChapters.length} ${pathChapters.length === 1 ? "module" : "guided modules"}</span><span>${totalLessons} short lessons</span><span>Learn independently</span>`;
+  trainingPathNav.innerHTML = TRAINING_PATHS.map((path) => {
+    const chapters = getTrainingPathChapters(path);
+    const complete = chapters.filter((chapter) => getTrainingProgress(chapter.id).completed).length;
+    const percent = Math.round((complete / chapters.length) * 100);
+    return `<button type="button" class="${path.id === activeTrainingPathId ? "active" : ""}" data-training-path="${path.id}"><span>${escapeHtml(path.title)}</span><small>${percent}% complete · ${chapters.length} ${chapters.length === 1 ? "module" : "modules"}</small></button>`;
+  }).join("");
   trainingCourseProgress.textContent = `${coursePercent}%`;
   trainingCourseProgressBar.style.width = `${coursePercent}%`;
-  continueTrainingButton.textContent = progress.completed ? "Review chapter" : progress.step ? "Continue learning" : "Start learning";
-  trainingChapterGrid.innerHTML = TRAINING_CHAPTERS.map((chapter) => {
-    const chapterIndex = TRAINING_CHAPTERS.findIndex((item) => item.id === chapter.id);
-    const available = Boolean(TRAINING_STEP_MAP[chapter.id]) && (chapterIndex === 0 || getTrainingProgress(TRAINING_CHAPTERS[chapterIndex - 1].id).completed);
+  continueTrainingButton.dataset.trainingChapter = nextChapter.id;
+  const nextProgress = getTrainingProgress(nextChapter.id);
+  continueTrainingButton.textContent = nextProgress.completed ? "Review path" : nextProgress.step ? "Continue learning" : "Start learning";
+  trainingChapterGrid.innerHTML = pathChapters.map((chapter) => {
+    const chapterIndex = pathChapters.findIndex((item) => item.id === chapter.id);
+    const available = Boolean(TRAINING_STEP_MAP[chapter.id]) && (chapterIndex === 0 || getTrainingProgress(pathChapters[chapterIndex - 1].id).completed);
     const chapterProgress = getTrainingProgress(chapter.id);
     const chapterSteps = TRAINING_STEP_MAP[chapter.id] || [];
     const chapterPercent = chapterProgress.completed ? 100 : Math.round(((chapterProgress.step || 0) / Math.max(1, chapterSteps.length)) * 100);
     return `<article class="training-chapter-card ${available ? "" : "locked"}">
-      <div class="training-chapter-visual">${trainingCandleSvg(chapter.id === "fvg-foundations" ? "fvg-three-candle" : chapter.id === TRAINING_MODULE_ID ? "patterns" : chapter.id === "single-candle-patterns" ? "doji" : chapter.id === "multi-candle-patterns" ? "patterns" : "context")}</div>
+      <div class="training-chapter-visual">${trainingCandleSvg(chapter.id === "inverse-fvg" ? "ifvg-transition" : chapter.id === "fvg-foundations" ? "fvg-three-candle" : chapter.id === TRAINING_MODULE_ID ? "patterns" : chapter.id === "single-candle-patterns" ? "doji" : chapter.id === "multi-candle-patterns" ? "patterns" : "context")}</div>
       <div class="training-chapter-content">
-        <div class="training-chapter-heading"><span>Chapter ${chapter.number}</span><small>${available ? `${chapterPercent}% complete` : "Coming next"}</small></div>
+        <div class="training-chapter-heading"><span>Module ${String(chapterIndex + 1).padStart(2, "0")}</span><small>${available ? `${chapterPercent}% complete` : "Coming next"}</small></div>
         <h3>${escapeHtml(chapter.title)}</h3><p>${escapeHtml(chapter.description)}</p>
         <div class="training-topic-list">${chapter.topics.map((topic) => `<span>${escapeHtml(topic)}</span>`).join("")}</div>
         <div class="training-chapter-footer"><span>${chapter.lessons} lessons · ${chapter.duration}</span><button type="button" data-training-chapter="${chapter.id}" ${available ? "" : "disabled"}>${available ? (chapterProgress.completed ? "Review" : chapterProgress.step ? "Continue" : "Start chapter") : "Locked"}</button></div>
@@ -2702,7 +2779,8 @@ function renderTraining() {
   const railTitle = trainingLessonWorkspace.querySelector(".training-rail h2");
   const railDescription = trainingLessonWorkspace.querySelector(".training-rail h2 + p");
   if (activeChapter && railEyebrow && railTitle && railDescription) {
-    railEyebrow.textContent = `Chapter ${activeChapter.number}`;
+    const path = TRAINING_PATHS.find((item) => item.chapterIds.includes(activeChapter.id)) || TRAINING_PATHS[0];
+    railEyebrow.textContent = `${path.title} · Module ${String(path.chapterIds.indexOf(activeChapter.id) + 1).padStart(2, "0")}`;
     railTitle.textContent = activeChapter.title;
     railDescription.textContent = activeChapter.description;
   }
@@ -3108,8 +3186,15 @@ function closeConfigModal() {
 }
 
 function maybeOpenConfigForNewUser() {
-  if (!userHasStartedConfig() && !configModal.open && !onboardingModal.open && !onboardingWizardModal.open) {
+  const dismissedForUser = sessionStorage.getItem(ONBOARDING_DISMISSED_KEY) === currentUserId;
+  if (currentUserId && !dismissedForUser && !userHasStartedConfig() && !configModal.open && !onboardingModal.open && !onboardingWizardModal.open) {
     openDialog(onboardingModal);
+  }
+}
+
+function dismissOnboardingForSession() {
+  if (currentUserId) {
+    sessionStorage.setItem(ONBOARDING_DISMISSED_KEY, currentUserId);
   }
 }
 
@@ -3846,6 +3931,13 @@ function updateActiveRoute(route) {
 
 function navigateToRoute(route, { replace = false } = {}) {
   const normalizedRoute = getRouteFromView(getViewFromRoute(route));
+  [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal, confirmModal].forEach((modal) => {
+    if (modal.open) {
+      modal.close();
+      modal.classList.remove("is-closing");
+    }
+  });
+  updateModalScrollLock();
   showView(getViewFromRoute(normalizedRoute));
   updateActiveRoute(normalizedRoute);
   const url = new URL(window.location.href);
@@ -4489,7 +4581,10 @@ emptyConfigButton.addEventListener("click", openConfigFlow);
 closeTradeModalButton.addEventListener("click", closeTradeModal);
 openConfigButton.addEventListener("click", openConfigFlow);
 closeConfigButton.addEventListener("click", closeConfigModal);
-closeOnboardingButton.addEventListener("click", () => closeDialog(onboardingModal));
+closeOnboardingButton.addEventListener("click", () => {
+  dismissOnboardingForSession();
+  closeDialog(onboardingModal);
+});
 closeNoteButton.addEventListener("click", closeNoteModal);
 openResetPasscodeButton.addEventListener("click", openResetPasscodeModal);
 closeResetPasscodeButton.addEventListener("click", closeResetPasscodeModal);
@@ -4734,7 +4829,7 @@ passcodeForm.addEventListener("submit", async (event) => {
       Boolean(matchedUser.trialEnabled),
       matchedUser.trialEndsAt || "",
     );
-    maybeOpenConfigForNewUser();
+    window.requestAnimationFrame(maybeOpenConfigForNewUser);
   } finally {
     setButtonLoading(passcodeSubmitButton, false);
     passcodeInput.disabled = false;
@@ -4818,6 +4913,9 @@ navButtons.forEach((button) => {
 
 document.querySelectorAll("[data-app-route]").forEach((link) => {
   link.addEventListener("click", (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
     event.preventDefault();
     navigateToRoute(link.dataset.appRoute);
   });
@@ -4876,8 +4974,15 @@ trainingContent.addEventListener("click", (event) => {
   saveConfig();
   renderTraining();
 });
-continueTrainingButton.addEventListener("click", openTrainingWorkspace);
+continueTrainingButton.addEventListener("click", () => openTrainingWorkspace(continueTrainingButton.dataset.trainingChapter));
 backToTrainingHome.addEventListener("click", showTrainingHome);
+trainingPathNav.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-training-path]");
+  if (!button) return;
+  activeTrainingPathId = button.dataset.trainingPath;
+  activeTrainingChapterId = getTrainingPathChapters()[0].id;
+  renderTraining();
+});
 trainingChapterGrid.addEventListener("click", (event) => {
   const button = event.target.closest("[data-training-chapter]");
   if (button && !button.disabled) openTrainingWorkspace(button.dataset.trainingChapter);
@@ -4921,7 +5026,14 @@ onboardingConfigButton.addEventListener("click", () => {
   openOnboardingWizard();
 });
 
-closeWizardButton.addEventListener("click", () => closeDialog(onboardingWizardModal));
+closeWizardButton.addEventListener("click", () => {
+  dismissOnboardingForSession();
+  closeDialog(onboardingWizardModal);
+});
+
+[onboardingModal, onboardingWizardModal].forEach((modal) => {
+  modal.addEventListener("cancel", () => dismissOnboardingForSession());
+});
 
 wizardBackButton.addEventListener("click", () => {
   if (onboardingStepIndex === 0) {
@@ -5396,10 +5508,8 @@ async function initialiseApp() {
   resetCalculator();
   render();
   await initialisePasscodeGate();
-  if (sessionStorage.getItem(AUTH_STORAGE_KEY)) {
-    maybeOpenConfigForNewUser();
-  }
   navigateToRoute(requestedView || "dashboard", { replace: true });
+  window.requestAnimationFrame(maybeOpenConfigForNewUser);
 }
 
 initialiseApp();

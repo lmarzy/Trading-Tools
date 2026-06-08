@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260608-click-fix" />
+    <link rel="stylesheet" href="styles.css?v=20260608-training-paths" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -46,10 +46,10 @@
         </div>
         <div class="topbar-actions">
           <nav class="header-route-nav" aria-label="Main navigation">
-            <a href="?view=dashboard" data-app-route="dashboard">Dashboard</a>
-            <a href="?view=tracker" data-app-route="journal">Journal</a>
-            <a href="?view=calculator" data-app-route="calculator">Calculator</a>
-            <a href="?view=training" data-app-route="training">Training</a>
+            <a href="index.html?view=dashboard" data-app-route="dashboard">Dashboard</a>
+            <a href="index.html?view=tracker" data-app-route="journal">Journal</a>
+            <a href="index.html?view=calculator" data-app-route="calculator">Calculator</a>
+            <a href="index.html?view=training" data-app-route="training">Training</a>
           </nav>
           <button class="news-alert-button" type="button" id="newsAlertButton" aria-label="Open news alerts">
             <span aria-hidden="true">!</span>
@@ -82,7 +82,7 @@
         <div class="hub-command-grid">
           <div class="hub-command-main">
             <section class="hub-panel">
-              <div class="hub-panel-heading"><div><span>Trading Overview</span><h2>This Week</h2></div><a href="?view=tracker" data-app-route="journal">Open Journal →</a></div>
+              <div class="hub-panel-heading"><div><span>Trading Overview</span><h2>This Week</h2></div><a href="index.html?view=tracker">Open Journal →</a></div>
               <div class="hub-stat-grid">
                 <article><span>Trades</span><strong id="hubTrades">0</strong></article>
                 <article><span>Wins</span><strong id="hubWins">0</strong></article>
@@ -92,7 +92,7 @@
               </div>
             </section>
             <section class="hub-panel hub-training-panel">
-              <div class="hub-panel-heading"><div><span>Training Academy</span><h2 id="hubTrainingTitle">Learn Candlesticks</h2></div><a href="?view=training" data-app-route="training">Continue Learning →</a></div>
+              <div class="hub-panel-heading"><div><span>Training Academy</span><h2 id="hubTrainingTitle">Learn Candlesticks</h2></div><a href="index.html?view=training">Continue Learning →</a></div>
               <div class="hub-training-body"><strong id="hubTrainingProgress">0%</strong><div><div class="training-progress-track"><i id="hubTrainingProgressBar"></i></div><p id="hubTrainingDetail">Start your first chapter.</p></div></div>
             </section>
             <section class="hub-review-strip">
@@ -663,16 +663,17 @@
           <div class="training-hero">
             <div>
               <p class="eyebrow">TRADERS HUB Academy</p>
-              <h1>Trading Foundations</h1>
-              <p>Start with price and candlesticks, then build toward concepts such as fair value gaps through clear guided practice.</p>
-              <div class="training-hero-meta"><span>8 guided modules</span><span>57 short lessons</span><span>Approx. 3 hours</span></div>
+              <h1 id="trainingPathTitle">Price & Candlesticks</h1>
+              <p id="trainingPathDescription">Build a complete foundation in price charts, candles, patterns, context, and responsible application.</p>
+              <div class="training-hero-meta" id="trainingPathMeta"></div>
             </div>
             <div class="training-course-progress">
-              <span>Course progress</span><strong id="trainingCourseProgress">0%</strong>
+              <span>Path progress</span><strong id="trainingCourseProgress">0%</strong>
               <div class="training-progress-track"><span id="trainingCourseProgressBar"></span></div>
               <button class="primary-button" type="button" id="continueTrainingButton">Start learning</button>
             </div>
           </div>
+          <nav class="training-path-nav" id="trainingPathNav" aria-label="Training paths"></nav>
           <div class="training-chapter-grid" id="trainingChapterGrid"></div>
         </section>
         <div class="training-shell hidden" id="trainingLessonWorkspace">
@@ -896,6 +897,6 @@
 
     <script src="supabase-config.js?v=20260608-routing"></script>
     <script src="supabase-api.js?v=20260608-routing"></script>
-    <script src="app.js?v=20260608-routing-unlock"></script>
+    <script src="app.js?v=20260608-ifvg-module"></script>
   </body>
 </html>
