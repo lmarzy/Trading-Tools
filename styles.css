@@ -5354,7 +5354,7 @@ button:disabled,
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 65;
+  z-index: 110;
   border: 0;
   background: rgba(0, 0, 0, 0.58);
   cursor: pointer;
@@ -5369,7 +5369,7 @@ button:disabled,
   position: fixed;
   top: 0;
   right: 0;
-  z-index: 70;
+  z-index: 120;
   display: grid;
   align-content: start;
   gap: 22px;
