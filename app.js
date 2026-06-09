@@ -83,6 +83,10 @@ const hubNewsList = document.querySelector("#hubNewsList");
 const hubReviewStatus = document.querySelector("#hubReviewStatus");
 const hubNewsButton = document.querySelector("#hubNewsButton");
 const hubReviewButton = document.querySelector("#hubReviewButton");
+const dashboardSetupAlert = document.querySelector("#dashboardSetupAlert");
+const dashboardSetupDetail = document.querySelector("#dashboardSetupDetail");
+const dashboardSetupProgress = document.querySelector("#dashboardSetupProgress");
+const dashboardSetupButton = document.querySelector("#dashboardSetupButton");
 const reviewWeekRange = document.querySelector("#reviewWeekRange");
 const reviewPrevWeek = document.querySelector("#reviewPrevWeek");
 const reviewNextWeek = document.querySelector("#reviewNextWeek");
@@ -1219,6 +1223,34 @@ function updateAddTradeAvailability() {
   emptyAddTradeButton.title = openTradeModalButton.title;
   openTradeModalButton.setAttribute("aria-disabled", String(!isComplete));
   emptyAddTradeButton.setAttribute("aria-disabled", String(!isComplete));
+}
+
+function getConfigSetupStatus() {
+  const checks = [
+    { label: "market types", complete: appConfig.marketTypes.length > 0 },
+    { label: "symbols", complete: appConfig.marketTypes.length > 0 && appConfig.marketTypes.every((marketType) => getSymbolsForMarket(marketType).length > 0) },
+    { label: "sessions", complete: appConfig.trackSessions === false || appConfig.sessions.length > 0 },
+    { label: "accounts", complete: appConfig.accounts.length > 0 },
+    { label: "strategies", complete: appConfig.strategies.length > 0 },
+  ];
+  const completeCount = checks.filter((check) => check.complete).length;
+  return {
+    checks,
+    missing: checks.filter((check) => !check.complete).map((check) => check.label),
+    percent: Math.round((completeCount / checks.length) * 100),
+  };
+}
+
+function renderDashboardSetupAlert() {
+  if (!dashboardSetupAlert) return;
+  const complete = userConfigComplete();
+  dashboardSetupAlert.classList.toggle("hidden", complete);
+  if (complete) return;
+  const status = getConfigSetupStatus();
+  dashboardSetupProgress.style.width = `${status.percent}%`;
+  dashboardSetupDetail.textContent = status.missing.length
+    ? `Still needed: ${status.missing.join(", ")}.`
+    : "Review and save your setup to begin recording trades.";
 }
 
 function normalizeOptions(options, fallback) {
@@ -2565,6 +2597,7 @@ function stepTradeDrawer(direction) {
 
 function render() {
   updateAddTradeAvailability();
+  renderDashboardSetupAlert();
   syncSessionVisibility();
   renderSummary();
   renderEquityCurve();
@@ -4604,6 +4637,7 @@ userMenuButton.addEventListener("click", () => {
 });
 hubNewsButton.addEventListener("click", openNewsDrawer);
 hubReviewButton.addEventListener("click", openWeeklyReview);
+dashboardSetupButton.addEventListener("click", openOnboardingWizard);
 prevPageButton.addEventListener("click", () => {
   currentTablePage = Math.max(1, currentTablePage - 1);
   renderTable();

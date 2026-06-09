@@ -624,6 +624,63 @@ body:not(.app-checking) .app-loading-screen {
   gap: 14px;
 }
 
+.dashboard-setup-alert {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 220px) auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(185, 255, 87, 0.28);
+  border-radius: 16px;
+  background: rgba(185, 255, 87, 0.075);
+}
+
+.dashboard-setup-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-setup-copy span {
+  color: var(--lime);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.dashboard-setup-copy strong {
+  color: var(--value);
+}
+
+.dashboard-setup-copy p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+}
+
+.dashboard-setup-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--field);
+}
+
+.dashboard-setup-progress i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lime);
+  transition: width 180ms ease;
+}
+
+.dashboard-setup-alert .primary-button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .hub-panel,
 .hub-review-strip {
   padding: 20px;
@@ -4215,6 +4272,10 @@ body.training-standalone #newsAlertButton {
 }
 
 @media (max-width: 900px) {
+  .dashboard-setup-alert {
+    grid-template-columns: 1fr;
+  }
+
   .training-path-nav {
     grid-template-columns: 1fr;
   }

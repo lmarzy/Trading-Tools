@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260608-training-paths" />
+    <link rel="stylesheet" href="styles.css?v=20260609-setup-alert" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -79,6 +79,15 @@
       </section>
 
       <section class="app-view active" id="dashboardView">
+        <section class="dashboard-setup-alert hidden" id="dashboardSetupAlert" aria-live="polite">
+          <div class="dashboard-setup-copy">
+            <span>Journal setup</span>
+            <strong>Finish setting up your trade journal</strong>
+            <p id="dashboardSetupDetail">Complete your setup before recording trades.</p>
+          </div>
+          <div class="dashboard-setup-progress" aria-hidden="true"><i id="dashboardSetupProgress"></i></div>
+          <button class="primary-button" type="button" id="dashboardSetupButton">Complete setup</button>
+        </section>
         <div class="hub-command-grid">
           <div class="hub-command-main">
             <section class="hub-panel">
@@ -897,6 +906,6 @@
 
     <script src="supabase-config.js?v=20260608-routing"></script>
     <script src="supabase-api.js?v=20260608-routing"></script>
-    <script src="app.js?v=20260608-ifvg-module"></script>
+    <script src="app.js?v=20260609-setup-alert"></script>
   </body>
 </html>
