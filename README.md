@@ -1,105 +1,124 @@
 # TRADERS HUB
 
-TRADERS HUB is a private trading journal and position size calculator. It lets users configure their own trading setup, record trades, review performance, and keep data synced through Supabase.
+TRADERS HUB contains two independently deployable websites:
 
-![TRADERS HUB logo](assets/logo.png)
+- `app/`: the private trading workspace.
+- `marketing/`: the public product and community website.
 
-## Screenshots
+Each site owns its assets and can be deployed separately without relying on files outside its publish directory.
 
-![Passcode screen](docs/images/login-screen.png)
+## Repository Structure
 
-## What The App Does
+```text
+Traders-Hub/
+├── app/
+│   ├── index.html
+│   ├── app.js
+│   ├── styles.css
+│   ├── assets/
+│   ├── admin/
+│   ├── journal/
+│   ├── calculator/
+│   ├── training/
+│   ├── supabase/
+│   └── SUPABASE_SETUP.md
+├── marketing/
+│   ├── index.html
+│   ├── styles.css
+│   ├── actual-app.css
+│   ├── script.js
+│   ├── assets/
+│   └── images/
+├── docs/
+└── README.md
+```
 
-- Tracks trades by symbol, account, strategy, market type, size, result, amount, notes, discipline, entry, exit, and points.
-- Shows dashboard tabs for overview, account balances, equity curve, analytics, weekly/monthly breakdowns, and strategy breakdown.
-- Includes a position size calculator for lots or contracts.
-- Supports user-specific configuration for market types, symbols, sessions, accounts, strategies, and account balances.
-- Uses passcodes for access, with admin-managed users and roles.
-- Saves each user's trades and configuration to Supabase.
+## Application
 
-## User Flow
+The private app combines:
 
-1. Open the app and enter your passcode.
-2. New users complete the setup wizard before adding trades.
-3. Use `Configure` later to update symbols, accounts, sessions, strategies, market types, and balances.
-4. Click `Add trade` to record a trade.
-5. Optional sections in the trade form:
-   - `Price details`: add direction, entry, and exit to calculate points.
-   - `Discipline`: mark whether the plan was followed and any trading mistakes.
-   - `Notes`: add trade context or lessons learned.
-6. Use the table filters to narrow trades by symbol, account, strategy, and market.
-7. Use dashboard tabs to review performance.
+- Dashboard with trading overview, news, weekly review, and training progress.
+- Trade journal with filters, detailed records, discipline tracking, and personal rules.
+- Account balances, equity curve, analytics, performance, and strategy breakdowns.
+- CFD lot and futures contract position-size calculator.
+- Economic-news calendar shown in each user's local timezone.
+- Interactive training for candlesticks, FVGs, and inverse FVGs.
+- User-specific Supabase storage, passcode access, trials, and admin management.
 
-## Admin Flow
+## Marketing Website
 
-Admins can open the admin page from the user menu after logging in with an admin passcode.
+The public marketing site explains the benefits of Traders Hub, showcases genuine app screenshots, and links visitors to:
 
-Admin users can:
-
-- Add users with first name, last name, email, and role.
-- Generate passcodes for users.
-- Edit user details.
-- Enable or disable users.
-- Remove users.
-- See created, last login, trade count, and last saved information from the user table.
-
-## Data Storage
-
-The app stores data in Supabase:
-
-- `app_users`: user profile, role, passcode hash, generated code, active status, and login metadata.
-- `user_data`: each user's configuration and trades.
-
-The browser only keeps the current session details so the user stays logged in until logout or session expiry.
+[The Traders Hub on Skool](https://www.skool.com/the-traders-hub-3376/about)
 
 ## Local Development
 
-From the project folder:
+Start one server from the repository root:
 
 ```bash
 python3 -m http.server 4174
 ```
 
-Then open:
+Open:
 
 ```text
-http://127.0.0.1:4174/index.html
+App:       http://127.0.0.1:4174/app/
+Marketing: http://127.0.0.1:4174/marketing/
+Admin:     http://127.0.0.1:4174/app/admin/
 ```
 
-Admin page:
+## Netlify Deployment
+
+Create two Netlify sites connected to this repository.
+
+### Application Site
 
 ```text
-http://127.0.0.1:4174/admin/
+Publish directory: app
+Suggested site name: traders-hub-app
 ```
 
-## Supabase Setup
+### Marketing Site
 
-The Supabase project URL and publishable key live in `supabase-config.js`.
+```text
+Publish directory: marketing
+Suggested site name: traders-hub
+```
 
-Deploy these Edge Functions after setting secrets:
+No build command is required for either site.
+
+## Supabase
+
+All Supabase files belong to the application and live under `app/supabase/`.
+
+Run commands from the `app` directory:
 
 ```bash
+cd app
 supabase functions deploy login
 supabase functions deploy get-user-data
 supabase functions deploy save-user-data
 supabase functions deploy admin-users
 supabase functions deploy reset-own-passcode
+supabase functions deploy news-events
 ```
 
-Full setup notes are in [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
+Or from the repository root:
 
-## Main Files
+```bash
+supabase --workdir app functions deploy login
+```
 
-- `index.html`: main app shell.
-- `app.js`: trade tracker, dashboard, onboarding, calculator, and user flows.
-- `styles.css`: shared app styling.
-- `admin/index.html`: admin app shell.
-- `admin/admin.js`: admin user management.
-- `supabase/functions`: Edge Functions used by the app.
-- `supabase/schema.sql`: database schema.
+See [app/SUPABASE_SETUP.md](app/SUPABASE_SETUP.md) for setup details.
 
-## Notes
+## Documentation
 
-- Keep the Supabase service role key out of frontend files.
-- User passcodes are generated and managed through the admin page.
-- If adding new trade fields, update table rendering, drawer details, CSV export, and Supabase payload handling together.
+- [User Guide PDF](docs/TRADERS_HUB_User_Guide.pdf)
+- `docs/generate_user_guide.py`: regenerates the user guide.
+
+## Development Notes
+
+- Keep the Supabase service-role key out of frontend files.
+- Store economic-event times in UTC; the app localises them for each user.
+- Marketing screenshots use the isolated `Marketing Demo` user and contain fictional data.
+- When adding trade fields, update table rendering, trade details, CSV export, analytics, and Supabase payload handling together.

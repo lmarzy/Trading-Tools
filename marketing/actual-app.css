@@ -1,0 +1,94 @@
+.actual-app-shot {
+  position: relative;
+  padding: 10px;
+  border: 1px solid #3a433a;
+  border-radius: 20px;
+  background: #151815;
+  box-shadow: 0 45px 100px rgba(0, 0, 0, 0.52);
+  transform: rotateY(-4deg) rotateX(1deg);
+}
+
+.actual-app-shot img {
+  display: block;
+  width: 100%;
+  border: 1px solid #343c34;
+  border-radius: 12px;
+}
+
+.capability-visual span {
+  color: var(--lime);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.capability-visual {
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  padding: 48px;
+}
+
+.capability-visual strong {
+  max-width: 540px;
+  font-size: clamp(1.7rem, 3vw, 3rem);
+  font-weight: 540;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.capability-visual p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.app-screen {
+  min-height: 0;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.app-screen > img {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.screen-stack {
+  position: relative;
+  min-height: 330px;
+  padding: 18px;
+}
+
+.screen-stack img {
+  position: absolute;
+  width: 72%;
+  border: 1px solid #394139;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.48);
+}
+
+.screen-stack img:first-child {
+  top: 18px;
+  left: 18px;
+}
+
+.screen-stack img:last-child {
+  right: 18px;
+  bottom: 18px;
+}
+
+@media (max-width: 1050px) {
+  .actual-app-shot {
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .capability-visual {
+    padding: 28px;
+  }
+}
