@@ -11,6 +11,7 @@
 .actual-app-shot img {
   display: block;
   width: 100%;
+  image-rendering: auto;
   border: 1px solid #343c34;
   border-radius: 12px;
 }
@@ -54,7 +55,9 @@
 
 .app-screen > img {
   display: block;
-  width: 100%;
+  width: min(100%, 560px);
+  margin: auto;
+  image-rendering: auto;
   border-radius: 8px;
 }
 

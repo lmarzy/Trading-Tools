@@ -81,6 +81,9 @@ const hubTrainingProgressBar = document.querySelector("#hubTrainingProgressBar")
 const hubTrainingDetail = document.querySelector("#hubTrainingDetail");
 const hubNewsList = document.querySelector("#hubNewsList");
 const hubReviewStatus = document.querySelector("#hubReviewStatus");
+const hubPlanStatus = document.querySelector("#hubPlanStatus");
+const hubPlanDetail = document.querySelector("#hubPlanDetail");
+const hubPlanButton = document.querySelector("#hubPlanButton");
 const hubNewsButton = document.querySelector("#hubNewsButton");
 const hubReviewButton = document.querySelector("#hubReviewButton");
 const dashboardSetupAlert = document.querySelector("#dashboardSetupAlert");
@@ -96,6 +99,14 @@ const reviewTradesList = document.querySelector("#reviewTradesList");
 const weeklyReviewForm = document.querySelector("#weeklyReviewForm");
 const saveWeeklyReviewButton = document.querySelector("#saveWeeklyReviewButton");
 const reviewTabStatus = document.querySelector("#reviewTabStatus");
+const planTabStatus = document.querySelector("#planTabStatus");
+const weeklyPlanDrawer = document.querySelector("#weeklyPlanDrawer");
+const weeklyPlanBackdrop = document.querySelector("#weeklyPlanBackdrop");
+const weeklyPlanForm = document.querySelector("#weeklyPlanForm");
+const planWeekRange = document.querySelector("#planWeekRange");
+const planProgressGrid = document.querySelector("#planProgressGrid");
+const openWeeklyPlanButton = document.querySelector("#openWeeklyPlanButton");
+const closeWeeklyPlanButton = document.querySelector("#closeWeeklyPlanButton");
 const trainingProgressBar = document.querySelector("#trainingProgressBar");
 const trainingHome = document.querySelector("#trainingHome");
 const trainingLessonWorkspace = document.querySelector("#trainingLessonWorkspace");
@@ -121,6 +132,13 @@ const openWeeklyReviewButton = document.querySelector("#openWeeklyReviewButton")
 const closeWeeklyReviewButton = document.querySelector("#closeWeeklyReviewButton");
 const weeklyReviewDrawer = document.querySelector("#weeklyReviewDrawer");
 const weeklyReviewBackdrop = document.querySelector("#weeklyReviewBackdrop");
+
+// These drawers can be opened from Dashboard or Journal. Moving them outside
+// the view containers prevents an inactive view from hiding the overlay.
+[weeklyPlanDrawer, weeklyPlanBackdrop, weeklyReviewDrawer, weeklyReviewBackdrop].forEach((element) => {
+  if (element) document.body.appendChild(element);
+});
+
 const dashboardSectionButtons = document.querySelectorAll("[data-dashboard-section]");
 const dashboardSectionPanels = document.querySelectorAll("[data-dashboard-panel]");
 const analyticsTabButtons = document.querySelectorAll("[data-analytics-tab]");
@@ -227,6 +245,7 @@ const DEFAULT_CONFIG = {
   checklistRules: [],
   automatedRules: [],
   blockedTradingDays: [],
+  weeklyPlans: {},
   weeklyReviews: {},
   trainingProgress: {},
 };
@@ -1147,6 +1166,7 @@ async function hydrateUserStateFromSupabase() {
       checklistRules: normalizeOptions(remoteData.config?.checklistRules ?? remoteData.config?.tradingRules, DEFAULT_CONFIG.checklistRules),
       automatedRules: Array.isArray(remoteData.config?.automatedRules) ? remoteData.config.automatedRules : [],
       blockedTradingDays: normalizeOptions(remoteData.config?.blockedTradingDays, []),
+      weeklyPlans: remoteData.config?.weeklyPlans && typeof remoteData.config.weeklyPlans === "object" ? remoteData.config.weeklyPlans : {},
       weeklyReviews: remoteData.config?.weeklyReviews && typeof remoteData.config.weeklyReviews === "object" ? remoteData.config.weeklyReviews : {},
       trainingProgress: remoteData.config?.trainingProgress && typeof remoteData.config.trainingProgress === "object" ? remoteData.config.trainingProgress : {},
     };
@@ -2606,6 +2626,7 @@ function render() {
   renderStrategyBreakdown();
   renderAccountBalances();
   renderTable();
+  renderWeeklyPlan();
   renderWeeklyReview();
   renderTraining();
   renderHubDashboard();
@@ -2635,6 +2656,12 @@ function renderHubDashboard() {
     ? todayEvents.slice(0, 6).map((event) => `<button type="button" data-hub-news><span>${escapeHtml(formatNewsEventTime(event.date))}</span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.currency || "")} · ${escapeHtml(event.impact || "")}</small></button>`).join("")
     : '<div class="hub-news-empty">No economic events scheduled for today.</div>';
   hubReviewStatus.textContent = appConfig.weeklyReviews[getWeekdays()[0].key]?.completedAt ? "Complete" : "Incomplete";
+  const weekKey = getWeekdays()[0].key;
+  const plan = appConfig.weeklyPlans[weekKey];
+  hubPlanStatus.textContent = plan?.savedAt ? "Ready" : "Not set";
+  hubPlanDetail.textContent = plan?.savedAt
+    ? `${weekTrades.length}${plan.maxTrades ? ` of ${plan.maxTrades}` : ""} trades · ${formatSummaryAmount(amount)} P/L`
+    : "Set your boundaries and focus for the week.";
 }
 
 
@@ -2910,6 +2937,46 @@ function openWeeklyReview() {
   weeklyReviewDrawer.classList.remove("hidden", "is-closing");
   weeklyReviewBackdrop.classList.remove("hidden", "is-closing");
   document.body.classList.add("modal-open");
+}
+
+function renderWeeklyPlan() {
+  if (!weeklyPlanForm) return;
+  const { weekdays, startKey, end, weekTrades } = getWeeklyReviewContext();
+  const plan = appConfig.weeklyPlans[startKey] || {};
+  const amount = weekTrades.reduce((total, trade) => total + getTradeAmount(trade), 0);
+  const losses = Math.abs(Math.min(0, amount));
+  planWeekRange.textContent = `${formatShortDate(weekdays[0].date)} - ${formatShortDate(end)}`;
+  ["profitTarget", "maxWeeklyLoss", "maxTrades", "maxRiskPerTrade", "disciplineFocus", "learningGoal", "intention"]
+    .forEach((name) => { weeklyPlanForm.elements[name].value = plan[name] || ""; });
+  planProgressGrid.innerHTML = [
+    ["Current P/L", formatSummaryAmount(amount)],
+    ["Profit target", plan.profitTarget ? formatSummaryAmount(Number(plan.profitTarget)) : "Not set"],
+    ["Trades", `${weekTrades.length}${plan.maxTrades ? ` / ${plan.maxTrades}` : ""}`],
+    ["Loss allowance", plan.maxWeeklyLoss ? `${formatSummaryAmount(Math.max(0, Number(plan.maxWeeklyLoss) - losses))} left` : "Not set"],
+    ["Plan status", plan.savedAt ? "Ready" : "Not set"],
+  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  planTabStatus.classList.toggle("hidden", Boolean(appConfig.weeklyPlans[getWeekdays()[0].key]?.savedAt));
+}
+
+function openWeeklyPlan() {
+  reviewWeekOffset = 0;
+  renderWeeklyPlan();
+  weeklyPlanDrawer.classList.remove("hidden", "is-closing");
+  weeklyPlanBackdrop.classList.remove("hidden", "is-closing");
+  document.body.classList.add("modal-open");
+}
+
+function closeWeeklyPlan() {
+  if (weeklyPlanDrawer.classList.contains("hidden")) return;
+  weeklyPlanDrawer.classList.add("is-closing");
+  weeklyPlanBackdrop.classList.add("is-closing");
+  window.setTimeout(() => {
+    weeklyPlanDrawer.classList.add("hidden");
+    weeklyPlanDrawer.classList.remove("is-closing");
+    weeklyPlanBackdrop.classList.add("hidden");
+    weeklyPlanBackdrop.classList.remove("is-closing");
+    document.body.classList.remove("modal-open");
+  }, MOTION_DURATION_MS);
 }
 
 function closeWeeklyReview() {
@@ -3810,6 +3877,7 @@ function saveOnboardingWizard() {
     checklistRules: normalizeOptions(appConfig.checklistRules, DEFAULT_CONFIG.checklistRules),
     automatedRules: Array.isArray(onboardingDraft.automatedRules) ? onboardingDraft.automatedRules : [],
     blockedTradingDays: normalizeOptions(onboardingDraft.blockedTradingDays, []),
+    weeklyPlans: appConfig.weeklyPlans && typeof appConfig.weeklyPlans === "object" ? appConfig.weeklyPlans : {},
     weeklyReviews: appConfig.weeklyReviews && typeof appConfig.weeklyReviews === "object" ? appConfig.weeklyReviews : {},
     trainingProgress: appConfig.trainingProgress && typeof appConfig.trainingProgress === "object" ? appConfig.trainingProgress : {},
   };
@@ -4965,8 +5033,12 @@ reviewPrevWeek.addEventListener("click", () => {
   renderWeeklyReview();
 });
 openWeeklyReviewButton.addEventListener("click", openWeeklyReview);
+openWeeklyPlanButton.addEventListener("click", openWeeklyPlan);
+hubPlanButton.addEventListener("click", openWeeklyPlan);
 closeWeeklyReviewButton.addEventListener("click", closeWeeklyReview);
+closeWeeklyPlanButton.addEventListener("click", closeWeeklyPlan);
 weeklyReviewBackdrop.addEventListener("click", closeWeeklyReview);
+weeklyPlanBackdrop.addEventListener("click", closeWeeklyPlan);
 reviewNextWeek.addEventListener("click", () => {
   reviewWeekOffset += 1;
   renderWeeklyReview();
@@ -4988,6 +5060,22 @@ weeklyReviewForm.addEventListener("submit", (event) => {
   saveConfig();
   renderWeeklyReview();
   showToast("Weekly review saved");
+});
+weeklyPlanForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const { startKey } = getWeeklyReviewContext();
+  const values = Object.fromEntries(new FormData(weeklyPlanForm));
+  appConfig.weeklyPlans = {
+    ...appConfig.weeklyPlans,
+    [startKey]: {
+      ...values,
+      savedAt: new Date().toISOString(),
+    },
+  };
+  saveConfig();
+  renderWeeklyPlan();
+  renderHubDashboard();
+  showToast("Weekly plan saved");
 });
 reviewTradesList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-review-trade]");

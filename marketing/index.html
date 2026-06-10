@@ -8,6 +8,7 @@
     <link rel="icon" href="assets/logo.png" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="actual-app.css" />
+    <link rel="stylesheet" href="sell.css" />
   </head>
   <body>
     <header class="site-header">
@@ -16,7 +17,8 @@
       </a>
       <nav aria-label="Main navigation">
         <a href="#benefits">Benefits</a>
-        <a href="#inside">Inside the hub</a>
+        <a href="#product-tour">Product tour</a>
+        <a href="#community">Community</a>
         <a href="#how-it-works">How it works</a>
       </nav>
       <a class="button button-small" data-skool-link href="#">Join on Skool</a>
@@ -40,7 +42,7 @@
         </div>
 
         <div class="product-stage actual-app-shot">
-          <img src="images/real-dashboard.png" alt="Traders Hub dashboard showing weekly trading performance, economic events, training progress, and weekly review" />
+          <img src="images/dashboard-original.png" alt="Traders Hub dashboard showing weekly trading performance, economic events, training progress, and weekly review" />
         </div>
       </section>
 
@@ -55,6 +57,63 @@
           <article><span>02</span><h3>Protect your discipline</h3><p>Set personal rules and limits, then receive a warning before emotion turns into another avoidable trade.</p></article>
           <article><span>03</span><h3>Review with purpose</h3><p>Use weekly reviews, discipline insights, and your equity curve to turn trading history into a practical plan.</p></article>
           <article><span>04</span><h3>Keep developing</h3><p>Learn core trading concepts through interactive lessons, diagrams, and questions without leaving the hub.</p></article>
+        </div>
+      </section>
+
+      <section class="transformation">
+        <div class="section-intro narrow">
+          <p class="eyebrow">From reaction to process</p>
+          <h2>Stop guessing what needs to improve.</h2>
+          <p>Traders Hub gives your decisions structure before, during, and after every trade.</p>
+        </div>
+        <div class="transformation-grid">
+          <article class="before-panel">
+            <span>Without a clear process</span>
+            <h3>Trading from memory</h3>
+            <ul>
+              <li>Results scattered across notes and platforms</li>
+              <li>No clear view of which strategies work</li>
+              <li>Rules remembered after they are broken</li>
+              <li>Another week passes without a proper review</li>
+            </ul>
+          </article>
+          <div class="transformation-arrow" aria-hidden="true">→</div>
+          <article class="after-panel">
+            <span>With Traders Hub</span>
+            <h3>A repeatable weekly rhythm</h3>
+            <ul>
+              <li>Every trade and decision captured together</li>
+              <li>Performance patterns visible across your setup</li>
+              <li>Rule warnings before avoidable mistakes</li>
+              <li>A clear review and focus for the next week</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="product-tour" id="product-tour">
+        <div class="section-intro">
+          <p class="eyebrow">Explore the product</p>
+          <h2>See how the whole process connects.</h2>
+          <p>Move through genuine screens from the live app. Each area is designed to help you make clearer decisions and learn from the evidence.</p>
+        </div>
+        <div class="tour-shell">
+          <div class="tour-tabs" role="tablist" aria-label="Product tour">
+            <button class="active" type="button" role="tab" aria-selected="true" data-tour-tab="dashboard">Dashboard</button>
+            <button type="button" role="tab" aria-selected="false" data-tour-tab="journal">Journal</button>
+            <button type="button" role="tab" aria-selected="false" data-tour-tab="analytics">Analytics</button>
+            <button type="button" role="tab" aria-selected="false" data-tour-tab="calculator">Calculator</button>
+            <button type="button" role="tab" aria-selected="false" data-tour-tab="training">Training</button>
+          </div>
+          <div class="tour-content">
+            <div class="tour-copy">
+              <p class="eyebrow" id="tourEyebrow">Your command centre</p>
+              <h3 id="tourTitle">Start each session with the full picture.</h3>
+              <p id="tourDescription">See this week's performance, today's economic events, training progress, and weekly review status before deciding what needs your attention.</p>
+              <ul id="tourBenefits"><li>Immediate weekly performance snapshot</li><li>Upcoming events in your local timezone</li><li>Clear next actions across the hub</li></ul>
+            </div>
+            <div class="tour-screen"><img id="tourImage" src="images/dashboard-original.png" alt="Traders Hub dashboard" /></div>
+          </div>
         </div>
       </section>
 
@@ -79,6 +138,22 @@
         </div>
       </section>
 
+      <section class="community" id="community">
+        <div class="community-inner">
+          <div>
+            <p class="eyebrow">More than access to an app</p>
+            <h2>Build your process inside the Traders Hub community.</h2>
+            <p>The app gives you the structure. The Skool community gives you a place to keep learning, share progress, and develop alongside traders working on the same habits.</p>
+            <a class="button" data-skool-link href="#">Explore the Skool community</a>
+          </div>
+          <div class="community-values">
+            <article><span>01</span><h3>Access Traders Hub</h3><p>Get your personal passcode and use the complete journal, calculator, training, and review workspace.</p></article>
+            <article><span>02</span><h3>Keep learning</h3><p>Continue developing your understanding and process through the community and interactive training.</p></article>
+            <article><span>03</span><h3>Stay accountable</h3><p>Use your journal and weekly reviews to bring clearer questions, evidence, and progress into the community.</p></article>
+          </div>
+        </div>
+      </section>
+
       <section class="process" id="how-it-works">
         <div class="section-intro narrow">
           <p class="eyebrow">A simple rhythm</p>
@@ -92,6 +167,21 @@
         </div>
       </section>
 
+      <section class="faq" id="faq">
+        <div class="section-intro narrow">
+          <p class="eyebrow">Questions answered</p>
+          <h2>Know what you are joining.</h2>
+        </div>
+        <div class="faq-list">
+          <details><summary>How do I access Traders Hub?<span>+</span></summary><p>Access is provided through The Traders Hub Skool community. You receive a personal passcode that loads your own workspace and saved data.</p></details>
+          <details><summary>Is my journal data private?<span>+</span></summary><p>Your trades, setup, rules, reviews, and training progress are stored against your personal account and are not shared with other users.</p></details>
+          <details><summary>Can I track CFDs and futures?<span>+</span></summary><p>Yes. Configure CFDs, futures, or both. The journal and position-size calculator display the correct lots or contracts for each trade.</p></details>
+          <details><summary>Is this suitable for a beginner?<span>+</span></summary><p>Yes. The setup wizard guides new users through their workspace, while the training academy starts from basic chart and candlestick concepts.</p></details>
+          <details><summary>Does it work on mobile?<span>+</span></summary><p>The site and app are responsive and can be used on mobile, tablet, and desktop. A larger screen remains best for deeper journal reviews and analytics.</p></details>
+          <details><summary>Can it replace my trading platform?<span>+</span></summary><p>No. Traders Hub is a journal, planning, review, calculator, and learning workspace. It does not place or manage live trades.</p></details>
+        </div>
+      </section>
+
       <section class="cta">
         <img src="assets/logo.png" alt="" />
         <p class="eyebrow">Ready to build a better trading process?</p>
@@ -102,6 +192,7 @@
     </main>
 
     <footer><img src="assets/logo.png" alt="Traders Hub" /><span>Trade with clarity.</span><a data-skool-link href="#">Skool community →</a></footer>
+    <a class="mobile-access-cta button" data-skool-link href="#">Get access</a>
     <script src="script.js"></script>
   </body>
 </html>

@@ -732,7 +732,7 @@ body:not(.app-checking) .app-loading-screen {
 .hub-training-body p { margin: 10px 0 0; color: var(--muted-strong); }
 .hub-training-body .training-progress-track i { display: block; height: 100%; border-radius: inherit; background: var(--lime); }
 .hub-review-strip { display: flex; align-items: center; gap: 10px; }
-.hub-review-strip div { margin-right: auto; }
+.hub-review-strip div { flex: 1 1 220px; }
 .hub-review-strip strong { display: block; margin: 5px 0; color: var(--value); }
 .hub-review-strip p { margin: 0; color: var(--muted-strong); }
 .hub-news-panel { min-height: 100%; }
@@ -3534,10 +3534,20 @@ tbody td:last-child {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  margin-left: auto;
   border: 1px solid rgba(220, 240, 210, 0.12) !important;
   background: rgba(247, 250, 242, 0.045) !important;
   color: var(--muted-strong) !important;
+}
+
+.weekly-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.weekly-action-group .review-action-button {
+  flex: 0 0 auto;
 }
 
 .review-action-button:not(:disabled):hover {
@@ -3702,6 +3712,19 @@ tbody td:last-child {
 
 .weekly-review-form .primary-button {
   align-self: end;
+}
+
+.weekly-plan-form .plan-wide {
+  grid-column: 1 / -1;
+}
+
+.weekly-plan-form input,
+.weekly-plan-form textarea {
+  width: 100%;
+}
+
+.plan-progress-grid strong {
+  font-size: 1.15rem;
 }
 
 .review-trades-panel {
@@ -4283,6 +4306,15 @@ body.training-standalone #newsAlertButton {
 }
 
 @media (max-width: 900px) {
+  .weekly-action-group {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .weekly-action-group .review-action-button {
+    flex: 1 1 0;
+  }
+
   .dashboard-setup-alert {
     grid-template-columns: 1fr;
   }
