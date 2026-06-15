@@ -6,7 +6,7 @@
     <title>TRADERS HUB Admin</title>
     <link rel="icon" type="image/png" href="../assets/logo.png" />
     <link rel="apple-touch-icon" href="../assets/logo.png" />
-    <link rel="stylesheet" href="../styles.css?v=20260530-admin-news" />
+    <link rel="stylesheet" href="../styles.css?v=20260615-feature-access" />
   </head>
   <body class="admin-page admin-checking">
     <section class="admin-access-panel hidden" id="adminGate" aria-label="Admin access required">
@@ -176,6 +176,21 @@
               <option value="trial">Trial</option>
               <option value="inactive">Inactive</option>
             </select>
+            <div class="admin-trial-duration hidden" id="trialDurationField">
+              <select id="trialWeeksInput" aria-label="Trial duration">
+                <option value="1">Trial: 1 week</option>
+                <option value="2" selected>Trial: 2 weeks</option>
+                <option value="3">Trial: 3 weeks</option>
+                <option value="4">Trial: 4 weeks</option>
+              </select>
+            </div>
+            <fieldset class="admin-feature-access">
+              <legend>Feature access</legend>
+              <label><input type="checkbox" value="journal" data-new-user-feature checked><span>Journal</span></label>
+              <label><input type="checkbox" value="calculator" data-new-user-feature checked><span>Calculator</span></label>
+              <label><input type="checkbox" value="training" data-new-user-feature><span>Training</span></label>
+              <label><input type="checkbox" value="challenges" data-new-user-feature><span>Challenges</span></label>
+            </fieldset>
             <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
           </div>
         </div>
@@ -253,6 +268,6 @@
 
     <script src="../supabase-config.js?v=20260530-admin-news"></script>
     <script src="../supabase-api.js?v=20260530-admin-news"></script>
-    <script src="admin.js?v=20260530-admin-news"></script>
+    <script src="admin.js?v=20260615-feature-access"></script>
   </body>
 </html>

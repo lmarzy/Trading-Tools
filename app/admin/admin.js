@@ -11,6 +11,19 @@ const lastNameInput = document.querySelector("#lastNameInput");
 const emailInput = document.querySelector("#emailInput");
 const roleInput = document.querySelector("#roleInput");
 const statusInput = document.querySelector("#statusInput");
+const trialDurationField = document.querySelector("#trialDurationField");
+const trialWeeksInput = document.querySelector("#trialWeeksInput");
+const newUserFeatureInputs = document.querySelectorAll("[data-new-user-feature]");
+const FEATURE_KEYS = ["journal", "calculator", "training", "challenges"];
+
+function normalizeFeatureAccess(access = {}, role = "user") {
+  if (role === "admin") return Object.fromEntries(FEATURE_KEYS.map((key) => [key, true]));
+  return Object.fromEntries(FEATURE_KEYS.map((key) => [key, access?.[key] === true]));
+}
+
+function getNewUserFeatureAccess(role = roleInput.value) {
+  return normalizeFeatureAccess(Object.fromEntries([...newUserFeatureInputs].map((input) => [input.value, input.checked])), role);
+}
 const generateUserCodeButton = document.querySelector("#generateUserCodeButton");
 const openAddUserModalButton = document.querySelector("#openAddUserModalButton");
 const addUserModal = document.querySelector("#addUserModal");
@@ -313,7 +326,7 @@ function parseStatusValue(value) {
       status: "trial",
       active: true,
       trialEnabled: true,
-      trialWeeks: 2,
+      trialWeeks: Number(trialWeeksInput?.value || 2),
     };
   }
 
@@ -385,6 +398,7 @@ async function loadExistingConfig() {
       trialWeeks: Number(user.trial_weeks || 0),
       trialStartedAt: user.trial_started_at || "",
       trialEndsAt: user.trial_ends_at || "",
+      featureAccess: normalizeFeatureAccess(user.feature_access, user.role),
       disabledReason: user.disabled_reason || "",
       createdAt: user.created_at || "",
       lastLoginAt: user.last_login_at || "",
@@ -490,6 +504,9 @@ function resetAddUserModal() {
   emailInput.value = "";
   roleInput.value = "user";
   statusInput.value = "active";
+  trialWeeksInput.value = "2";
+  trialDurationField.classList.add("hidden");
+  newUserFeatureInputs.forEach((input) => { input.checked = ["journal", "calculator"].includes(input.value); });
   generatedUserCodeDisplay.textContent = "";
   addUserFormStep.classList.remove("hidden");
   addUserResultStep.classList.add("hidden");
@@ -658,6 +675,7 @@ function renderPasscodes() {
               <div><dt>Status</dt><dd>${escapeHtml(renderTrialLabel(passcode))}</dd></div>
               <div><dt>Trial Ends</dt><dd>${getUserStatus(passcode) === "trial" ? escapeHtml(formatDateTime(passcode.trialEndsAt)) : "-"}</dd></div>
               <div><dt>Reason</dt><dd>${escapeHtml(passcode.disabledReason || "-")}</dd></div>
+              <div class="admin-user-feature-access"><dt>Feature Access</dt><dd>${FEATURE_KEYS.map((feature) => `<label><input type="checkbox" data-user-feature="${feature}" data-passcode-index="${passcode.index}" ${passcode.featureAccess?.[feature] ? "checked" : ""}><span>${feature}</span></label>`).join("")}</dd></div>
             </div>
           </td>
         </tr>
@@ -818,7 +836,7 @@ generateUserCodeButton.addEventListener("click", async () => {
 
   const role = roleInput.value === "admin" ? "admin" : "user";
   const newUserStatus = statusInput.value;
-  const trialWeeks = newUserStatus === "trial" ? 2 : null;
+  const trialWeeks = newUserStatus === "trial" ? Number(trialWeeksInput.value || 2) : null;
   const label = [firstName, lastName].filter(Boolean).join(" ") || `User ${adminConfig.passcodes.length + 1}`;
   const passcode = generatePasscode();
   const hash = await sha256(`${USER_PASSCODE_SALT}:${passcode}`);
@@ -836,6 +854,7 @@ generateUserCodeButton.addEventListener("click", async () => {
       trialEnabled: Boolean(trialWeeks),
       trialWeeks,
       active: newUserStatus !== "inactive",
+      featureAccess: getNewUserFeatureAccess(role),
     });
     adminConfig.passcodes.unshift({
       id: result.user.id,
@@ -851,6 +870,7 @@ generateUserCodeButton.addEventListener("click", async () => {
       trialStartedAt: result.user.trial_started_at || "",
       trialEndsAt: result.user.trial_ends_at || "",
       disabledReason: result.user.disabled_reason || "",
+      featureAccess: normalizeFeatureAccess(result.user.feature_access, result.user.role),
       createdAt: result.user.created_at || "",
       lastLoginAt: result.user.last_login_at || "",
       lastSavedAt: result.user.last_saved_at || "",
@@ -871,6 +891,10 @@ generateUserCodeButton.addEventListener("click", async () => {
 
 [firstNameInput, lastNameInput, emailInput].forEach((input) => {
   input.addEventListener("input", updateGenerateUserButtonState);
+});
+
+statusInput.addEventListener("change", () => {
+  trialDurationField.classList.toggle("hidden", statusInput.value !== "trial");
 });
 
 openAddUserModalButton.addEventListener("click", openAddUserModal);
@@ -946,6 +970,7 @@ adminPasscodeList.addEventListener("click", async (event) => {
         trialEnabled: nextStatus.trialEnabled,
         trialWeeks: nextStatus.trialWeeks,
         resetTrial: statusSelect.value !== statusSelect.dataset.originalValue,
+        featureAccess: normalizeFeatureAccess(Object.fromEntries([...document.querySelectorAll(`[data-user-feature][data-passcode-index="${passcode.index}"]`)].map((input) => [input.dataset.userFeature, input.checked])), nextRole),
       });
       const savedUser = result.user || {};
       passcode.label = savedUser.label || nextLabel;
@@ -959,6 +984,7 @@ adminPasscodeList.addEventListener("click", async (event) => {
       passcode.trialStartedAt = savedUser.trial_started_at || "";
       passcode.trialEndsAt = savedUser.trial_ends_at || "";
       passcode.disabledReason = savedUser.disabled_reason || "";
+      passcode.featureAccess = normalizeFeatureAccess(savedUser.feature_access, savedUser.role);
       passcode.createdAt = savedUser.created_at || passcode.createdAt;
       passcode.lastLoginAt = savedUser.last_login_at || passcode.lastLoginAt;
       renderActivity();
@@ -1103,7 +1129,9 @@ function updateRowSaveState(row) {
   const inputs = row.querySelectorAll(
     "[data-passcode-action='first-name'], [data-passcode-action='last-name'], [data-passcode-action='email'], [data-passcode-action='role'], [data-passcode-action='status']",
   );
-  saveButton.disabled = [...inputs].every((input) => input.value.trim() === input.dataset.originalValue);
+  const detailRow = document.querySelector(`[data-detail-index="${row.dataset.passcodeIndex}"]`);
+  const accessChanged = [...(detailRow?.querySelectorAll("[data-user-feature]") || [])].some((input) => input.checked !== Boolean(adminConfig.passcodes[Number(row.dataset.passcodeIndex)]?.featureAccess?.[input.dataset.userFeature]));
+  saveButton.disabled = [...inputs].every((input) => input.value.trim() === input.dataset.originalValue) && !accessChanged;
 }
 
 adminPasscodeList.addEventListener("input", (event) => {
@@ -1115,6 +1143,12 @@ adminPasscodeList.addEventListener("input", (event) => {
 });
 
 adminPasscodeList.addEventListener("change", (event) => {
+  if (event.target.matches("[data-user-feature]")) {
+    const index = Number(event.target.dataset.passcodeIndex);
+    const row = adminPasscodeList.querySelector(`tr[data-passcode-index="${index}"]`);
+    if (row) updateRowSaveState(row);
+    return;
+  }
   if (!["role", "status"].includes(event.target.dataset.passcodeAction)) {
     return;
   }

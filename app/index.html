@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260609-setup-alert" />
+    <link rel="stylesheet" href="styles.css?v=20260615-dashboard-challenges" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -48,6 +48,7 @@
           <nav class="header-route-nav" aria-label="Main navigation">
             <a href="index.html?view=dashboard" data-app-route="dashboard">Dashboard</a>
             <a href="index.html?view=tracker" data-app-route="journal">Journal</a>
+            <a href="index.html?view=challenges" data-app-route="challenges">Challenges</a>
             <a href="index.html?view=calculator" data-app-route="calculator">Calculator</a>
             <a href="index.html?view=training" data-app-route="training">Training</a>
           </nav>
@@ -100,6 +101,10 @@
                 <article class="hub-amount-stat"><span>Amount</span><strong id="hubWeekAmount">0.00</strong></article>
               </div>
             </section>
+            <section class="hub-panel hub-challenges-panel hidden" id="hubChallengesPanel">
+              <div class="hub-panel-heading"><div><span>Active Challenges</span><h2 id="hubChallengesTitle">Today</h2></div><button type="button" id="hubChallengesButton">View challenges →</button></div>
+              <div class="hub-challenge-list" id="hubChallengeList"></div>
+            </section>
             <section class="hub-panel hub-training-panel">
               <div class="hub-panel-heading"><div><span>Training Academy</span><h2 id="hubTrainingTitle">Learn Candlesticks</h2></div><a href="index.html?view=training">Continue Learning →</a></div>
               <div class="hub-training-body"><strong id="hubTrainingProgress">0%</strong><div><div class="training-progress-track"><i id="hubTrainingProgressBar"></i></div><p id="hubTrainingDetail">Start your first chapter.</p></div></div>
@@ -116,6 +121,15 @@
             <div class="hub-news-list" id="hubNewsList"></div>
           </aside>
         </div>
+      </section>
+
+      <section class="app-view" id="challengesView" aria-label="Trading Challenges">
+        <div class="view-header">
+          <div><p class="eyebrow">Trade together</p><h2>Challenges</h2></div>
+          <button class="primary-button" type="button" id="openCreateChallengeButton">New challenge</button>
+        </div>
+        <div class="challenge-summary-grid" id="challengeSummaryGrid"></div>
+        <div class="challenge-grid" id="challengeGrid"></div>
       </section>
 
       <section class="app-view" id="trackerView">
@@ -326,6 +340,30 @@
 
           <input type="hidden" id="tradeId" name="tradeId" />
 
+          <section class="challenge-trade-section hidden" id="challengeTradeSection">
+            <label>
+              <span>Challenge</span>
+              <select id="tradeChallenge" name="challengeId">
+                <option value="">Not part of a challenge</option>
+              </select>
+            </label>
+            <div class="challenge-requirements hidden" id="challengeRequirements"></div>
+          </section>
+          <section class="challenge-limit-message hidden" id="challengeLimitMessage" aria-live="polite"></section>
+          <section class="challenge-symbol-setup hidden" id="challengeSymbolSetup">
+            <div>
+              <p class="eyebrow">Challenge symbol</p>
+              <h3 id="challengeSymbolSetupTitle">Choose your symbol</h3>
+              <p id="challengeSymbolSetupText"></p>
+            </div>
+            <div class="challenge-symbol-setup-row">
+              <select id="challengeExistingSymbol" aria-label="Existing symbol"></select>
+              <span>or</span>
+              <input id="challengeNewSymbol" type="text" placeholder="Enter broker symbol">
+              <button class="ghost-button" type="button" id="saveChallengeSymbolButton">Use symbol</button>
+            </div>
+          </section>
+
           <section class="form-section">
             <h3>Trade</h3>
             <div class="field-row compact-three">
@@ -333,9 +371,12 @@
                 <span>Date</span>
                 <input id="tradeDate" name="tradeDate" type="date" required />
               </label>
-              <label>
-                <span>Symbol</span>
-                <select id="symbol" name="symbol" required></select>
+              <label id="marketTypeField">
+                <span>Market type</span>
+                <select id="marketType" name="marketType">
+                  <option value="CFD">CFD</option>
+                  <option value="Futures">Futures</option>
+                </select>
               </label>
               <label id="sessionField">
                 <span>Session</span>
@@ -343,12 +384,9 @@
               </label>
             </div>
             <div class="field-row compact-three">
-              <label id="marketTypeField">
-                <span>Market type</span>
-                <select id="marketType" name="marketType">
-                  <option value="CFD">CFD</option>
-                  <option value="Futures">Futures</option>
-                </select>
+              <label>
+                <span>Symbol</span>
+                <select id="symbol" name="symbol" required></select>
               </label>
               <label>
                 <span>Account</span>
@@ -360,6 +398,15 @@
               </label>
             </div>
           </section>
+
+          <details class="notes-disclosure hidden" id="orbDetailsDisclosure">
+            <summary>ORB execution model</summary>
+            <div class="price-details-grid orb-details-grid">
+              <label><span>Opening range</span><select id="openingRange" name="openingRange"><option value="">Select range</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option><option value="30m">30 minutes</option><option value="60m">60 minutes</option></select></label>
+              <label><span>Entry timeframe</span><select id="entryTimeframe" name="entryTimeframe"><option value="">Select timeframe</option><option value="1m">1 minute</option><option value="2m">2 minutes</option><option value="3m">3 minutes</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option></select></label>
+              <label><span>Entry model</span><select id="entryModel" name="entryModel"><option value="">Select model</option><option value="Breakout">Breakout</option><option value="Breakout and retest">Breakout and retest</option><option value="Candle close confirmation">Candle close confirmation</option><option value="FVG entry">FVG entry</option><option value="Other">Other</option></select></label>
+            </div>
+          </details>
 
           <div class="form-section-grid">
             <section class="form-section">
@@ -932,10 +979,36 @@
         </div>
       </div>
     </dialog>
+    <dialog class="trade-modal challenge-modal" id="challengeModal">
+      <form class="trade-form" id="challengeForm">
+        <div class="form-heading"><div><p class="eyebrow">ORB challenge</p><h2 id="challengeFormTitle">Create a session challenge</h2></div><button class="icon-button" type="button" id="closeChallengeModalButton" aria-label="Close">×</button></div>
+        <input type="hidden" name="challengeId">
+        <label><span>Name</span><input name="name" required maxlength="80" placeholder="e.g. London ORB Challenge"></label>
+        <label><span>Description</span><textarea name="description" rows="3" maxlength="500" placeholder="What is this group working towards?"></textarea></label>
+        <div class="field-row compact-three">
+          <label><span>Session</span><select name="session" required><option value="">Select session</option><option>Sydney</option><option>Tokyo</option><option>Singapore/HK</option><option>Frankfurt</option><option>London</option><option>New York</option></select></label>
+          <label><span>Market</span><select name="standardMarket" required><option value="">Select market</option><option>Nasdaq</option><option>Gold</option><option>S&amp;P 500</option><option>Dow Jones</option><option>Oil</option><option>Forex</option><option>Other</option></select></label>
+          <label><span>Start date</span><input name="startDate" type="date" required></label>
+        </div>
+        <label><span>End date</span><input name="endDate" type="date" required></label>
+        <label><span>Daily trade rule</span><select name="tradeRule"><option value="initial-only">Initial trade only</option><option value="allow-flip">Allow one flip after the initial trade loses</option></select></label>
+        <p class="muted">The leaderboard ranks total points gained, then wins. When flips are enabled, the second trade must use the opposite direction.</p>
+        <div class="modal-actions"><button class="ghost-button" type="button" id="cancelChallengeButton">Cancel</button><button class="primary-button" type="submit" id="saveChallengeButton">Create challenge</button></div>
+      </form>
+    </dialog>
+    <dialog class="trade-modal challenge-modal" id="inviteChallengeModal">
+      <form class="trade-form" id="inviteChallengeForm">
+        <div class="form-heading"><div><p class="eyebrow">Invite participant</p><h2 id="inviteChallengeTitle">Add a trader</h2></div><button class="icon-button" type="button" id="closeInviteChallengeButton" aria-label="Close">×</button></div>
+        <input name="challengeId" type="hidden">
+        <label><span>User email</span><input name="email" type="email" required placeholder="trader@example.com"></label>
+        <p class="muted">The email must exactly match an active Traders Hub user. Only the challenge creator can see participant emails.</p>
+        <div class="modal-actions"><button class="ghost-button" type="button" id="cancelInviteChallengeButton">Cancel</button><button class="primary-button" type="submit">Send invitation</button></div>
+      </form>
+    </dialog>
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
     <script src="supabase-config.js?v=20260608-routing"></script>
     <script src="supabase-api.js?v=20260608-routing"></script>
-    <script src="app.js?v=20260609-setup-alert"></script>
+    <script src="app.js?v=20260615-dashboard-challenges"></script>
   </body>
 </html>

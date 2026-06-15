@@ -1,8 +1,203 @@
 .transformation,
+.challenge-showcase,
 .product-tour,
 .community,
 .faq {
   padding: 120px 28px;
+}
+
+.challenge-showcase {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 72px;
+  align-items: center;
+  max-width: var(--max);
+  margin: auto;
+}
+
+.benefit-grid {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.challenge-copy h2 {
+  max-width: 650px;
+  margin: 0;
+  font-size: clamp(3rem, 5vw, 5.4rem);
+  font-weight: 540;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.challenge-copy > p:not(.eyebrow) {
+  max-width: 610px;
+  margin: 26px 0 32px;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+.challenge-points {
+  display: grid;
+  gap: 1px;
+  margin-bottom: 32px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.challenge-points article {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 18px;
+  padding: 20px;
+  background: var(--panel);
+}
+
+.challenge-points b {
+  color: var(--lime);
+  font-size: 0.78rem;
+}
+
+.challenge-points h3,
+.challenge-points p {
+  margin: 0;
+}
+
+.challenge-points h3 {
+  font-size: 0.94rem;
+}
+
+.challenge-points p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.challenge-preview {
+  overflow: hidden;
+  padding: 10px;
+  border: 1px solid #3a433a;
+  border-radius: 20px;
+  background: #101310;
+  box-shadow: 0 35px 80px rgba(0, 0, 0, 0.44);
+}
+
+.challenge-preview-head,
+.challenge-preview-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px;
+}
+
+.challenge-preview-head div {
+  display: grid;
+  gap: 6px;
+}
+
+.challenge-preview-head span,
+.challenge-summary span {
+  color: #818b80;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.challenge-preview-head strong {
+  font-size: 1.42rem;
+}
+
+.challenge-preview-head em {
+  padding: 8px 12px;
+  border: 1px solid rgba(185, 255, 87, 0.28);
+  border-radius: 99px;
+  background: rgba(185, 255, 87, 0.08);
+  color: var(--lime);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.challenge-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 0 10px 10px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.challenge-summary div {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: var(--field);
+}
+
+.leaderboard {
+  margin: 0 10px;
+  border: 1px solid var(--line);
+}
+
+.leaderboard-head,
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 70px 100px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.leaderboard-head {
+  color: #818b80;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.leaderboard-row {
+  background: #171a17;
+  font-size: 0.8rem;
+}
+
+.leaderboard-row:last-child {
+  border-bottom: 0;
+}
+
+.leaderboard-row b {
+  color: var(--muted);
+}
+
+.leaderboard-row span {
+  color: var(--ink);
+}
+
+.leaderboard-row em {
+  color: var(--lime);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.leaderboard-row.leader {
+  background: rgba(185, 255, 87, 0.08);
+}
+
+.leaderboard-row.leader b,
+.leaderboard-row.leader strong {
+  color: var(--lime);
+}
+
+.challenge-preview-foot {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.challenge-preview-foot strong {
+  color: var(--lime);
 }
 
 .transformation {
@@ -294,7 +489,12 @@
 }
 
 @media (max-width: 1050px) {
+  .benefit-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .transformation-grid,
+  .challenge-showcase,
   .tour-content,
   .community-inner {
     grid-template-columns: 1fr;
@@ -312,6 +512,7 @@
 
 @media (max-width: 720px) {
   .transformation,
+  .challenge-showcase,
   .product-tour,
   .community,
   .faq {
@@ -321,6 +522,23 @@
   .transformation-grid article,
   .tour-content {
     padding: 26px;
+  }
+
+  .challenge-preview-head,
+  .challenge-preview-foot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .benefit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-head,
+  .leaderboard-row {
+    grid-template-columns: 38px 1fr 48px 76px;
+    gap: 8px;
+    padding-inline: 12px;
   }
 
   .tour-tabs {

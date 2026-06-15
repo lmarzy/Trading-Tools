@@ -15,13 +15,14 @@ create table if not exists public.app_users (
   trial_started_at timestamptz,
   trial_ends_at timestamptz,
   disabled_reason text,
+  feature_access jsonb not null default '{"journal":true,"calculator":true,"training":false,"challenges":false}'::jsonb,
   created_at timestamptz not null default now(),
   last_login_at timestamptz
 );
 
 create table if not exists public.user_data (
   user_id uuid primary key references public.app_users(id) on delete cascade,
-  config_json jsonb not null default '{"symbols":[],"sessions":[],"accounts":[],"strategies":[],"marketTypes":[],"accountBalances":{},"accountSettings":{},"checklistRules":[],"automatedRules":[],"blockedTradingDays":[],"weeklyPlans":{},"weeklyReviews":{},"trainingProgress":{}}'::jsonb,
+  config_json jsonb not null default '{"symbols":[],"symbolsByMarket":{"CFD":[],"Futures":[]},"symbolMarketMap":{},"sessions":[],"trackSessions":false,"accounts":[],"strategies":[],"marketTypes":[],"accountBalances":{},"accountSettings":{},"checklistRules":[],"automatedRules":[],"blockedTradingDays":[],"weeklyPlans":{},"weeklyReviews":{},"trainingProgress":{}}'::jsonb,
   trades_json jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
@@ -39,10 +40,39 @@ create table if not exists public.news_events (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.challenges (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references public.app_users(id) on delete cascade,
+  name text not null,
+  description text,
+  status text not null default 'draft' check (status in ('draft', 'active', 'complete', 'cancelled')),
+  challenge_type text not null default 'custom',
+  ranking_method text not null default 'profit_percentage',
+  rules_json jsonb not null default '{}'::jsonb,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.challenge_members (
+  challenge_id uuid not null references public.challenges(id) on delete cascade,
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  invited_by uuid not null references public.app_users(id) on delete cascade,
+  invitation_status text not null default 'pending' check (invitation_status in ('pending', 'accepted', 'declined', 'removed')),
+  invited_at timestamptz not null default now(),
+  responded_at timestamptz,
+  primary key (challenge_id, user_id)
+);
+
 create index if not exists app_users_role_active_idx on public.app_users(role, active);
 create index if not exists user_data_updated_at_idx on public.user_data(updated_at);
 create index if not exists news_events_time_active_idx on public.news_events(event_time, active);
+create index if not exists challenges_creator_idx on public.challenges(creator_id, created_at);
+create index if not exists challenge_members_user_idx on public.challenge_members(user_id, invitation_status);
 
 alter table public.app_users enable row level security;
 alter table public.user_data enable row level security;
 alter table public.news_events enable row level security;
+alter table public.challenges enable row level security;
+alter table public.challenge_members enable row level security;

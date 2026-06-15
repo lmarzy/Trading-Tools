@@ -1,7 +1,17 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 
-const USER_SELECT = "id,label,first_name,last_name,email,role,passcode_code,active,trial_enabled,trial_weeks,trial_started_at,trial_ends_at,disabled_reason,created_at,last_login_at";
+const USER_SELECT = "id,label,first_name,last_name,email,role,passcode_code,active,trial_enabled,trial_weeks,trial_started_at,trial_ends_at,disabled_reason,feature_access,created_at,last_login_at";
+const DEFAULT_FEATURE_ACCESS = { journal: true, calculator: true, training: false, challenges: false };
+const ADMIN_FEATURE_ACCESS = { journal: true, calculator: true, training: true, challenges: true };
+
+function normaliseFeatureAccess(value: unknown, role: string) {
+  if (role === "admin") return ADMIN_FEATURE_ACCESS;
+  const access = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return Object.fromEntries(
+    Object.entries(DEFAULT_FEATURE_ACCESS).map(([key, defaultValue]) => [key, access[key] === undefined ? defaultValue : access[key] === true]),
+  );
+}
 
 function normaliseTrialWeeks(value: unknown) {
   const weeks = Number(value);
@@ -112,7 +122,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
-      const { firstName, lastName, email, label, role, passcodeHash, passcodeCode, trialEnabled, trialWeeks } = user || {};
+      const { firstName, lastName, email, label, role, passcodeHash, passcodeCode, trialEnabled, trialWeeks, featureAccess } = user || {};
       const displayLabel = label || [firstName, lastName].filter(Boolean).join(" ");
       if (!displayLabel || !passcodeHash) {
         return jsonResponse({ error: "Missing user details" }, 400);
@@ -133,6 +143,7 @@ Deno.serve(async (req) => {
           passcode_code: passcodeCode || null,
           active: isActive,
           disabled_reason: isActive ? null : "Manually disabled",
+          feature_access: normaliseFeatureAccess(featureAccess, userRole),
           ...trialFields,
         })
         .select(USER_SELECT)
@@ -147,7 +158,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      const { id, firstName, lastName, email, label, role, active, passcodeHash, passcodeCode, trialEnabled, trialWeeks, resetTrial } = user || {};
+      const { id, firstName, lastName, email, label, role, active, passcodeHash, passcodeCode, trialEnabled, trialWeeks, resetTrial, featureAccess } = user || {};
       if (!id) {
         return jsonResponse({ error: "Missing user id" }, 400);
       }
@@ -166,6 +177,7 @@ Deno.serve(async (req) => {
         role: userRole,
         active,
         disabled_reason: active ? null : "Manually disabled",
+        feature_access: normaliseFeatureAccess(featureAccess, userRole),
       };
 
       if (resetTrial || trialEnabled !== undefined || trialWeeks !== undefined) {

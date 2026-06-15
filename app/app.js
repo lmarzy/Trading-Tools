@@ -5,6 +5,7 @@ const AUTH_ROLE_KEY = "trade-tools:unlocked-role";
 const AUTH_HASH_KEY = "trade-tools:unlocked-passcode-hash";
 const AUTH_TRIAL_ENABLED_KEY = "trade-tools:unlocked-trial-enabled";
 const AUTH_TRIAL_ENDS_KEY = "trade-tools:unlocked-trial-ends";
+const AUTH_FEATURES_KEY = "trade-tools:unlocked-features";
 const ONBOARDING_DISMISSED_KEY = "trade-tools:onboarding-dismissed-user";
 const TABLE_PAGE_SIZE = 10;
 const PASSCODE_SALT = "trade-tools-v1";
@@ -70,6 +71,26 @@ const clearButton = document.querySelector("#clearButton");
 const exportButton = document.querySelector("#exportButton");
 const navButtons = document.querySelectorAll("[data-view-target]");
 const appViews = document.querySelectorAll(".app-view");
+const challengeGrid = document.querySelector("#challengeGrid");
+const challengeSummaryGrid = document.querySelector("#challengeSummaryGrid");
+const challengeModal = document.querySelector("#challengeModal");
+const challengeForm = document.querySelector("#challengeForm");
+const challengeFormTitle = document.querySelector("#challengeFormTitle");
+const saveChallengeButton = document.querySelector("#saveChallengeButton");
+const openCreateChallengeButton = document.querySelector("#openCreateChallengeButton");
+const inviteChallengeModal = document.querySelector("#inviteChallengeModal");
+const inviteChallengeForm = document.querySelector("#inviteChallengeForm");
+const inviteChallengeTitle = document.querySelector("#inviteChallengeTitle");
+const challengeTradeSection = document.querySelector("#challengeTradeSection");
+const tradeChallengeInput = document.querySelector("#tradeChallenge");
+const challengeRequirements = document.querySelector("#challengeRequirements");
+const challengeLimitMessage = document.querySelector("#challengeLimitMessage");
+const challengeSymbolSetup = document.querySelector("#challengeSymbolSetup");
+const challengeSymbolSetupTitle = document.querySelector("#challengeSymbolSetupTitle");
+const challengeSymbolSetupText = document.querySelector("#challengeSymbolSetupText");
+const challengeExistingSymbol = document.querySelector("#challengeExistingSymbol");
+const challengeNewSymbol = document.querySelector("#challengeNewSymbol");
+const saveChallengeSymbolButton = document.querySelector("#saveChallengeSymbolButton");
 const adminNavLink = document.querySelector("#adminNavLink");
 const hubWeekAmount = document.querySelector("#hubWeekAmount");
 const hubTrades = document.querySelector("#hubTrades");
@@ -86,6 +107,10 @@ const hubPlanDetail = document.querySelector("#hubPlanDetail");
 const hubPlanButton = document.querySelector("#hubPlanButton");
 const hubNewsButton = document.querySelector("#hubNewsButton");
 const hubReviewButton = document.querySelector("#hubReviewButton");
+const hubChallengesPanel = document.querySelector("#hubChallengesPanel");
+const hubChallengesTitle = document.querySelector("#hubChallengesTitle");
+const hubChallengeList = document.querySelector("#hubChallengeList");
+const hubChallengesButton = document.querySelector("#hubChallengesButton");
 const dashboardSetupAlert = document.querySelector("#dashboardSetupAlert");
 const dashboardSetupDetail = document.querySelector("#dashboardSetupDetail");
 const dashboardSetupProgress = document.querySelector("#dashboardSetupProgress");
@@ -235,6 +260,7 @@ const DEFAULT_CONFIG = {
     CFD: [],
     Futures: [],
   },
+  symbolMarketMap: {},
   sessions: [],
   trackSessions: false,
   accounts: [],
@@ -257,6 +283,41 @@ const AUTOMATED_RULE_TYPES = [
   { key: "maxConsecutiveLosses", label: "Stop after consecutive losses", unit: "losses", min: 1, step: 1 },
 ];
 const TRADING_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const PREDEFINED_STRATEGIES = [
+  "Opening Range Breakout",
+  "Support and Resistance",
+  "Trendline",
+  "Breakout and Retest",
+  "Fair Value Gap",
+  "Order Block",
+  "Supply and Demand",
+  "Reversal",
+];
+const ORB_STRATEGY = "Opening Range Breakout";
+const STANDARD_MARKETS = ["Nasdaq", "Gold", "S&P 500", "Dow Jones", "Oil", "Forex", "Other"];
+const MARKET_SYMBOL_ALIASES = {
+  Nasdaq: ["NAS", "NAS100", "US100", "NQ", "MNQ"],
+  Gold: ["GOLD", "XAUUSD", "GC", "MGC"],
+  "S&P 500": ["SPX", "SPX500", "US500", "ES", "MES"],
+  "Dow Jones": ["US30", "DJ30", "DOW", "YM", "MYM"],
+  Oil: ["USOIL", "WTI", "CL", "MCL"],
+};
+
+function suggestStandardMarket(symbol = "") {
+  const value = String(symbol).trim().toUpperCase();
+  return Object.entries(MARKET_SYMBOL_ALIASES).find(([, aliases]) => aliases.includes(value))?.[0] || "Other";
+}
+
+function normalizeSymbolMarketMap(map = {}, symbols = []) {
+  return normalizeOptions(symbols, []).reduce((result, symbol) => ({
+    ...result,
+    [symbol]: STANDARD_MARKETS.includes(map?.[symbol]) ? map[symbol] : suggestStandardMarket(symbol),
+  }), {});
+}
+
+function getSymbolsForStandardMarket(market) {
+  return getAllSymbols().filter((symbol) => appConfig.symbolMarketMap?.[symbol] === market);
+}
 
 const CONFIG_FIELDS = [
   { key: "accounts", label: "Account", selectIds: ["account"], filterIds: ["accountFilter"] },
@@ -591,6 +652,9 @@ const FUNDAMENTAL_LESSON_GUIDES = {
 
 let currentUserId = "";
 let currentUserLabel = "";
+let challenges = [];
+let challengesLoading = false;
+let challengesLoaded = false;
 let trades = [];
 let appConfig = structuredClone(DEFAULT_CONFIG);
 let editingTradeId = "";
@@ -607,6 +671,7 @@ let selectedTradeId = "";
 let onboardingStepIndex = 0;
 let onboardingDraft = structuredClone(DEFAULT_CONFIG);
 let activeConfigTab = "markets";
+let accountCreateOpen = false;
 let reviewWeekOffset = 0;
 let trainingStepIndex = 0;
 let trainingWorkspaceOpen = false;
@@ -990,6 +1055,7 @@ async function setAppUnlocked(
   refreshUser = true,
   trialEnabled = sessionStorage.getItem(AUTH_TRIAL_ENABLED_KEY) === "true",
   trialEndsAt = sessionStorage.getItem(AUTH_TRIAL_ENDS_KEY) || "",
+  featureAccess = JSON.parse(sessionStorage.getItem(AUTH_FEATURES_KEY) || "{}"),
 ) {
   document.body.classList.add("app-checking");
   passcodeGate.setAttribute("hidden", "");
@@ -1008,6 +1074,7 @@ async function setAppUnlocked(
             userRole = result.user.role || userRole;
             trialEnabled = Boolean(result.user.trialEnabled);
             trialEndsAt = result.user.trialEndsAt || "";
+            featureAccess = result.user.featureAccess || {};
           }
         } catch {
           // Keep the local session usable if the profile refresh cannot complete.
@@ -1020,6 +1087,8 @@ async function setAppUnlocked(
       sessionStorage.setItem(AUTH_ROLE_KEY, userRole || "user");
       sessionStorage.setItem(AUTH_TRIAL_ENABLED_KEY, trialEnabled ? "true" : "false");
       sessionStorage.setItem(AUTH_TRIAL_ENDS_KEY, trialEndsAt || "");
+      sessionStorage.setItem(AUTH_FEATURES_KEY, JSON.stringify(featureAccess || {}));
+      applyFeatureAccess(featureAccess, userRole);
       if (passcodeHash) {
         sessionStorage.setItem(AUTH_HASH_KEY, passcodeHash);
       }
@@ -1061,9 +1130,12 @@ async function logout() {
     sessionStorage.removeItem(AUTH_HASH_KEY);
     sessionStorage.removeItem(AUTH_TRIAL_ENABLED_KEY);
     sessionStorage.removeItem(AUTH_TRIAL_ENDS_KEY);
+    sessionStorage.removeItem(AUTH_FEATURES_KEY);
     sessionStorage.removeItem(ONBOARDING_DISMISSED_KEY);
     currentUserId = "";
     currentUserLabel = "";
+    challenges = [];
+    challengesLoaded = false;
     adminNavLink.classList.add("hidden");
     userPopover.classList.add("hidden");
     userMenuButton.setAttribute("aria-expanded", "false");
@@ -1074,6 +1146,19 @@ async function logout() {
   } finally {
     setButtonLoading(logoutButton, false);
   }
+}
+
+function applyFeatureAccess(access = {}, role = "user") {
+  const allowed = role === "admin"
+    ? { journal: true, calculator: true, training: true, challenges: true }
+    : access;
+  document.querySelectorAll("[data-app-route]").forEach((link) => {
+    const route = link.dataset.appRoute;
+    const feature = route === "tracker" || route === "journal" ? "journal" : route;
+    if (["journal", "calculator", "training", "challenges"].includes(feature)) {
+      link.classList.toggle("hidden", allowed?.[feature] !== true);
+    }
+  });
 }
 
 function getUserInitials(name) {
@@ -1135,7 +1220,11 @@ async function loadUserState(userId, userLabel) {
   currentUserLabel = userLabel;
   trades = loadTrades();
   appConfig = loadConfig();
-  await hydrateUserStateFromSupabase();
+  await Promise.all([
+    hydrateUserStateFromSupabase(),
+    loadChallenges({ showLoading: false }),
+  ]);
+  scheduleSupabaseSave();
   currentTablePage = 1;
   syncConfiguredInputs();
   resetForm();
@@ -1150,12 +1239,15 @@ async function hydrateUserStateFromSupabase() {
   try {
     isHydratingUserState = true;
     const remoteData = await callSupabaseFunction("get-user-data", { userId: currentUserId });
-    trades = Array.isArray(remoteData.trades) ? remoteData.trades : [];
+    trades = Array.isArray(remoteData.trades)
+      ? remoteData.trades.map((trade) => ({ ...trade, strategy: normalizeStrategyName(trade.strategy) }))
+      : [];
     const marketTypes = normalizeMarketTypes(remoteData.config?.marketTypes);
-    const symbolsByMarket = normalizeSymbolsByMarket(remoteData.config?.symbolsByMarket, remoteData.config?.symbols);
+    const symbolsByMarket = normalizeSymbolsByMarket(remoteData.config?.symbolsByMarket);
     appConfig = {
       symbols: flattenSymbolsByMarket(symbolsByMarket),
       symbolsByMarket,
+      symbolMarketMap: normalizeSymbolMarketMap(remoteData.config?.symbolMarketMap, flattenSymbolsByMarket(symbolsByMarket)),
       sessions: Boolean(remoteData.config?.trackSessions) ? normalizeSessions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions) : [],
       trackSessions: Boolean(remoteData.config?.trackSessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
@@ -1163,7 +1255,7 @@ async function hydrateUserStateFromSupabase() {
       marketTypes,
       accountBalances: normalizeAccountBalances(remoteData.config?.accountBalances, remoteData.config?.accounts),
       accountSettings: normalizeAccountSettings(remoteData.config?.accountSettings, remoteData.config?.accounts, remoteData.config?.accountBalances),
-      checklistRules: normalizeOptions(remoteData.config?.checklistRules ?? remoteData.config?.tradingRules, DEFAULT_CONFIG.checklistRules),
+      checklistRules: normalizeOptions(remoteData.config?.checklistRules, DEFAULT_CONFIG.checklistRules),
       automatedRules: Array.isArray(remoteData.config?.automatedRules) ? remoteData.config.automatedRules : [],
       blockedTradingDays: normalizeOptions(remoteData.config?.blockedTradingDays, []),
       weeklyPlans: remoteData.config?.weeklyPlans && typeof remoteData.config.weeklyPlans === "object" ? remoteData.config.weeklyPlans : {},
@@ -1282,7 +1374,26 @@ function normalizeOptions(options, fallback) {
 }
 
 function normalizeStrategies(options, fallback = []) {
-  return normalizeOptions(options, fallback).filter((option) => option.toUpperCase() !== "N/A");
+  const normalized = normalizeOptions(options, fallback)
+    .map(normalizeStrategyName)
+    .filter((option) => option.toUpperCase() !== "N/A");
+  return [...new Set(normalized)];
+}
+
+function normalizeStrategyName(strategy = "") {
+  const value = String(strategy).trim();
+  return ["orb", "opening range", "opening range breakout"].includes(value.toLowerCase()) ? ORB_STRATEGY : value;
+}
+
+function isOrbStrategy(strategy) {
+  return strategy === ORB_STRATEGY;
+}
+
+function syncStrategyExecutionFields() {
+  const disclosure = document.querySelector("#orbDetailsDisclosure");
+  const isOrb = isOrbStrategy(form.strategy.value);
+  disclosure.classList.toggle("hidden", !isOrb);
+  if (!isOrb) disclosure.open = false;
 }
 
 function normalizeMarketTypes(options) {
@@ -1292,10 +1403,9 @@ function normalizeMarketTypes(options) {
   return [...new Set(cleaned)];
 }
 
-function normalizeSymbolsByMarket(symbolsByMarket = {}, fallbackSymbols = []) {
-  const fallback = normalizeOptions(fallbackSymbols, []);
+function normalizeSymbolsByMarket(symbolsByMarket = {}) {
   return MARKET_TYPE_OPTIONS.reduce((normalized, marketType) => {
-    normalized[marketType] = normalizeOptions(symbolsByMarket?.[marketType], marketType === "CFD" ? fallback : []);
+    normalized[marketType] = normalizeOptions(symbolsByMarket?.[marketType], []);
     return normalized;
   }, {});
 }
@@ -1337,7 +1447,8 @@ function normalizeAccountSettings(settings = {}, accounts = [], balances = {}) {
 
 function renderDrawdownOptions(selected = "") {
   return `<option value="">Optional</option>${Array.from({ length: 20 }, (_, index) => {
-    const value = String(index + 1);
+    const number = (index + 1) * 0.5;
+    const value = String(number);
     return `<option value="${value}" ${String(selected) === value ? "selected" : ""}>${value}%</option>`;
   }).join("")}`;
 }
@@ -1407,6 +1518,7 @@ function syncConfiguredInputs() {
   syncMarketTypeField();
   syncSymbolFromMarket();
   syncSessionVisibility();
+  syncStrategyExecutionFields();
   updateAddTradeAvailability();
 }
 
@@ -2354,7 +2466,7 @@ function renderTable() {
         <td data-label="Market">${escapeHtml(getTradeMarketType(trade))}</td>
         <td data-label="Session" data-session-column>${escapeHtml(trade.session || getDefaultOption("sessions"))}</td>
         <td data-label="Account">${escapeHtml(trade.account || getDefaultOption("accounts"))}</td>
-        <td data-label="Strategy">${escapeHtml(trade.strategy || "-")}</td>
+        <td data-label="Strategy">${escapeHtml(trade.strategy || "-")}${trade.challengeName ? `<span class="trade-challenge-badge">${escapeHtml(trade.challengeName)}${trade.challengeTradeType ? ` · ${escapeHtml(trade.challengeTradeType)}` : ""}</span>` : ""}</td>
         <td data-label="Size Type">${getTradeSizeType(trade)}</td>
         <td data-label="Size">${formatTradeSize(trade)}</td>
         <td data-label="Points" class="${getPointsClass(points)}">${formatPoints(points)}</td>
@@ -2400,7 +2512,13 @@ function renderTable() {
 }
 
 function getVisibleTradesSorted() {
-  return getFilteredTrades().slice().sort((a, b) => b.tradeDate.localeCompare(a.tradeDate));
+  return getFilteredTrades().slice().sort(compareTradesNewestFirst);
+}
+
+function compareTradesNewestFirst(a, b) {
+  const dateOrder = String(b.tradeDate || "").localeCompare(String(a.tradeDate || ""));
+  if (dateOrder) return dateOrder;
+  return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
 }
 
 function openTradeDrawer(id) {
@@ -2427,6 +2545,9 @@ function openTradeDrawer(id) {
       ${appConfig.trackSessions ? `<div><dt>Session</dt><dd>${escapeHtml(trade.session || "-")}</dd></div>` : ""}
       <div><dt>Account</dt><dd>${escapeHtml(trade.account || "-")}</dd></div>
       <div><dt>Strategy</dt><dd>${escapeHtml(trade.strategy || "-")}</dd></div>
+      ${trade.challengeName ? `<div><dt>Challenge</dt><dd>${escapeHtml(trade.challengeName)}</dd></div>` : ""}
+      ${trade.challengeTradeType ? `<div><dt>Challenge trade</dt><dd>${escapeHtml(trade.challengeTradeType)}</dd></div>` : ""}
+      ${isOrbStrategy(trade.strategy) ? `<div><dt>Opening Range</dt><dd>${escapeHtml(trade.openingRange || "-")}</dd></div><div><dt>Entry Timeframe</dt><dd>${escapeHtml(trade.entryTimeframe || "-")}</dd></div><div><dt>Entry Model</dt><dd>${escapeHtml(trade.entryModel || "-")}</dd></div>` : ""}
       <div><dt>Direction</dt><dd>${hasTradePriceDetails(trade) ? escapeHtml(trade.direction || "Buy") : "-"}</dd></div>
       <div><dt>Entry / Exit</dt><dd>${hasTradePriceDetails(trade) ? `${escapeHtml(trade.entryPrice)} / ${escapeHtml(trade.exitPrice)}` : "-"}</dd></div>
     </dl>
@@ -2662,6 +2783,209 @@ function renderHubDashboard() {
   hubPlanDetail.textContent = plan?.savedAt
     ? `${weekTrades.length}${plan.maxTrades ? ` of ${plan.maxTrades}` : ""} trades · ${formatSummaryAmount(amount)} P/L`
     : "Set your boundaries and focus for the week.";
+  renderHubChallenges();
+}
+
+function getChallengeTodayStatus(challenge) {
+  const today = toDateKey(new Date());
+  const dayTrades = trades.filter((trade) => trade.challengeId === challenge.id && trade.tradeDate === today).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const initialTrade = dayTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayTrades[0];
+  const flipTrade = dayTrades.find((trade) => trade.challengeTradeType === "flip");
+  if (!initialTrade) return "Trade available";
+  if (initialTrade.outcome === "Pending" && challenge.rules_json?.tradeRule === "allow-flip") return "Initial trade pending";
+  if (initialTrade.outcome === "Loss" && challenge.rules_json?.tradeRule === "allow-flip" && !flipTrade) return "Flip available";
+  return "Completed today";
+}
+
+function renderHubChallenges() {
+  if (!hubChallengesPanel) return;
+  const accepted = challenges.filter((challenge) => challenge.invitationStatus === "accepted" && challenge.status === "active");
+  const pending = challenges.filter((challenge) => challenge.invitationStatus === "pending").length;
+  hubChallengesPanel.classList.toggle("hidden", !accepted.length && !pending);
+  if (!accepted.length && !pending) return;
+  hubChallengesTitle.textContent = pending ? `${accepted.length} active · ${pending} invitation${pending === 1 ? "" : "s"}` : `${accepted.length} active`;
+  hubChallengeList.innerHTML = [
+    ...accepted.slice(0, 3).map((challenge) => {
+      const leaderboard = challenge.leaderboard || [];
+      const position = leaderboard.findIndex((entry) => entry.userId === currentUserId);
+      const own = position >= 0 ? leaderboard[position] : { wins: 0, points: 0 };
+      const status = getChallengeTodayStatus(challenge);
+      return `<article class="hub-challenge-item">
+        <div><span>${escapeHtml(challenge.rules_json?.standardMarket || "ORB Challenge")}</span><strong>${escapeHtml(challenge.name)}</strong><small>${escapeHtml(status)}</small></div>
+        <dl><div><dt>Position</dt><dd>${position >= 0 ? `#${position + 1}` : "-"}</dd></div><div><dt>Wins</dt><dd>${own.wins || 0}</dd></div><div><dt>Points</dt><dd class="${getPointsClass(own.points)}">${formatPoints(own.points || 0)}</dd></div></dl>
+        <button class="ghost-button" type="button" data-hub-challenge-trade="${challenge.id}" ${status === "Completed today" || status === "Initial trade pending" ? "disabled" : ""}>${status === "Flip available" ? "Add flip" : "Add trade"}</button>
+      </article>`;
+    }),
+    pending ? `<button class="hub-challenge-invitation" type="button" data-hub-view-challenges>${pending} challenge invitation${pending === 1 ? "" : "s"} waiting</button>` : "",
+  ].join("");
+}
+
+async function challengeRequest(body) {
+  const passcodeHash = sessionStorage.getItem(AUTH_HASH_KEY);
+  return callSupabaseFunction("challenges", body, { "x-user-passcode-hash": passcodeHash || "" });
+}
+
+function renderChallengeLoadingState() {
+  challengeSummaryGrid.innerHTML = Array.from({ length: 3 }, () => `
+    <article class="challenge-summary-skeleton" aria-hidden="true">
+      <span class="challenge-skeleton-line short"></span>
+      <span class="challenge-skeleton-line value"></span>
+    </article>
+  `).join("");
+  challengeGrid.innerHTML = Array.from({ length: 2 }, () => `
+    <article class="challenge-card challenge-card-skeleton" aria-hidden="true">
+      <span class="challenge-skeleton-line short"></span>
+      <span class="challenge-skeleton-line heading"></span>
+      <span class="challenge-skeleton-line"></span>
+      <span class="challenge-skeleton-line medium"></span>
+      <div class="challenge-skeleton-table"></div>
+    </article>
+  `).join("");
+}
+
+async function loadChallenges({ showLoading = true } = {}) {
+  if (!currentUserId || !challengeGrid) return;
+  if (challengesLoading) return;
+  challengesLoading = true;
+  if (showLoading) {
+    renderChallengeLoadingState();
+    openCreateChallengeButton.disabled = true;
+    challengeGrid.setAttribute("aria-busy", "true");
+  }
+  try {
+    const result = await challengeRequest({ action: "list" });
+    challenges = result.challenges || [];
+    challengesLoaded = true;
+    renderHubChallenges();
+    if (showLoading || document.querySelector("#challengesView")?.classList.contains("active")) renderChallenges();
+  } catch (error) {
+    if (showLoading) {
+      challengeSummaryGrid.innerHTML = "";
+      challengeGrid.innerHTML = `<div class="empty-state"><h2>Challenges unavailable</h2><p>${escapeHtml(error.message)}</p><button class="ghost-button" type="button" data-retry-challenges>Try again</button></div>`;
+    }
+  } finally {
+    challengesLoading = false;
+    if (showLoading) {
+      openCreateChallengeButton.disabled = false;
+      challengeGrid.removeAttribute("aria-busy");
+    }
+  }
+}
+
+function renderChallenges() {
+  const pending = challenges.filter((challenge) => challenge.invitationStatus === "pending").length;
+  const active = challenges.filter((challenge) => challenge.invitationStatus === "accepted").length;
+  const created = challenges.filter((challenge) => challenge.isCreator).length;
+  challengeSummaryGrid.innerHTML = [["Your challenges", active], ["Pending invitations", pending], ["Created by you", created]]
+    .map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  challengeGrid.innerHTML = challenges.length ? challenges.map((challenge) => {
+    const pendingInvite = challenge.invitationStatus === "pending";
+    const members = challenge.members || [];
+    const leaderboard = challenge.leaderboard || [];
+    return `<article class="challenge-card">
+      <div class="challenge-card-heading"><div><span>${escapeHtml(challenge.status)}</span><h3>${escapeHtml(challenge.name)}</h3></div>${challenge.isCreator ? '<b>Creator</b>' : ""}</div>
+      <p>${escapeHtml(challenge.description || "No description added.")}</p>
+      ${challenge.challenge_type === "orb" ? `<div class="challenge-rule-strip"><span>${escapeHtml(challenge.rules_json?.standardMarket || "Market not set")}</span><span>${escapeHtml(challenge.rules_json?.session || "-")} session</span><span>ORB</span><span>${challenge.rules_json?.tradeRule === "allow-flip" ? "Flip after loss enabled" : "Initial trade only"}</span></div>
+      <div class="challenge-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>Points</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.points)}">${formatPoints(entry.points)}</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>` : ""}
+      <div class="challenge-members"><span>${members.filter((member) => member.status === "accepted").length} participants</span>${members.slice(0, 4).map((member) => `<i title="${escapeHtml(member.name)}">${escapeHtml(member.name.split(" ").map((part) => part[0]).join("").slice(0, 2))}</i>`).join("")}</div>
+      ${challenge.isCreator ? `<div class="challenge-participant-list">${members.map((member) => `<div><span><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.email || "")}</small></span><b>${escapeHtml(member.status)}</b></div>`).join("")}</div>` : ""}
+      <div class="challenge-card-actions">
+        ${pendingInvite ? `<button class="ghost-button" type="button" data-challenge-response="declined" data-challenge-id="${challenge.id}">Decline</button><button class="primary-button" type="button" data-challenge-response="accepted" data-challenge-id="${challenge.id}">Accept invitation</button>` : ""}
+        ${challenge.isCreator ? `<button class="icon-button challenge-manage-button" type="button" data-challenge-edit="${challenge.id}" aria-label="Edit ${escapeHtml(challenge.name)}" title="Edit challenge">✎</button><button class="icon-button challenge-manage-button danger" type="button" data-challenge-delete="${challenge.id}" aria-label="Delete ${escapeHtml(challenge.name)}" title="Delete challenge">×</button><button class="primary-button" type="button" data-challenge-invite="${challenge.id}">Invite user</button>` : ""}
+      </div>
+    </article>`;
+  }).join("") : `<div class="challenge-empty-state">
+    <div>
+      <p class="eyebrow">Trade together</p>
+      <h2>No challenges yet</h2>
+      <p>Create an ORB challenge for your group, or wait for another trader to send you an invitation.</p>
+    </div>
+    <button class="primary-button" type="button" data-create-first-challenge>Create challenge</button>
+  </div>`;
+}
+
+function getAcceptedOrbChallenges() {
+  const today = toDateKey(new Date());
+  return challenges.filter((challenge) => {
+    const start = String(challenge.starts_at || "").slice(0, 10);
+    const end = String(challenge.ends_at || "").slice(0, 10);
+    return challenge.invitationStatus === "accepted" && challenge.challenge_type === "orb" && challenge.status === "active" && (!start || today >= start) && (!end || today <= end);
+  });
+}
+
+function syncTradeChallenge(preferredId = null) {
+  const available = getAcceptedOrbChallenges();
+  const selectedId = preferredId !== null ? preferredId : tradeChallengeInput.value;
+  tradeChallengeInput.innerHTML = '<option value="__choose__" disabled>Choose an option</option><option value="">Not part of a challenge</option>' + available.map((challenge) => `<option value="${challenge.id}">${escapeHtml(challenge.name)}</option>`).join("");
+  if (selectedId === "__choose__" || selectedId === "" || available.some((challenge) => challenge.id === selectedId)) tradeChallengeInput.value = selectedId;
+  challengeTradeSection.classList.toggle("hidden", Boolean(editingTradeId) && available.length === 0);
+  const selected = available.find((challenge) => challenge.id === tradeChallengeInput.value);
+  const waitingForChoice = !editingTradeId && tradeChallengeInput.value === "__choose__";
+  const tradeDate = form.tradeDate.value || toDateKey(new Date());
+  const dayTrades = selected ? trades.filter((trade) => trade.id !== editingTradeId && trade.challengeId === selected.id && trade.tradeDate === tradeDate).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))) : [];
+  const initialTrade = dayTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayTrades[0];
+  const flipTrade = dayTrades.find((trade) => trade.challengeTradeType === "flip");
+  const flipsAllowed = selected?.rules_json?.tradeRule === "allow-flip";
+  const flipEligible = flipsAllowed && initialTrade?.outcome === "Loss" && !flipTrade;
+  const challengeBlocked = Boolean(initialTrade && !flipEligible);
+  form.classList.toggle("challenge-selection-pending", waitingForChoice || challengeBlocked);
+  challengeLimitMessage.classList.toggle("hidden", !challengeBlocked);
+  challengeSymbolSetup.classList.add("hidden");
+  challengeLimitMessage.innerHTML = challengeBlocked
+    ? `<p class="eyebrow">Daily entry complete</p><h3>${initialTrade.outcome === "Pending" && flipsAllowed ? "Update the initial trade first" : "Today’s challenge trades are complete"}</h3><p>${initialTrade.outcome === "Pending" && flipsAllowed ? "A flip trade becomes available only after the initial trade is updated as a loss." : `${escapeHtml(selected.name)} has no further qualifying trades available today.`}</p>`
+    : "";
+  challengeRequirements.classList.toggle("hidden", !selected);
+  if (!selected) {
+    challengeRequirements.innerHTML = "";
+    challengeSymbolSetup.classList.add("hidden");
+    form.session.disabled = false;
+    form.strategy.disabled = false;
+    form.symbol.disabled = false;
+    form.openingRange.disabled = false;
+    form.direction.disabled = false;
+    syncConfiguredInputs();
+    return;
+  }
+  const session = selected.rules_json?.session || "";
+  const standardMarket = selected.rules_json?.standardMarket || "";
+  const eligibleSymbols = getSymbolsForStandardMarket(standardMarket);
+  preserveOption(form.session, session);
+  preserveOption(form.strategy, ORB_STRATEGY);
+  populateSelect(form.symbol, eligibleSymbols);
+  sessionField.classList.remove("hidden");
+  form.session.disabled = true;
+  form.strategy.disabled = true;
+  const nextType = flipEligible ? "Flip trade" : "Initial trade";
+  challengeRequirements.innerHTML = eligibleSymbols.length
+    ? `<strong>${escapeHtml(selected.name)} · ${nextType}</strong><span>${escapeHtml(standardMarket)} · ${escapeHtml(session)} session · ${flipsAllowed ? "Flip allowed after initial loss" : "Initial trade only"}</span>`
+    : `<strong>${escapeHtml(selected.name)}</strong><span>Map one of your symbols to ${escapeHtml(standardMarket)} in Configure Inputs before adding this trade.</span>`;
+  if (!eligibleSymbols.length) {
+    form.classList.add("challenge-selection-pending");
+    challengeSymbolSetup.classList.remove("hidden");
+    challengeSymbolSetupTitle.textContent = `Choose a ${standardMarket} symbol`;
+    challengeSymbolSetupText.textContent = `Select one of your existing broker symbols or add a new one. It will be mapped to ${standardMarket}.`;
+    challengeExistingSymbol.innerHTML = '<option value="">Select existing symbol</option>' + getAllSymbols().map((symbol) => `<option value="${escapeHtml(symbol)}">${escapeHtml(symbol)}</option>`).join("");
+    saveChallengeSymbolButton.dataset.challengeMarket = standardMarket;
+  } else if (!form.symbol.value || !eligibleSymbols.includes(form.symbol.value)) {
+    form.symbol.value = eligibleSymbols[0];
+  }
+  if (flipEligible) {
+    preserveOption(form.marketType, getTradeMarketType(initialTrade));
+    syncSymbolFromMarket(initialTrade.symbol);
+    preserveOption(form.symbol, initialTrade.symbol);
+    syncSizeFromMarket();
+    form.openingRange.value = initialTrade.openingRange || "";
+    form.direction.value = initialTrade.direction === "Sell" ? "Buy" : "Sell";
+    form.symbol.disabled = true;
+    form.openingRange.disabled = true;
+    form.direction.disabled = true;
+    challengeRequirements.innerHTML = `<strong>${escapeHtml(selected.name)} · Flip trade</strong><span>${escapeHtml(initialTrade.symbol)} · ${escapeHtml(initialTrade.openingRange || "ORB")} · ${escapeHtml(form.direction.value)}</span>`;
+  } else {
+    form.symbol.disabled = false;
+    form.openingRange.disabled = false;
+    form.direction.disabled = false;
+  }
+  syncStrategyExecutionFields();
 }
 
 
@@ -2923,7 +3247,7 @@ function renderWeeklyReview() {
     <div><span>Continued after warning</span><strong>${weekTrades.filter((trade) => trade.continuedAfterRuleWarnings?.length).length}</strong><small>trades</small></div>
   `;
   reviewTradesList.innerHTML = weekTrades.length
-    ? weekTrades.slice().sort((a, b) => b.tradeDate.localeCompare(a.tradeDate)).map((trade) => `<button type="button" data-review-trade="${trade.id}"><span>${escapeHtml(trade.tradeDate)} · ${escapeHtml(trade.symbol)}</span><strong class="${getTradeAmount(trade) > 0 ? "amount-win" : getTradeAmount(trade) < 0 ? "amount-loss" : ""}">${formatSummaryAmount(getTradeAmount(trade))}</strong></button>`).join("")
+    ? weekTrades.slice().sort(compareTradesNewestFirst).map((trade) => `<button type="button" data-review-trade="${trade.id}"><span>${escapeHtml(trade.tradeDate)} · ${escapeHtml(trade.symbol)}</span><strong class="${getTradeAmount(trade) > 0 ? "amount-win" : getTradeAmount(trade) < 0 ? "amount-loss" : ""}">${formatSummaryAmount(getTradeAmount(trade))}</strong></button>`).join("")
     : '<p class="muted">No trades recorded for this week.</p>';
   const review = appConfig.weeklyReviews[startKey] || {};
   ["wentWell", "improve", "lesson", "nextFocus", "rating"].forEach((name) => { weeklyReviewForm.elements[name].value = review[name] || ""; });
@@ -3057,8 +3381,9 @@ function renderConfig() {
             ? symbols
                 .map(
                   (option) => `
-                    <span class="config-pill">
+                    <span class="config-pill symbol-market-pill">
                       ${escapeHtml(option)}
+                      <select data-symbol-market="${escapeHtml(option)}" aria-label="Market for ${escapeHtml(option)}">${STANDARD_MARKETS.map((market) => `<option value="${escapeHtml(market)}" ${appConfig.symbolMarketMap?.[option] === market ? "selected" : ""}>${escapeHtml(market)}</option>`).join("")}</select>
                       <button type="button" aria-label="Remove ${escapeHtml(option)}" data-config-action="remove" data-config-key="symbolsByMarket" data-market-type="${escapeHtml(marketType)}" data-config-value="${escapeHtml(option)}">x</button>
                     </span>
                   `,
@@ -3105,10 +3430,23 @@ function renderConfig() {
   }
 
   CONFIG_FIELDS.forEach((field) => {
+    if (field.key === "accounts") return;
     const section = document.createElement("section");
     section.className = "config-section";
     section.dataset.configPanel = field.key === "accounts" ? "accounts" : "strategies";
     section.dataset.configKey = field.key;
+    if (field.key === "strategies") {
+      section.innerHTML = `
+        <div class="config-section-heading"><div><h3>Strategy(s)</h3><p class="config-note">Choose common strategies or add your own custom setup.</p></div></div>
+        <div class="predefined-strategy-grid">
+          ${PREDEFINED_STRATEGIES.map((strategy) => `<label class="wizard-session-option"><input type="checkbox" data-predefined-strategy value="${escapeHtml(strategy)}" ${appConfig.strategies.includes(strategy) ? "checked" : ""}><span>${escapeHtml(strategy)}</span></label>`).join("")}
+        </div>
+        <div class="config-add-row strategy-custom-add"><input type="text" placeholder="Add custom strategy" aria-label="Add custom strategy"><button class="ghost-button" type="button" data-config-action="add" data-config-key="strategies">Add custom</button></div>
+        <div class="config-list">${appConfig.strategies.filter((strategy) => !PREDEFINED_STRATEGIES.includes(strategy)).length ? appConfig.strategies.filter((strategy) => !PREDEFINED_STRATEGIES.includes(strategy)).map((strategy) => `<span class="config-pill">${escapeHtml(strategy)}<button type="button" aria-label="Remove ${escapeHtml(strategy)}" data-config-action="remove" data-config-key="strategies" data-config-value="${escapeHtml(strategy)}">x</button></span>`).join("") : '<span class="muted">No custom strategies added.</span>'}</div>
+      `;
+      configGrid.appendChild(section);
+      return;
+    }
     section.innerHTML = `
       <div class="config-section-heading">
         <h3>${escapeHtml(field.label)}(s)</h3>
@@ -3224,20 +3562,35 @@ function renderConfig() {
   const balanceSection = document.createElement("section");
   balanceSection.className = "config-section account-details-section";
   balanceSection.dataset.configPanel = "accounts";
+  balanceSection.dataset.configKey = "accounts";
   balanceSection.innerHTML = `
     <div class="config-section-heading">
-      <h3>Account Detail(s)</h3>
+      <div><h3>Account(s)</h3><p class="config-note">Manage account balances and prop account limits.</p></div>
+      <button class="ghost-button" type="button" data-account-create-toggle>${accountCreateOpen ? "Cancel" : "Add account"}</button>
     </div>
-    <div class="account-settings-list">
-      ${
-        appConfig.accounts.length
-          ? appConfig.accounts
-              .map(
-                (account) => `
+    <div class="account-create-panel ${accountCreateOpen ? "" : "hidden"}">
+      <div class="config-add-row account-create-row">
+        <input type="text" placeholder="Account name" aria-label="Add Account" />
+        <select data-new-account-type aria-label="Account type"><option value="regular">Regular account</option><option value="prop">Prop account</option></select>
+        <button class="primary-button" type="button" data-config-action="add" data-config-key="accounts">Add account</button>
+      </div>
+    </div>
+    <div class="account-settings-groups">
+      ${[
+        { label: "Regular Accounts", accounts: appConfig.accounts.filter((account) => !appConfig.accountSettings?.[account]?.isProp) },
+        { label: "Prop Accounts", accounts: appConfig.accounts.filter((account) => appConfig.accountSettings?.[account]?.isProp) },
+      ].map((group) => `
+        <section class="account-settings-group">
+          <div class="account-settings-group-heading"><h4>${group.label}</h4><span>${group.accounts.length}</span></div>
+          <div class="account-settings-list">
+            ${group.accounts.length ? group.accounts.map((account) => `
                   <article class="account-settings-card">
                     <div class="account-settings-head">
                       <strong>${escapeHtml(account)}</strong>
-                      <label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-account-setting="isProp" data-account="${escapeHtml(account)}" ${appConfig.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label>
+                      <div class="account-settings-actions">
+                        <label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-account-setting="isProp" data-account="${escapeHtml(account)}" ${appConfig.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label>
+                        <button class="account-remove-button" type="button" aria-label="Remove ${escapeHtml(account)}" title="Remove account" data-config-action="remove" data-config-key="accounts" data-config-value="${escapeHtml(account)}">×</button>
+                      </div>
                     </div>
                     <div class="account-settings-fields ${appConfig.accountSettings?.[account]?.isProp ? "" : "regular"}">
                       <label><span>Starting balance</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.startingBalance || appConfig.accountBalances?.[account] || "")}" placeholder="0.00" data-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
@@ -3246,11 +3599,10 @@ function renderConfig() {
                       <label class="prop-only"><span>Timeframe to complete</span><div class="input-with-suffix"><input type="number" min="1" step="1" value="${escapeHtml(appConfig.accountSettings?.[account]?.timeframeDays || "")}" placeholder="Optional" data-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /><span>days</span></div></label>
                     </div>
                   </article>
-                `,
-              )
-              .join("")
-          : '<span class="muted">Add accounts first.</span>'
-      }
+                `).join("") : `<span class="muted">No ${group.label.toLowerCase()} added.</span>`}
+          </div>
+        </section>
+      `).join("")}
     </div>
   `;
   configGrid.appendChild(balanceSection);
@@ -3319,9 +3671,10 @@ function renderWizardValueBuilder({ key, label, placeholder, values, marketType 
     <div class="wizard-value-builder" data-wizard-builder="${escapeHtml(key)}"${marketAttribute}>
       <label class="wizard-add-row">
         <span>${escapeHtml(label)}</span>
-        <div>
+        <div class="${key === "symbols" ? "wizard-symbol-add-row" : ""}">
           <input type="text" placeholder="${escapeHtml(placeholder)}" data-wizard-add-input />
-          <button class="ghost-button" type="button" data-wizard-add-value>Add</button>
+          ${key === "symbols" ? `<select data-wizard-new-symbol-market aria-label="Standard market"><option value="">Please select</option>${STANDARD_MARKETS.map((market) => `<option value="${escapeHtml(market)}">${escapeHtml(market)}</option>`).join("")}</select>` : ""}
+          <button class="ghost-button" type="button" data-wizard-add-value ${key === "symbols" ? "disabled" : ""}>Add</button>
         </div>
       </label>
       <div class="wizard-chip-list">
@@ -3330,8 +3683,9 @@ function renderWizardValueBuilder({ key, label, placeholder, values, marketType 
             ? values
                 .map(
                   (value) => `
-                    <span class="config-pill">
+                    <span class="config-pill ${key === "symbols" ? "wizard-symbol-pill" : ""}">
                       ${escapeHtml(value)}
+                      ${key === "symbols" ? `<small>${escapeHtml(onboardingDraft.symbolMarketMap?.[value] || "Not mapped")}</small>` : ""}
                       <button type="button" aria-label="Remove ${escapeHtml(value)}" data-wizard-remove-value="${escapeHtml(value)}">x</button>
                     </span>
                   `,
@@ -3601,6 +3955,16 @@ function renderOnboardingWizard() {
       ${renderWizardAccountBuilder()}
       <p class="wizard-hint">Add each account, then enter its starting balance so account-level P/L can be tracked correctly.</p>
     `;
+  } else if (step.key === "strategies") {
+    const customStrategies = onboardingDraft.strategies.filter((strategy) => !PREDEFINED_STRATEGIES.includes(strategy));
+    stepContent = `
+      <div class="wizard-copy"><span>${escapeHtml(step.label)}</span><h2>${escapeHtml(step.title)}</h2><p>${escapeHtml(step.description)}</p></div>
+      <div class="predefined-strategy-grid">
+        ${PREDEFINED_STRATEGIES.map((strategy) => `<label class="wizard-session-option"><input type="checkbox" data-wizard-predefined-strategy value="${escapeHtml(strategy)}" ${onboardingDraft.strategies.includes(strategy) ? "checked" : ""}><span>${escapeHtml(strategy)}</span></label>`).join("")}
+      </div>
+      ${renderWizardValueBuilder({ key: "strategies", label: "Custom strategies", placeholder: "Add custom strategy", values: customStrategies })}
+      <p class="wizard-hint">Choose common strategies or add a custom setup. Opening Range Breakout enables extra execution fields when recording a trade.</p>
+    `;
   } else if (step.key === "rules") {
     stepContent = `
       <div class="wizard-copy">
@@ -3670,8 +4034,9 @@ function openOnboardingWizard() {
   onboardingDraft = structuredClone(appConfig);
   onboardingDraft.trackSessions = null;
   onboardingDraft.sessions = [];
-  onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+  onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
   onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+  onboardingDraft.symbolMarketMap = {};
   renderOnboardingWizard();
   openDialog(onboardingWizardModal);
 }
@@ -3689,7 +4054,7 @@ function persistWizardStep() {
       return false;
     }
     onboardingDraft.marketTypes = normalizeMarketTypes(selected);
-    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
     return true;
   }
 
@@ -3700,8 +4065,13 @@ function persistWizardStep() {
       wizardContent.querySelector(`[data-wizard-market-type-value="${missingMarket}"] [data-wizard-add-input]`)?.focus();
       return false;
     }
-    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, []);
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
     onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+    const missingMapping = onboardingDraft.symbols.find((symbol) => !STANDARD_MARKETS.includes(onboardingDraft.symbolMarketMap?.[symbol]));
+    if (missingMapping) {
+      showToast(`Choose a market for ${missingMapping}`, "warning");
+      return false;
+    }
     return true;
   }
 
@@ -3754,12 +4124,12 @@ function stashWizardStep() {
     onboardingDraft.marketTypes = normalizeMarketTypes(
       [...wizardContent.querySelectorAll("[data-wizard-market-type]:checked")].map((input) => input.value),
     );
-    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
     return;
   }
 
   if (step.key === "symbols") {
-    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, []);
+    onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
     onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
     return;
   }
@@ -3802,6 +4172,11 @@ function addWizardValue(builder, input) {
     input.focus();
     return;
   }
+  if (key === "symbols" && !builder.querySelector("[data-wizard-new-symbol-market]")?.value) {
+    showToast("Choose a standard market before adding the symbol.", "warning");
+    builder.querySelector("[data-wizard-new-symbol-market]")?.focus();
+    return;
+  }
   if (key === "strategies" && values.some((value) => value.toUpperCase() === "N/A")) {
     showToast("N/A is only available for sessions.", "warning");
     input.focus();
@@ -3812,11 +4187,15 @@ function addWizardValue(builder, input) {
     const current = onboardingDraft.symbolsByMarket?.[marketType] || [];
     onboardingDraft.symbolsByMarket = {
       ...onboardingDraft.symbolsByMarket,
-      [marketType]: normalizeOptions([...current, ...values], []),
+      [marketType]: normalizeOptions([...values, ...current], []),
     };
     onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+    onboardingDraft.symbolMarketMap = {
+      ...(onboardingDraft.symbolMarketMap || {}),
+      ...Object.fromEntries(values.map((symbol) => [symbol, builder.querySelector("[data-wizard-new-symbol-market]")?.value || suggestStandardMarket(symbol)])),
+    };
   } else {
-    onboardingDraft[key] = normalizeOptions([...(onboardingDraft[key] || []), ...values], []);
+    onboardingDraft[key] = normalizeOptions([...values, ...(onboardingDraft[key] || [])], []);
     if (key === "accounts") {
       onboardingDraft.accountBalances = onboardingDraft[key].reduce(
         (balances, account) => ({ ...balances, [account]: onboardingDraft.accountBalances?.[account] || "" }),
@@ -3848,6 +4227,7 @@ function removeWizardValue(builder, value) {
       [marketType]: (onboardingDraft.symbolsByMarket?.[marketType] || []).filter((item) => item !== value),
     };
     onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+    if (onboardingDraft.symbolMarketMap) delete onboardingDraft.symbolMarketMap[value];
   } else {
     onboardingDraft[key] = (onboardingDraft[key] || []).filter((item) => item !== value);
     if (key === "accounts") {
@@ -3863,10 +4243,11 @@ function removeWizardValue(builder, value) {
 }
 
 function saveOnboardingWizard() {
-  const symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket, onboardingDraft.symbols);
+  const symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
   appConfig = {
     symbols: flattenSymbolsByMarket(symbolsByMarket),
     symbolsByMarket,
+    symbolMarketMap: normalizeSymbolMarketMap(onboardingDraft.symbolMarketMap, flattenSymbolsByMarket(symbolsByMarket)),
     sessions: onboardingDraft.trackSessions ? normalizeSessions(onboardingDraft.sessions, []) : [],
     trackSessions: Boolean(onboardingDraft.trackSessions),
     accounts: normalizeOptions(onboardingDraft.accounts, []),
@@ -3906,9 +4287,10 @@ function addConfigValue(key, value, marketType = "", options = {}) {
     }
     appConfig.symbolsByMarket = {
       ...appConfig.symbolsByMarket,
-      [marketType]: [...currentSymbols, nextValue],
+      [marketType]: [nextValue, ...currentSymbols],
     };
     appConfig.symbols = getAllSymbols();
+    appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [nextValue]: suggestStandardMarket(nextValue) };
     saveConfig();
     syncConfiguredInputs();
     renderConfig();
@@ -3922,10 +4304,13 @@ function addConfigValue(key, value, marketType = "", options = {}) {
     return;
   }
 
-  appConfig[key] = [...appConfig[key], nextValue];
+  appConfig[key] = key === "sessions"
+    ? normalizeSessions([nextValue, ...appConfig[key]], [])
+    : [nextValue, ...appConfig[key]];
   if (key === "accounts") {
     appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
     appConfig.accountSettings = { ...appConfig.accountSettings, [nextValue]: { isProp: Boolean(options.isProp), startingBalance: "", dailyDrawdown: "", maxDrawdown: "", timeframeDays: "" } };
+    accountCreateOpen = false;
   }
   saveConfig();
   syncConfiguredInputs();
@@ -3958,6 +4343,7 @@ async function removeConfigValue(key, value, marketType = "") {
       [marketType]: currentSymbols.filter((option) => option !== value),
     };
     appConfig.symbols = getAllSymbols();
+    delete appConfig.symbolMarketMap[value];
     saveConfig();
     syncConfiguredInputs();
     renderConfig();
@@ -4009,6 +4395,7 @@ function showView(viewId) {
 
 function getViewFromRoute(route) {
   if (route === "journal" || route === "tracker") return "trackerView";
+  if (route === "challenges") return "challengesView";
   if (route === "calculator") return "calculatorView";
   if (route === "training") return "trainingView";
   return "dashboardView";
@@ -4016,6 +4403,7 @@ function getViewFromRoute(route) {
 
 function getRouteFromView(viewId) {
   if (viewId === "trackerView") return "journal";
+  if (viewId === "challengesView") return "challenges";
   if (viewId === "calculatorView") return "calculator";
   if (viewId === "trainingView") return "training";
   return "dashboard";
@@ -4031,8 +4419,15 @@ function updateActiveRoute(route) {
 }
 
 function navigateToRoute(route, { replace = false } = {}) {
+  const access = JSON.parse(sessionStorage.getItem(AUTH_FEATURES_KEY) || "{}");
+  const role = sessionStorage.getItem(AUTH_ROLE_KEY) || "user";
+  const requestedFeature = route === "tracker" || route === "journal" ? "journal" : route;
+  if (role !== "admin" && ["journal", "calculator", "training", "challenges"].includes(requestedFeature) && access?.[requestedFeature] !== true) {
+    route = "dashboard";
+    showToast("That feature is not included in your access.", "warning");
+  }
   const normalizedRoute = getRouteFromView(getViewFromRoute(route));
-  [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal, confirmModal].forEach((modal) => {
+  [tradeModal, configModal, noteModal, resetPasscodeModal, tradeDetailDrawer, onboardingModal, onboardingWizardModal, confirmModal, challengeModal, inviteChallengeModal].forEach((modal) => {
     if (modal.open) {
       modal.close();
       modal.classList.remove("is-closing");
@@ -4045,6 +4440,10 @@ function navigateToRoute(route, { replace = false } = {}) {
   url.search = normalizedRoute === "dashboard" ? "" : `?view=${normalizedRoute === "journal" ? "tracker" : normalizedRoute}`;
   window.history[replace ? "replaceState" : "pushState"]({ route: normalizedRoute }, "", url);
   window.scrollTo({ top: 0, behavior: "instant" });
+  if (normalizedRoute === "challenges") {
+    if (challengesLoaded) renderChallenges();
+    else loadChallenges();
+  }
 }
 
 function showDashboardSection(sectionName) {
@@ -4078,7 +4477,10 @@ function getTradeDiscipline(trade) {
 }
 
 function hasTradeDiscipline(trade) {
-  return Boolean(trade.discipline && typeof trade.discipline === "object");
+  if (!trade.discipline || typeof trade.discipline !== "object") {
+    return false;
+  }
+  return DISCIPLINE_RULES.some((rule) => trade.discipline[rule.key] === true);
 }
 
 function getDisciplineScore(trade) {
@@ -4087,19 +4489,10 @@ function getDisciplineScore(trade) {
   }
 
   const discipline = getTradeDiscipline(trade);
-  let score = 0;
-
-  if (discipline.followedPlan) {
-    score += 1;
-  }
-
-  ["enteredEarly", "movedSl", "overtraded", "exitedEarly", "heldTooLong"].forEach((key) => {
-    if (!discipline[key]) {
-      score += 1;
-    }
-  });
-
-  return score;
+  const negativeCount = DISCIPLINE_RULES
+    .filter((rule) => !rule.positive && discipline[rule.key])
+    .length;
+  return Math.max(0, DISCIPLINE_MAX_SCORE - negativeCount);
 }
 
 function renderDisciplineBadge(trade) {
@@ -4307,14 +4700,24 @@ function escapeHtml(value) {
 
 function readForm() {
   const existingId = tradeIdInput.value || editingTradeId;
+  const selectedChallenge = challenges.find((challenge) => challenge.id === tradeChallengeInput.value);
+  const dayChallengeTrades = selectedChallenge ? trades.filter((trade) => trade.id !== existingId && trade.challengeId === selectedChallenge.id && trade.tradeDate === form.tradeDate.value) : [];
+  const initialChallengeTrade = dayChallengeTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayChallengeTrades[0];
 
   return {
     id: existingId || crypto.randomUUID(),
     tradeDate: form.tradeDate.value,
     symbol: form.symbol.value,
-    session: appConfig.trackSessions ? form.session.value : "",
+    session: selectedChallenge ? selectedChallenge.rules_json?.session || form.session.value : appConfig.trackSessions ? form.session.value : "",
     account: form.account.value,
-    strategy: form.strategy.value,
+    strategy: selectedChallenge ? ORB_STRATEGY : form.strategy.value,
+    challengeId: selectedChallenge?.id || "",
+    challengeName: selectedChallenge?.name || "",
+    challengeMarket: selectedChallenge?.rules_json?.standardMarket || "",
+    challengeTradeType: selectedChallenge && initialChallengeTrade ? "flip" : selectedChallenge ? "initial" : "",
+    openingRange: isOrbStrategy(form.strategy.value) ? form.openingRange.value : "",
+    entryTimeframe: isOrbStrategy(form.strategy.value) ? form.entryTimeframe.value : "",
+    entryModel: isOrbStrategy(form.strategy.value) ? form.entryModel.value : "",
     marketType: form.marketType.value || getDefaultMarketType(),
     sizeType: (form.marketType.value || getDefaultMarketType()) === "Futures" ? "contracts" : "lots",
     lots: form.lots.value,
@@ -4366,6 +4769,28 @@ function validateTrade(trade) {
     return "Add both entry and exit prices to calculate points.";
   }
 
+  if (trade.challengeId) {
+    const challenge = challenges.find((item) => item.id === trade.challengeId);
+    const start = String(challenge?.starts_at || "").slice(0, 10);
+    const end = String(challenge?.ends_at || "").slice(0, 10);
+    if (!challenge || challenge.invitationStatus !== "accepted") return "This challenge is no longer available.";
+    if (!getSymbolsForStandardMarket(challenge.rules_json?.standardMarket || "").includes(trade.symbol)) return `Map and select a symbol for ${challenge.rules_json?.standardMarket || "this challenge market"}.`;
+    if ((start && trade.tradeDate < start) || (end && trade.tradeDate > end)) return "The trade date must be within the challenge period.";
+    const dayTrades = trades.filter((item) => item.id !== trade.id && item.challengeId === trade.challengeId && item.tradeDate === trade.tradeDate).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+    const initialTrade = dayTrades.find((item) => (item.challengeTradeType || "initial") === "initial") || dayTrades[0];
+    if (trade.challengeTradeType === "flip") {
+      if (challenge.rules_json?.tradeRule !== "allow-flip") return "This challenge does not allow flip trades.";
+      if (!initialTrade || initialTrade.outcome !== "Loss") return "The initial trade must be marked as a loss before adding a flip.";
+      if (initialTrade.direction === trade.direction) return "The flip trade must use the opposite direction.";
+      if (initialTrade.symbol !== trade.symbol) return "The flip trade must use the same symbol as the initial trade.";
+      if ((initialTrade.openingRange || "") !== (trade.openingRange || "")) return "The flip trade must use the same opening range as the initial trade.";
+      if (dayTrades.some((item) => item.challengeTradeType === "flip")) return "You have already submitted today’s flip trade.";
+    } else if (initialTrade) {
+      return "You have already submitted today’s initial trade.";
+    }
+    if (!hasTradePriceDetails(trade)) return "Add entry and exit prices so challenge points can be calculated.";
+  }
+
   return "";
 }
 
@@ -4380,6 +4805,16 @@ function resetForm() {
   }
   form.account.value = getDefaultOption("accounts");
   form.strategy.value = getDefaultOption("strategies");
+  form.session.disabled = false;
+  form.strategy.disabled = false;
+  form.symbol.disabled = false;
+  form.openingRange.disabled = false;
+  form.direction.disabled = false;
+  tradeChallengeInput.value = "__choose__";
+  form.openingRange.value = "";
+  form.entryTimeframe.value = "";
+  form.entryModel.value = "";
+  syncStrategyExecutionFields();
   syncMarketTypeField();
   form.lots.value = "0.01";
   form.contracts.value = "1";
@@ -4402,6 +4837,7 @@ function resetForm() {
   formTitle.textContent = "Add trade";
   submitButton.textContent = "Add trade";
   cancelEditButton.classList.add("hidden");
+  syncTradeChallenge();
 }
 
 function startEdit(id) {
@@ -4422,6 +4858,11 @@ function startEdit(id) {
   }
   preserveOption(form.account, trade.account || getDefaultOption("accounts"));
   preserveOption(form.strategy, trade.strategy || getDefaultOption("strategies"));
+  syncTradeChallenge(trade.challengeId || "");
+  form.openingRange.value = trade.openingRange || "";
+  form.entryTimeframe.value = trade.entryTimeframe || "";
+  form.entryModel.value = trade.entryModel || "";
+  syncStrategyExecutionFields();
   syncMarketTypeField();
   form.lots.value = formatLots(getTradeLots(trade));
   form.contracts.value = trade.contracts || "1";
@@ -4478,6 +4919,9 @@ function exportCsv() {
       "Market",
       "Account",
       "Strategy",
+      "Opening Range",
+      "Entry Timeframe",
+      "Entry Model",
       "Size Type",
       "Lots",
       "Contracts",
@@ -4512,6 +4956,9 @@ function exportCsv() {
         getTradeMarketType(trade),
         trade.account || getDefaultOption("accounts"),
         trade.strategy,
+        trade.openingRange || "",
+        trade.entryTimeframe || "",
+        trade.entryModel || "",
         getTradeSizeType(trade),
         trade.lots,
         trade.contracts || "",
@@ -4662,6 +5109,33 @@ confirmModal.addEventListener("click", (event) => {
   }
 });
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
+form.strategy.addEventListener("change", syncStrategyExecutionFields);
+tradeChallengeInput.addEventListener("change", () => syncTradeChallenge());
+form.tradeDate.addEventListener("change", () => syncTradeChallenge(tradeChallengeInput.value));
+saveChallengeSymbolButton.addEventListener("click", () => {
+  const standardMarket = saveChallengeSymbolButton.dataset.challengeMarket;
+  const existingSymbol = challengeExistingSymbol.value;
+  const newSymbol = challengeNewSymbol.value.trim();
+  const symbol = newSymbol || existingSymbol;
+  if (!symbol || !standardMarket) {
+    showToast("Choose or enter a symbol first.", "warning");
+    return;
+  }
+  if (newSymbol && !getAllSymbols().includes(newSymbol)) {
+    const marketType = form.marketType.value || getDefaultMarketType();
+    appConfig.symbolsByMarket = {
+      ...appConfig.symbolsByMarket,
+      [marketType]: [newSymbol, ...getSymbolsForMarket(marketType)],
+    };
+    appConfig.symbols = getAllSymbols();
+  }
+  appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [symbol]: standardMarket };
+  saveConfig();
+  syncConfiguredInputs();
+  challengeNewSymbol.value = "";
+  syncTradeChallenge(tradeChallengeInput.value);
+  showToast(`${symbol} mapped to ${standardMarket}`);
+});
 ["direction", "entryPrice", "exitPrice"].forEach((name) => {
   form[name].addEventListener("input", updatePricePointsPreview);
   form[name].addEventListener("change", updatePricePointsPreview);
@@ -4705,6 +5179,17 @@ userMenuButton.addEventListener("click", () => {
 });
 hubNewsButton.addEventListener("click", openNewsDrawer);
 hubReviewButton.addEventListener("click", openWeeklyReview);
+hubChallengesButton.addEventListener("click", () => navigateToRoute("challenges"));
+hubChallengeList.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-hub-view-challenges]")) {
+    navigateToRoute("challenges");
+    return;
+  }
+  const tradeButton = event.target.closest("[data-hub-challenge-trade]");
+  if (!tradeButton) return;
+  await startAddTradeFlow();
+  if (tradeModal.open) syncTradeChallenge(tradeButton.dataset.hubChallengeTrade);
+});
 dashboardSetupButton.addEventListener("click", openOnboardingWizard);
 prevPageButton.addEventListener("click", () => {
   currentTablePage = Math.max(1, currentTablePage - 1);
@@ -4717,6 +5202,14 @@ nextPageButton.addEventListener("click", () => {
 exportButton.addEventListener("click", exportCsv);
 
 configGrid.addEventListener("click", (event) => {
+  const accountCreateToggle = event.target.closest("[data-account-create-toggle]");
+  if (accountCreateToggle) {
+    accountCreateOpen = !accountCreateOpen;
+    renderConfig();
+    if (accountCreateOpen) configGrid.querySelector('.account-create-panel input')?.focus();
+    return;
+  }
+
   const automatedAddButton = event.target.closest("[data-automated-rule-add]");
   if (automatedAddButton) {
     const section = automatedAddButton.closest(".config-section");
@@ -4763,6 +5256,23 @@ configGrid.addEventListener("click", (event) => {
 });
 
 configGrid.addEventListener("change", (event) => {
+  if (event.target.matches("[data-symbol-market]")) {
+    appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [event.target.dataset.symbolMarket]: event.target.value };
+    saveConfig();
+    showToast("Symbol market updated");
+    return;
+  }
+  if (event.target.matches("[data-predefined-strategy]")) {
+    const selected = [...configGrid.querySelectorAll("[data-predefined-strategy]:checked")].map((input) => input.value);
+    const custom = appConfig.strategies.filter((strategy) => !PREDEFINED_STRATEGIES.includes(strategy));
+    appConfig.strategies = normalizeStrategies([...selected, ...custom], []);
+    saveConfig();
+    syncConfiguredInputs();
+    resetForm();
+    render();
+    showToast("Strategies updated");
+    return;
+  }
   const restriction = event.target.closest("[data-rule-restriction]");
   if (!restriction) return;
   const key = restriction.dataset.ruleRestriction;
@@ -4806,7 +5316,7 @@ configGrid.addEventListener("change", (event) => {
 
   const selected = [...configGrid.querySelectorAll("[data-market-type-toggle]:checked")].map((input) => input.value);
   appConfig.marketTypes = normalizeMarketTypes(selected);
-  appConfig.symbolsByMarket = normalizeSymbolsByMarket(appConfig.symbolsByMarket, appConfig.symbols);
+  appConfig.symbolsByMarket = normalizeSymbolsByMarket(appConfig.symbolsByMarket);
   appConfig.symbols = getAllSymbols();
   saveConfig();
   syncConfiguredInputs();
@@ -4930,6 +5440,7 @@ passcodeForm.addEventListener("submit", async (event) => {
       false,
       Boolean(matchedUser.trialEnabled),
       matchedUser.trialEndsAt || "",
+      matchedUser.featureAccess || {},
     );
     window.requestAnimationFrame(maybeOpenConfigForNewUser);
   } finally {
@@ -5219,6 +5730,19 @@ wizardContent.addEventListener("click", (event) => {
 });
 
 wizardContent.addEventListener("change", (event) => {
+  if (event.target.matches("[data-wizard-new-symbol-market]")) {
+    const builder = event.target.closest('[data-wizard-builder="symbols"]');
+    const button = builder?.querySelector("[data-wizard-add-value]");
+    if (button) button.disabled = !builder.querySelector("[data-wizard-add-input]")?.value.trim() || !event.target.value;
+    return;
+  }
+  if (event.target.matches("[data-wizard-predefined-strategy]")) {
+    const selected = [...wizardContent.querySelectorAll("[data-wizard-predefined-strategy]:checked")].map((input) => input.value);
+    const custom = onboardingDraft.strategies.filter((strategy) => !PREDEFINED_STRATEGIES.includes(strategy));
+    onboardingDraft.strategies = normalizeStrategies([...selected, ...custom], []);
+    renderOnboardingWizard();
+    return;
+  }
   if (event.target.matches("[data-wizard-blocked-day]")) {
     onboardingDraft.blockedTradingDays = normalizeOptions(
       [...wizardContent.querySelectorAll("[data-wizard-blocked-day]:checked")].map((input) => input.value),
@@ -5242,6 +5766,11 @@ wizardContent.addEventListener("keydown", (event) => {
 
 wizardContent.addEventListener("input", updateWizardNextState);
 wizardContent.addEventListener("input", (event) => {
+  if (event.target.matches("[data-wizard-add-input]")) {
+    const symbolBuilder = event.target.closest('[data-wizard-builder="symbols"]');
+    const button = symbolBuilder?.querySelector("[data-wizard-add-value]");
+    if (button) button.disabled = !event.target.value.trim() || !symbolBuilder.querySelector("[data-wizard-new-symbol-market]")?.value;
+  }
   const account = event.target.dataset.account;
   const setting = event.target.dataset.wizardAccountSetting;
   if (!account || !setting) {
@@ -5619,6 +6148,128 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".user-menu")) {
     userPopover.classList.add("hidden");
     userMenuButton.setAttribute("aria-expanded", "false");
+  }
+});
+
+openCreateChallengeButton.addEventListener("click", () => {
+  const today = new Date();
+  const end = new Date(today);
+  end.setDate(end.getDate() + 6);
+  challengeForm.elements.startDate.value = toDateKey(today);
+  challengeForm.elements.endDate.value = toDateKey(end);
+  challengeForm.elements.challengeId.value = "";
+  challengeFormTitle.textContent = "Create a session challenge";
+  saveChallengeButton.textContent = "Create challenge";
+  openDialog(challengeModal);
+});
+document.querySelector("#closeChallengeModalButton").addEventListener("click", () => closeDialog(challengeModal));
+document.querySelector("#cancelChallengeButton").addEventListener("click", () => closeDialog(challengeModal));
+document.querySelector("#closeInviteChallengeButton").addEventListener("click", () => closeDialog(inviteChallengeModal));
+document.querySelector("#cancelInviteChallengeButton").addEventListener("click", () => closeDialog(inviteChallengeModal));
+
+challengeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = challengeForm.querySelector('[type="submit"]');
+  setButtonLoading(submitButton, true);
+  try {
+    const values = Object.fromEntries(new FormData(challengeForm));
+    await challengeRequest({ action: values.challengeId ? "update" : "create", ...values });
+    challengeForm.reset();
+    closeDialog(challengeModal);
+    await loadChallenges({ showLoading: false });
+    showToast(values.challengeId ? "Challenge updated" : "Challenge created");
+  } catch (error) {
+    showToast(error.message, "warning");
+  } finally {
+    setButtonLoading(submitButton, false);
+  }
+});
+
+inviteChallengeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = inviteChallengeForm.querySelector('[type="submit"]');
+  setButtonLoading(submitButton, true);
+  try {
+    const values = Object.fromEntries(new FormData(inviteChallengeForm));
+    await challengeRequest({ action: "invite", challengeId: values.challengeId, email: values.email });
+    inviteChallengeForm.reset();
+    closeDialog(inviteChallengeModal);
+    await loadChallenges({ showLoading: false });
+    showToast("Invitation sent");
+  } catch (error) {
+    showToast(error.message, "warning");
+  } finally {
+    setButtonLoading(submitButton, false);
+  }
+});
+
+challengeGrid.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-create-first-challenge]")) {
+    openCreateChallengeButton.click();
+    return;
+  }
+  if (event.target.closest("[data-retry-challenges]")) {
+    await loadChallenges({ showLoading: false });
+    return;
+  }
+  const inviteButton = event.target.closest("[data-challenge-invite]");
+  if (inviteButton) {
+    const challenge = challenges.find((item) => item.id === inviteButton.dataset.challengeInvite);
+    inviteChallengeForm.elements.challengeId.value = challenge.id;
+    inviteChallengeTitle.textContent = `Invite to ${challenge.name}`;
+    openDialog(inviteChallengeModal);
+    return;
+  }
+  const editButton = event.target.closest("[data-challenge-edit]");
+  if (editButton) {
+    const challenge = challenges.find((item) => item.id === editButton.dataset.challengeEdit);
+    if (!challenge) return;
+    challengeForm.elements.challengeId.value = challenge.id;
+    challengeForm.elements.name.value = challenge.name || "";
+    challengeForm.elements.description.value = challenge.description || "";
+    challengeForm.elements.session.value = challenge.rules_json?.session || "";
+    challengeForm.elements.standardMarket.value = challenge.rules_json?.standardMarket || "";
+    challengeForm.elements.startDate.value = String(challenge.starts_at || "").slice(0, 10);
+    challengeForm.elements.endDate.value = String(challenge.ends_at || "").slice(0, 10);
+    challengeForm.elements.tradeRule.value = challenge.rules_json?.tradeRule || "initial-only";
+    challengeFormTitle.textContent = "Edit challenge";
+    saveChallengeButton.textContent = "Save changes";
+    openDialog(challengeModal);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-challenge-delete]");
+  if (deleteButton) {
+    const challenge = challenges.find((item) => item.id === deleteButton.dataset.challengeDelete);
+    if (!challenge) return;
+    const confirmed = await askForConfirmation({
+      eyebrow: "Delete challenge",
+      title: `Delete ${challenge.name}?`,
+      message: "This removes the challenge and all invitations. Existing journal trades will remain, but will no longer contribute to a leaderboard.",
+      confirmText: "Delete challenge",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setButtonLoading(deleteButton, true);
+    try {
+      await challengeRequest({ action: "delete", challengeId: challenge.id });
+      await loadChallenges({ showLoading: false });
+      showToast("Challenge deleted", "warning");
+    } catch (error) {
+      showToast(error.message, "warning");
+      setButtonLoading(deleteButton, false);
+    }
+    return;
+  }
+  const responseButton = event.target.closest("[data-challenge-response]");
+  if (!responseButton) return;
+  setButtonLoading(responseButton, true);
+  try {
+    await challengeRequest({ action: "respond", challengeId: responseButton.dataset.challengeId, response: responseButton.dataset.challengeResponse });
+    await loadChallenges();
+    showToast(responseButton.dataset.challengeResponse === "accepted" ? "Challenge accepted" : "Invitation declined");
+  } catch (error) {
+    showToast(error.message, "warning");
+    setButtonLoading(responseButton, false);
   }
 });
 

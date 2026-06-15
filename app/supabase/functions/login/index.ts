@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const supabase = createServiceClient();
     let query = supabase
       .from("app_users")
-      .select("id,label,email,role,active,trial_enabled,trial_ends_at")
+      .select("id,label,email,role,active,trial_enabled,trial_ends_at,feature_access")
       .eq("passcode_hash", passcodeHash)
       .eq("active", true);
 
@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
         role: user.role,
         trialEnabled: Boolean(user.trial_enabled),
         trialEndsAt: user.trial_ends_at || null,
+        featureAccess: user.role === "admin" ? { journal: true, calculator: true, training: true, challenges: true } : user.feature_access,
       },
     });
   } catch {
