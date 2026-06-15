@@ -23,6 +23,42 @@ function tradePoints(trade: Record<string, unknown>) {
   return trade.direction === "Sell" ? entry - exit : exit - entry;
 }
 
+function tradeAmount(trade: Record<string, unknown>) {
+  const amount = Number(trade.amount);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function challengeValues(body: Record<string, unknown>) {
+  const type = body.challengeType === "prop" ? "prop" : "orb";
+  const startDate = type === "prop" ? body.propStartDate : body.startDate;
+  const endDate = type === "prop" ? body.propEndDate : body.endDate;
+  const startsAt = startDate ? new Date(`${startDate}T00:00:00Z`) : null;
+  const endsAt = endDate ? new Date(`${endDate}T23:59:59Z`) : null;
+  if (!startsAt || !endsAt || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt < startsAt) return null;
+  if (type === "prop") {
+    const startingBalance = Number(body.startingBalance);
+    const profitTargetPercent = Number(body.profitTargetPercent);
+    const dailyDrawdownPercent = Number(body.dailyDrawdownPercent);
+    const maxDrawdownPercent = Number(body.maxDrawdownPercent);
+    if (![startingBalance, profitTargetPercent, dailyDrawdownPercent, maxDrawdownPercent].every((value) => Number.isFinite(value) && value > 0)) return null;
+    return {
+      type, startsAt, endsAt, rankingMethod: "profit_percentage",
+      rules: { startingBalance, profitTargetPercent, dailyDrawdownPercent, maxDrawdownPercent },
+    };
+  }
+  const session = String(body.session || "").trim();
+  const standardMarket = String(body.standardMarket || "").trim();
+  if (!session || !standardMarket) return null;
+  return {
+    type, startsAt, endsAt, rankingMethod: "points",
+    rules: {
+      session, standardMarket, strategy: "Opening Range Breakout",
+      tradeRule: body.tradeRule === "allow-flip" ? "allow-flip" : "initial-only",
+      maxTradesPerDay: body.tradeRule === "allow-flip" ? 2 : 1,
+    },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
@@ -35,24 +71,13 @@ Deno.serve(async (req) => {
     if (body.action === "create") {
       const name = String(body.name || "").trim();
       if (!name) return jsonResponse({ error: "Challenge name is required" }, 400);
-      const session = String(body.session || "").trim();
-      const standardMarket = String(body.standardMarket || "").trim();
-      const startsAt = body.startDate ? new Date(`${body.startDate}T00:00:00Z`) : null;
-      const endsAt = body.endDate ? new Date(`${body.endDate}T23:59:59Z`) : null;
-      if (!session || !standardMarket || !startsAt || !endsAt || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt < startsAt) {
-        return jsonResponse({ error: "Add a valid market, session, and date range" }, 400);
-      }
+      const values = challengeValues(body);
+      if (!values) return jsonResponse({ error: "Complete the challenge settings and add a valid date range" }, 400);
       const { data: challenge, error } = await supabase.from("challenges").insert({
         creator_id: currentUser.id, name, description: String(body.description || "").trim() || null,
-        status: "active", challenge_type: "orb", ranking_method: "points",
-        starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(),
-        rules_json: {
-          session,
-          standardMarket,
-          strategy: "Opening Range Breakout",
-          tradeRule: body.tradeRule === "allow-flip" ? "allow-flip" : "initial-only",
-          maxTradesPerDay: body.tradeRule === "allow-flip" ? 2 : 1,
-        },
+        status: "active", challenge_type: values.type, ranking_method: values.rankingMethod,
+        starts_at: values.startsAt.toISOString(), ends_at: values.endsAt.toISOString(),
+        rules_json: values.rules,
       }).select("*").single();
       if (error) return jsonResponse({ error: "Could not create challenge" }, 500);
       await supabase.from("challenge_members").insert({
@@ -80,25 +105,16 @@ Deno.serve(async (req) => {
       const { data: existing } = await supabase.from("challenges").select("id,creator_id").eq("id", body.challengeId).maybeSingle();
       if (!existing || existing.creator_id !== currentUser.id) return jsonResponse({ error: "Only the creator can update this challenge" }, 403);
       const name = String(body.name || "").trim();
-      const session = String(body.session || "").trim();
-      const standardMarket = String(body.standardMarket || "").trim();
-      const startsAt = body.startDate ? new Date(`${body.startDate}T00:00:00Z`) : null;
-      const endsAt = body.endDate ? new Date(`${body.endDate}T23:59:59Z`) : null;
-      if (!name || !session || !standardMarket || !startsAt || !endsAt || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt < startsAt) {
-        return jsonResponse({ error: "Add a valid name, market, session, and date range" }, 400);
-      }
+      const values = challengeValues(body);
+      if (!name || !values) return jsonResponse({ error: "Complete the challenge settings and add a valid date range" }, 400);
       const { data, error } = await supabase.from("challenges").update({
         name,
         description: String(body.description || "").trim() || null,
-        starts_at: startsAt.toISOString(),
-        ends_at: endsAt.toISOString(),
-        rules_json: {
-          session,
-          standardMarket,
-          strategy: "Opening Range Breakout",
-          tradeRule: body.tradeRule === "allow-flip" ? "allow-flip" : "initial-only",
-          maxTradesPerDay: body.tradeRule === "allow-flip" ? 2 : 1,
-        },
+        challenge_type: values.type,
+        ranking_method: values.rankingMethod,
+        starts_at: values.startsAt.toISOString(),
+        ends_at: values.endsAt.toISOString(),
+        rules_json: values.rules,
         updated_at: new Date().toISOString(),
       }).eq("id", body.challengeId).select("*").single();
       if (error) return jsonResponse({ error: "Could not update challenge" }, 500);
@@ -149,9 +165,12 @@ Deno.serve(async (req) => {
             .filter((trade: Record<string, unknown>) => trade.challengeId === challenge.id)
             .sort((a: Record<string, unknown>, b: Record<string, unknown>) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
             .filter((trade: Record<string, unknown>, index: number, trades: Record<string, unknown>[]) => {
+              if (challenge.challenge_type === "prop") return true;
               const sameDay = trades.filter((item) => item.tradeDate === trade.tradeDate);
               return sameDay.indexOf(trade) < Number(challenge.rules_json?.maxTradesPerDay || 1);
             });
+          const netAmount = qualifying.reduce((total, trade) => total + tradeAmount(trade), 0);
+          const startingBalance = Number(challenge.rules_json?.startingBalance || 0);
           return {
             userId: member.user_id,
             name: publicName(member.app_users || {}),
@@ -160,8 +179,12 @@ Deno.serve(async (req) => {
             losses: qualifying.filter((trade) => trade.outcome === "Loss").length,
             flipWins: qualifying.filter((trade) => trade.challengeTradeType === "flip" && trade.outcome === "Win").length,
             points: qualifying.reduce((total, trade) => total + tradePoints(trade), 0),
+            netAmount,
+            profitPercent: startingBalance > 0 ? (netAmount / startingBalance) * 100 : 0,
           };
-        }).sort((a, b) => b.points - a.points || b.wins - a.wins),
+        }).sort((a, b) => challenge.challenge_type === "prop"
+          ? b.profitPercent - a.profitPercent || b.wins - a.wins
+          : b.points - a.points || b.wins - a.wins),
       })) });
     }
     return jsonResponse({ error: "Unknown action" }, 400);

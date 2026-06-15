@@ -815,6 +815,14 @@ body:not(.app-checking) .app-loading-screen {
 .hub-challenge-invitation { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--lime); text-align: left; cursor: pointer; }
 
 @media (max-width: 760px) {
+  .field-row.compact-four {
+    grid-template-columns: 1fr;
+  }
+
+  .challenge-leaderboard.prop-leaderboard > div {
+    grid-template-columns: minmax(100px, 1fr) repeat(4, 52px);
+  }
+
   .hub-command-grid, .hub-stat-grid { grid-template-columns: 1fr; }
   .hub-dashboard-header { align-items: stretch; flex-direction: column; }
   .hub-review-strip { align-items: stretch; flex-direction: column; }
@@ -2423,6 +2431,8 @@ tbody td:last-child {
 
 .onboarding-wizard-modal {
   width: min(1040px, calc(100% - 32px));
+  max-height: min(860px, calc(100vh - 32px));
+  overflow: hidden;
 }
 
 .onboarding-modal-card {
@@ -2434,8 +2444,11 @@ tbody td:last-child {
 }
 
 .onboarding-wizard-card {
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 18px;
+  height: min(820px, calc(100vh - 64px));
   padding: 22px;
+  overflow: hidden;
 }
 
 .wizard-progress {
@@ -2467,14 +2480,16 @@ tbody td:last-child {
   display: grid;
   gap: 0;
   min-width: 0;
-  overflow-x: hidden;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .wizard-layout {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
-  min-height: 520px;
-  overflow: visible;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2483,12 +2498,13 @@ tbody td:last-child {
 .wizard-rail {
   position: relative;
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: 24px;
   margin: 0;
   padding: 32px 34px 32px 8px;
   border-right: 1px solid var(--line);
   list-style: none;
+  overflow-y: auto;
 }
 
 .wizard-rail::before {
@@ -2551,13 +2567,15 @@ tbody td:last-child {
 
 .wizard-main {
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: 22px;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   padding: 42px 8px 42px 48px;
   overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .wizard-copy {
@@ -2603,6 +2621,69 @@ tbody td:last-child {
 .wizard-symbol-groups {
   display: grid;
   gap: 14px;
+}
+
+.wizard-symbol-selector {
+  display: grid;
+  gap: 12px;
+}
+
+.wizard-symbol-selector h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.symbol-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.symbol-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--field);
+  cursor: pointer;
+}
+
+.symbol-choice:has(input:checked) {
+  border-color: var(--lime);
+  background: var(--lime-soft);
+}
+
+.symbol-choice input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--lime);
+}
+
+.symbol-choice span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.symbol-choice strong {
+  color: var(--value);
+  font-size: 0.8rem;
+}
+
+.symbol-choice small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wizard-value-builder {
@@ -2896,6 +2977,8 @@ tbody td:last-child {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  padding-top: 2px;
+  background: var(--panel);
 }
 
 .trade-drawer {
@@ -3137,6 +3220,9 @@ tbody td:last-child {
 }
 
 @media (max-width: 720px) {
+  .symbol-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .automated-rule-add {
     grid-template-columns: 1fr;
   }
@@ -4069,6 +4155,13 @@ tbody td:last-child {
   width: min(560px, calc(100vw - 24px));
 }
 
+.challenge-modal .field-row > label,
+.challenge-modal .field-row input,
+.challenge-modal .field-row select {
+  width: 100%;
+  min-width: 0;
+}
+
 .challenge-trade-section {
   display: grid;
   gap: 8px;
@@ -4173,6 +4266,10 @@ tbody td:last-child {
   border-bottom: 1px solid var(--line);
   font-size: 0.74rem;
   text-align: right;
+}
+
+.challenge-leaderboard.prop-leaderboard > div {
+  grid-template-columns: minmax(120px, 1fr) repeat(4, 64px);
 }
 
 .challenge-leaderboard > div:last-child {
@@ -5408,6 +5505,10 @@ button:disabled {
 
 .field-row.compact-three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field-row.compact-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .price-details-grid {
@@ -7278,6 +7379,7 @@ select,
 
   .wizard-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .wizard-rail {
@@ -7287,6 +7389,8 @@ select,
     padding: 16px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .wizard-rail::before,
@@ -7448,6 +7552,7 @@ select,
   }
 
   .onboarding-wizard-card {
+    height: calc(100vh - 24px);
     padding: 16px;
   }
 

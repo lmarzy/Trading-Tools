@@ -76,6 +76,8 @@ const challengeSummaryGrid = document.querySelector("#challengeSummaryGrid");
 const challengeModal = document.querySelector("#challengeModal");
 const challengeForm = document.querySelector("#challengeForm");
 const challengeFormTitle = document.querySelector("#challengeFormTitle");
+const challengeFormEyebrow = document.querySelector("#challengeFormEyebrow");
+const challengeFormHelp = document.querySelector("#challengeFormHelp");
 const saveChallengeButton = document.querySelector("#saveChallengeButton");
 const openCreateChallengeButton = document.querySelector("#openCreateChallengeButton");
 const inviteChallengeModal = document.querySelector("#inviteChallengeModal");
@@ -294,24 +296,38 @@ const PREDEFINED_STRATEGIES = [
   "Reversal",
 ];
 const ORB_STRATEGY = "Opening Range Breakout";
-const STANDARD_MARKETS = ["Nasdaq", "Gold", "S&P 500", "Dow Jones", "Oil", "Forex", "Other"];
-const MARKET_SYMBOL_ALIASES = {
-  Nasdaq: ["NAS", "NAS100", "US100", "NQ", "MNQ"],
-  Gold: ["GOLD", "XAUUSD", "GC", "MGC"],
-  "S&P 500": ["SPX", "SPX500", "US500", "ES", "MES"],
-  "Dow Jones": ["US30", "DJ30", "DOW", "YM", "MYM"],
-  Oil: ["USOIL", "WTI", "CL", "MCL"],
+const PREDEFINED_SYMBOLS = {
+  CFD: [
+    { symbol: "NAS100", market: "Nasdaq" }, { symbol: "US30", market: "Dow Jones" },
+    { symbol: "SPX500", market: "S&P 500" }, { symbol: "JAPAN225", market: "Japan 225" },
+    { symbol: "XAUUSD", market: "Gold" }, { symbol: "XAGUSD", market: "Silver" },
+    { symbol: "UK100", market: "FTSE 100" }, { symbol: "GER40", market: "DAX" },
+    { symbol: "USOIL", market: "Oil" }, { symbol: "EURUSD", market: "EUR/USD" },
+    { symbol: "GBPUSD", market: "GBP/USD" }, { symbol: "USDJPY", market: "USD/JPY" },
+    { symbol: "BTCUSD", market: "Bitcoin" },
+  ],
+  Futures: [
+    { symbol: "NQ", market: "Nasdaq", size: "Mini" }, { symbol: "MNQ", market: "Nasdaq", size: "Micro" },
+    { symbol: "ES", market: "S&P 500", size: "Mini" }, { symbol: "MES", market: "S&P 500", size: "Micro" },
+    { symbol: "YM", market: "Dow Jones", size: "Mini" }, { symbol: "MYM", market: "Dow Jones", size: "Micro" },
+    { symbol: "NKD", market: "Japan 225", size: "Mini" }, { symbol: "MNK", market: "Japan 225", size: "Micro" },
+    { symbol: "GC", market: "Gold", size: "Standard" }, { symbol: "MGC", market: "Gold", size: "Micro" },
+    { symbol: "CL", market: "Oil", size: "Standard" }, { symbol: "MCL", market: "Oil", size: "Micro" },
+    { symbol: "BTC", market: "Bitcoin", size: "Standard" }, { symbol: "MBT", market: "Bitcoin", size: "Micro" },
+  ],
 };
+const STANDARD_MARKETS = [...new Set(Object.values(PREDEFINED_SYMBOLS).flat().map((item) => item.market))];
+const SYMBOL_MARKET_MAP = Object.fromEntries(Object.values(PREDEFINED_SYMBOLS).flat().map((item) => [item.symbol, item.market]));
 
 function suggestStandardMarket(symbol = "") {
   const value = String(symbol).trim().toUpperCase();
-  return Object.entries(MARKET_SYMBOL_ALIASES).find(([, aliases]) => aliases.includes(value))?.[0] || "Other";
+  return SYMBOL_MARKET_MAP[value] || "";
 }
 
 function normalizeSymbolMarketMap(map = {}, symbols = []) {
   return normalizeOptions(symbols, []).reduce((result, symbol) => ({
     ...result,
-    [symbol]: STANDARD_MARKETS.includes(map?.[symbol]) ? map[symbol] : suggestStandardMarket(symbol),
+    [symbol]: SYMBOL_MARKET_MAP[symbol] || (STANDARD_MARKETS.includes(map?.[symbol]) ? map[symbol] : ""),
   }), {});
 }
 
@@ -392,8 +408,7 @@ const ONBOARDING_STEPS = [
     key: "symbols",
     label: "Symbols",
     title: "Which symbols do you trade?",
-    description: "Add the markets you want available when recording a trade, such as XAUUSD, NAS100, or ES.",
-    placeholder: "Example: XAUUSD, NAS100",
+    description: "Select the instruments you want available when recording a trade. Each symbol is already matched to its underlying market for analytics and challenges.",
   },
   {
     key: "sessionTracking",
@@ -1405,7 +1420,8 @@ function normalizeMarketTypes(options) {
 
 function normalizeSymbolsByMarket(symbolsByMarket = {}) {
   return MARKET_TYPE_OPTIONS.reduce((normalized, marketType) => {
-    normalized[marketType] = normalizeOptions(symbolsByMarket?.[marketType], []);
+    const allowed = (PREDEFINED_SYMBOLS[marketType] || []).map((item) => item.symbol);
+    normalized[marketType] = normalizeOptions(symbolsByMarket?.[marketType], []).filter((symbol) => allowed.includes(symbol));
     return normalized;
   }, {});
 }
@@ -2787,6 +2803,7 @@ function renderHubDashboard() {
 }
 
 function getChallengeTodayStatus(challenge) {
+  if (challenge.challenge_type === "prop") return "Open for trades";
   const today = toDateKey(new Date());
   const dayTrades = trades.filter((trade) => trade.challengeId === challenge.id && trade.tradeDate === today).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
   const initialTrade = dayTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayTrades[0];
@@ -2882,11 +2899,16 @@ function renderChallenges() {
     const pendingInvite = challenge.invitationStatus === "pending";
     const members = challenge.members || [];
     const leaderboard = challenge.leaderboard || [];
+    const isProp = challenge.challenge_type === "prop";
+    const rules = challenge.rules_json || {};
     return `<article class="challenge-card">
-      <div class="challenge-card-heading"><div><span>${escapeHtml(challenge.status)}</span><h3>${escapeHtml(challenge.name)}</h3></div>${challenge.isCreator ? '<b>Creator</b>' : ""}</div>
+      <div class="challenge-card-heading"><div><span>${isProp ? "Prop challenge" : "ORB challenge"} · ${escapeHtml(challenge.status)}</span><h3>${escapeHtml(challenge.name)}</h3></div>${challenge.isCreator ? '<b>Creator</b>' : ""}</div>
       <p>${escapeHtml(challenge.description || "No description added.")}</p>
-      ${challenge.challenge_type === "orb" ? `<div class="challenge-rule-strip"><span>${escapeHtml(challenge.rules_json?.standardMarket || "Market not set")}</span><span>${escapeHtml(challenge.rules_json?.session || "-")} session</span><span>ORB</span><span>${challenge.rules_json?.tradeRule === "allow-flip" ? "Flip after loss enabled" : "Initial trade only"}</span></div>
-      <div class="challenge-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>Points</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.points)}">${formatPoints(entry.points)}</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>` : ""}
+      ${isProp
+        ? `<div class="challenge-rule-strip"><span>${formatAmount(rules.startingBalance)} start</span><span>${Number(rules.profitTargetPercent || 0)}% target</span><span>${Number(rules.dailyDrawdownPercent || 0)}% daily drawdown</span><span>${Number(rules.maxDrawdownPercent || 0)}% max drawdown</span></div>
+          <div class="challenge-leaderboard prop-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>P/L</span><span>Progress</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.netAmount)}">${formatSummaryAmount(entry.netAmount)}</b><b class="${getPointsClass(entry.profitPercent)}">${entry.profitPercent >= 0 ? "+" : ""}${Number(entry.profitPercent || 0).toFixed(2)}%</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>`
+        : `<div class="challenge-rule-strip"><span>${escapeHtml(rules.standardMarket || "Market not set")}</span><span>${escapeHtml(rules.session || "-")} session</span><span>ORB</span><span>${rules.tradeRule === "allow-flip" ? "Flip after loss enabled" : "Initial trade only"}</span></div>
+          <div class="challenge-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>Points</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.points)}">${formatPoints(entry.points)}</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>`}
       <div class="challenge-members"><span>${members.filter((member) => member.status === "accepted").length} participants</span>${members.slice(0, 4).map((member) => `<i title="${escapeHtml(member.name)}">${escapeHtml(member.name.split(" ").map((part) => part[0]).join("").slice(0, 2))}</i>`).join("")}</div>
       ${challenge.isCreator ? `<div class="challenge-participant-list">${members.map((member) => `<div><span><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.email || "")}</small></span><b>${escapeHtml(member.status)}</b></div>`).join("")}</div>` : ""}
       <div class="challenge-card-actions">
@@ -2898,23 +2920,23 @@ function renderChallenges() {
     <div>
       <p class="eyebrow">Trade together</p>
       <h2>No challenges yet</h2>
-      <p>Create an ORB challenge for your group, or wait for another trader to send you an invitation.</p>
+      <p>Create an ORB or prop challenge for your group, or wait for another trader to send you an invitation.</p>
     </div>
     <button class="primary-button" type="button" data-create-first-challenge>Create challenge</button>
   </div>`;
 }
 
-function getAcceptedOrbChallenges() {
+function getAcceptedChallenges() {
   const today = toDateKey(new Date());
   return challenges.filter((challenge) => {
     const start = String(challenge.starts_at || "").slice(0, 10);
     const end = String(challenge.ends_at || "").slice(0, 10);
-    return challenge.invitationStatus === "accepted" && challenge.challenge_type === "orb" && challenge.status === "active" && (!start || today >= start) && (!end || today <= end);
+    return challenge.invitationStatus === "accepted" && ["orb", "prop"].includes(challenge.challenge_type) && challenge.status === "active" && (!start || today >= start) && (!end || today <= end);
   });
 }
 
 function syncTradeChallenge(preferredId = null) {
-  const available = getAcceptedOrbChallenges();
+  const available = getAcceptedChallenges();
   const selectedId = preferredId !== null ? preferredId : tradeChallengeInput.value;
   tradeChallengeInput.innerHTML = '<option value="__choose__" disabled>Choose an option</option><option value="">Not part of a challenge</option>' + available.map((challenge) => `<option value="${challenge.id}">${escapeHtml(challenge.name)}</option>`).join("");
   if (selectedId === "__choose__" || selectedId === "" || available.some((challenge) => challenge.id === selectedId)) tradeChallengeInput.value = selectedId;
@@ -2922,12 +2944,13 @@ function syncTradeChallenge(preferredId = null) {
   const selected = available.find((challenge) => challenge.id === tradeChallengeInput.value);
   const waitingForChoice = !editingTradeId && tradeChallengeInput.value === "__choose__";
   const tradeDate = form.tradeDate.value || toDateKey(new Date());
+  const isProp = selected?.challenge_type === "prop";
   const dayTrades = selected ? trades.filter((trade) => trade.id !== editingTradeId && trade.challengeId === selected.id && trade.tradeDate === tradeDate).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))) : [];
   const initialTrade = dayTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayTrades[0];
   const flipTrade = dayTrades.find((trade) => trade.challengeTradeType === "flip");
   const flipsAllowed = selected?.rules_json?.tradeRule === "allow-flip";
   const flipEligible = flipsAllowed && initialTrade?.outcome === "Loss" && !flipTrade;
-  const challengeBlocked = Boolean(initialTrade && !flipEligible);
+  const challengeBlocked = Boolean(!isProp && initialTrade && !flipEligible);
   form.classList.toggle("challenge-selection-pending", waitingForChoice || challengeBlocked);
   challengeLimitMessage.classList.toggle("hidden", !challengeBlocked);
   challengeSymbolSetup.classList.add("hidden");
@@ -2946,6 +2969,19 @@ function syncTradeChallenge(preferredId = null) {
     syncConfiguredInputs();
     return;
   }
+  if (isProp) {
+    form.session.disabled = false;
+    form.strategy.disabled = false;
+    form.symbol.disabled = false;
+    form.openingRange.disabled = false;
+    form.direction.disabled = false;
+    syncConfiguredInputs();
+    const target = Number(selected.rules_json?.profitTargetPercent || 0);
+    const balance = Number(selected.rules_json?.startingBalance || 0);
+    challengeRequirements.innerHTML = `<strong>${escapeHtml(selected.name)} · Prop challenge</strong><span>${formatAmount(balance)} starting balance · ${target}% profit target · all linked trades count</span>`;
+    syncStrategyExecutionFields();
+    return;
+  }
   const session = selected.rules_json?.session || "";
   const standardMarket = selected.rules_json?.standardMarket || "";
   const eligibleSymbols = getSymbolsForStandardMarket(standardMarket);
@@ -2958,14 +2994,9 @@ function syncTradeChallenge(preferredId = null) {
   const nextType = flipEligible ? "Flip trade" : "Initial trade";
   challengeRequirements.innerHTML = eligibleSymbols.length
     ? `<strong>${escapeHtml(selected.name)} · ${nextType}</strong><span>${escapeHtml(standardMarket)} · ${escapeHtml(session)} session · ${flipsAllowed ? "Flip allowed after initial loss" : "Initial trade only"}</span>`
-    : `<strong>${escapeHtml(selected.name)}</strong><span>Map one of your symbols to ${escapeHtml(standardMarket)} in Configure Inputs before adding this trade.</span>`;
+    : `<strong>${escapeHtml(selected.name)}</strong><span>Select a ${escapeHtml(standardMarket)} instrument in Configure Inputs before adding this trade.</span>`;
   if (!eligibleSymbols.length) {
     form.classList.add("challenge-selection-pending");
-    challengeSymbolSetup.classList.remove("hidden");
-    challengeSymbolSetupTitle.textContent = `Choose a ${standardMarket} symbol`;
-    challengeSymbolSetupText.textContent = `Select one of your existing broker symbols or add a new one. It will be mapped to ${standardMarket}.`;
-    challengeExistingSymbol.innerHTML = '<option value="">Select existing symbol</option>' + getAllSymbols().map((symbol) => `<option value="${escapeHtml(symbol)}">${escapeHtml(symbol)}</option>`).join("");
-    saveChallengeSymbolButton.dataset.challengeMarket = standardMarket;
   } else if (!form.symbol.value || !eligibleSymbols.includes(form.symbol.value)) {
     form.symbol.value = eligibleSymbols[0];
   }
@@ -3367,30 +3398,14 @@ function renderConfig() {
     section.dataset.configKey = "symbolsByMarket";
     section.dataset.marketType = marketType;
     const symbols = getSymbolsForMarket(marketType);
+    const options = PREDEFINED_SYMBOLS[marketType] || [];
     section.innerHTML = `
       <div class="config-section-heading">
         <h3>${escapeHtml(marketType)} Symbol(s)</h3>
-        <div class="config-add-row">
-          <input type="text" placeholder="Add ${escapeHtml(marketType.toLowerCase())} symbol" aria-label="Add ${escapeHtml(marketType)} symbol" />
-          <button class="ghost-button" type="button" data-config-action="add" data-config-key="symbolsByMarket" data-market-type="${escapeHtml(marketType)}">Add</button>
-        </div>
+        <p class="config-note">Select the ${escapeHtml(marketType.toLowerCase())} instruments you trade. Market mappings are handled automatically.</p>
       </div>
-      <div class="config-list">
-        ${
-          symbols.length
-            ? symbols
-                .map(
-                  (option) => `
-                    <span class="config-pill symbol-market-pill">
-                      ${escapeHtml(option)}
-                      <select data-symbol-market="${escapeHtml(option)}" aria-label="Market for ${escapeHtml(option)}">${STANDARD_MARKETS.map((market) => `<option value="${escapeHtml(market)}" ${appConfig.symbolMarketMap?.[option] === market ? "selected" : ""}>${escapeHtml(market)}</option>`).join("")}</select>
-                      <button type="button" aria-label="Remove ${escapeHtml(option)}" data-config-action="remove" data-config-key="symbolsByMarket" data-market-type="${escapeHtml(marketType)}" data-config-value="${escapeHtml(option)}">x</button>
-                    </span>
-                  `,
-                )
-                .join("")
-            : '<span class="muted">No values yet.</span>'
-        }
+      <div class="symbol-choice-grid">
+        ${options.map((option) => `<label class="symbol-choice"><input type="checkbox" data-config-symbol-choice data-market-type="${escapeHtml(marketType)}" value="${escapeHtml(option.symbol)}" ${symbols.includes(option.symbol) ? "checked" : ""}><span><strong>${escapeHtml(option.symbol)}</strong><small>${escapeHtml(option.market)}${option.size ? ` (${escapeHtml(option.size)})` : ""}</small></span></label>`).join("")}
       </div>
     `;
     configGrid.appendChild(section);
@@ -3887,18 +3902,10 @@ function renderOnboardingWizard() {
       </div>
       <div class="wizard-symbol-groups">
         ${onboardingDraft.marketTypes.map(
-          (marketType) => `
-            ${renderWizardValueBuilder({
-              key: "symbols",
-              label: `${marketType} Symbols`,
-              placeholder: marketType === "Futures" ? "Example: MNQ" : "Example: XAUUSD",
-              values: onboardingDraft.symbolsByMarket?.[marketType] || [],
-              marketType,
-            })}
-          `,
+          (marketType) => `<section class="wizard-symbol-selector"><h3>${escapeHtml(marketType)} symbols</h3><div class="symbol-choice-grid">${(PREDEFINED_SYMBOLS[marketType] || []).map((option) => `<label class="symbol-choice"><input type="checkbox" data-wizard-symbol-choice data-market-type="${escapeHtml(marketType)}" value="${escapeHtml(option.symbol)}" ${(onboardingDraft.symbolsByMarket?.[marketType] || []).includes(option.symbol) ? "checked" : ""}><span><strong>${escapeHtml(option.symbol)}</strong><small>${escapeHtml(option.market)}${option.size ? ` (${escapeHtml(option.size)})` : ""}</small></span></label>`).join("")}</div></section>`,
         ).join("")}
       </div>
-      <p class="wizard-hint">Add one symbol at a time. Use Configure inputs later if you need to make changes.</p>
+      <p class="wizard-hint">Choose at least one symbol for each market type you selected. You can change these later.</p>
     `;
   } else if (step.key === "sessionTracking") {
     stepContent = `
@@ -4036,7 +4043,7 @@ function openOnboardingWizard() {
   onboardingDraft.sessions = [];
   onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
   onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
-  onboardingDraft.symbolMarketMap = {};
+  onboardingDraft.symbolMarketMap = normalizeSymbolMarketMap(SYMBOL_MARKET_MAP, onboardingDraft.symbols);
   renderOnboardingWizard();
   openDialog(onboardingWizardModal);
 }
@@ -4062,7 +4069,7 @@ function persistWizardStep() {
     const missingMarket = onboardingDraft.marketTypes.find((marketType) => !(onboardingDraft.symbolsByMarket?.[marketType] || []).length);
     if (missingMarket) {
       showToast(`Add at least one ${missingMarket} symbol`, "warning");
-      wizardContent.querySelector(`[data-wizard-market-type-value="${missingMarket}"] [data-wizard-add-input]`)?.focus();
+      wizardContent.querySelector(`[data-wizard-symbol-choice][data-market-type="${missingMarket}"]`)?.focus();
       return false;
     }
     onboardingDraft.symbolsByMarket = normalizeSymbolsByMarket(onboardingDraft.symbolsByMarket);
@@ -4708,13 +4715,13 @@ function readForm() {
     id: existingId || crypto.randomUUID(),
     tradeDate: form.tradeDate.value,
     symbol: form.symbol.value,
-    session: selectedChallenge ? selectedChallenge.rules_json?.session || form.session.value : appConfig.trackSessions ? form.session.value : "",
+    session: selectedChallenge?.challenge_type === "orb" ? selectedChallenge.rules_json?.session || form.session.value : appConfig.trackSessions ? form.session.value : "",
     account: form.account.value,
-    strategy: selectedChallenge ? ORB_STRATEGY : form.strategy.value,
+    strategy: selectedChallenge?.challenge_type === "orb" ? ORB_STRATEGY : form.strategy.value,
     challengeId: selectedChallenge?.id || "",
     challengeName: selectedChallenge?.name || "",
     challengeMarket: selectedChallenge?.rules_json?.standardMarket || "",
-    challengeTradeType: selectedChallenge && initialChallengeTrade ? "flip" : selectedChallenge ? "initial" : "",
+    challengeTradeType: selectedChallenge?.challenge_type === "orb" && initialChallengeTrade ? "flip" : selectedChallenge?.challenge_type === "orb" ? "initial" : selectedChallenge ? "prop" : "",
     openingRange: isOrbStrategy(form.strategy.value) ? form.openingRange.value : "",
     entryTimeframe: isOrbStrategy(form.strategy.value) ? form.entryTimeframe.value : "",
     entryModel: isOrbStrategy(form.strategy.value) ? form.entryModel.value : "",
@@ -4774,8 +4781,12 @@ function validateTrade(trade) {
     const start = String(challenge?.starts_at || "").slice(0, 10);
     const end = String(challenge?.ends_at || "").slice(0, 10);
     if (!challenge || challenge.invitationStatus !== "accepted") return "This challenge is no longer available.";
-    if (!getSymbolsForStandardMarket(challenge.rules_json?.standardMarket || "").includes(trade.symbol)) return `Map and select a symbol for ${challenge.rules_json?.standardMarket || "this challenge market"}.`;
+    if (challenge.challenge_type === "orb" && !getSymbolsForStandardMarket(challenge.rules_json?.standardMarket || "").includes(trade.symbol)) return `Map and select a symbol for ${challenge.rules_json?.standardMarket || "this challenge market"}.`;
     if ((start && trade.tradeDate < start) || (end && trade.tradeDate > end)) return "The trade date must be within the challenge period.";
+    if (challenge.challenge_type === "prop") {
+      if ((trade.outcome === "Win" || trade.outcome === "Loss") && !trade.amount) return "Add the trade amount so prop challenge progress can be calculated.";
+      return "";
+    }
     const dayTrades = trades.filter((item) => item.id !== trade.id && item.challengeId === trade.challengeId && item.tradeDate === trade.tradeDate).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
     const initialTrade = dayTrades.find((item) => (item.challengeTradeType || "initial") === "initial") || dayTrades[0];
     if (trade.challengeTradeType === "flip") {
@@ -5256,6 +5267,18 @@ configGrid.addEventListener("click", (event) => {
 });
 
 configGrid.addEventListener("change", (event) => {
+  if (event.target.matches("[data-config-symbol-choice]")) {
+    const marketType = event.target.dataset.marketType;
+    const selected = [...configGrid.querySelectorAll(`[data-config-symbol-choice][data-market-type="${marketType}"]:checked`)].map((input) => input.value);
+    appConfig.symbolsByMarket = { ...appConfig.symbolsByMarket, [marketType]: selected };
+    appConfig.symbols = getAllSymbols();
+    appConfig.symbolMarketMap = normalizeSymbolMarketMap(SYMBOL_MARKET_MAP, appConfig.symbols);
+    saveConfig();
+    syncConfiguredInputs();
+    resetForm();
+    render();
+    return;
+  }
   if (event.target.matches("[data-symbol-market]")) {
     appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [event.target.dataset.symbolMarket]: event.target.value };
     saveConfig();
@@ -5730,6 +5753,15 @@ wizardContent.addEventListener("click", (event) => {
 });
 
 wizardContent.addEventListener("change", (event) => {
+  if (event.target.matches("[data-wizard-symbol-choice]")) {
+    const marketType = event.target.dataset.marketType;
+    const selected = [...wizardContent.querySelectorAll(`[data-wizard-symbol-choice][data-market-type="${marketType}"]:checked`)].map((input) => input.value);
+    onboardingDraft.symbolsByMarket = { ...onboardingDraft.symbolsByMarket, [marketType]: selected };
+    onboardingDraft.symbols = flattenSymbolsByMarket(onboardingDraft.symbolsByMarket);
+    onboardingDraft.symbolMarketMap = normalizeSymbolMarketMap(SYMBOL_MARKET_MAP, onboardingDraft.symbols);
+    updateWizardNextState();
+    return;
+  }
   if (event.target.matches("[data-wizard-new-symbol-market]")) {
     const builder = event.target.closest('[data-wizard-builder="symbols"]');
     const button = builder?.querySelector("[data-wizard-add-value]");
@@ -6151,15 +6183,41 @@ document.addEventListener("click", (event) => {
   }
 });
 
+function syncChallengeFormType() {
+  const type = challengeForm.elements.challengeType.value;
+  const isProp = type === "prop";
+  challengeForm.querySelectorAll("[data-challenge-fields]").forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.challengeFields !== type);
+  });
+  ["session", "standardMarket", "startDate", "endDate"].forEach((name) => {
+    challengeForm.elements[name].required = !isProp;
+  });
+  ["propStartDate", "propEndDate", "startingBalance", "profitTargetPercent", "dailyDrawdownPercent", "maxDrawdownPercent"].forEach((name) => {
+    challengeForm.elements[name].required = isProp;
+  });
+  challengeFormEyebrow.textContent = isProp ? "Prop challenge" : "ORB challenge";
+  challengeFormHelp.textContent = isProp
+    ? "Every linked journal trade contributes to progress. The leaderboard ranks profit percentage against the shared virtual starting balance."
+    : "The leaderboard ranks total points gained, then wins. When flips are enabled, the second trade must use the opposite direction.";
+  challengeForm.elements.name.placeholder = isProp ? "e.g. 50K Prop Challenge" : "e.g. London ORB Challenge";
+}
+
+challengeForm.elements.challengeType.addEventListener("change", syncChallengeFormType);
+
 openCreateChallengeButton.addEventListener("click", () => {
   const today = new Date();
   const end = new Date(today);
-  end.setDate(end.getDate() + 6);
+  end.setDate(end.getDate() + 29);
+  challengeForm.reset();
+  challengeForm.elements.challengeType.value = "orb";
   challengeForm.elements.startDate.value = toDateKey(today);
   challengeForm.elements.endDate.value = toDateKey(end);
+  challengeForm.elements.propStartDate.value = toDateKey(today);
+  challengeForm.elements.propEndDate.value = toDateKey(end);
   challengeForm.elements.challengeId.value = "";
-  challengeFormTitle.textContent = "Create a session challenge";
+  challengeFormTitle.textContent = "Create a challenge";
   saveChallengeButton.textContent = "Create challenge";
+  syncChallengeFormType();
   openDialog(challengeModal);
 });
 document.querySelector("#closeChallengeModalButton").addEventListener("click", () => closeDialog(challengeModal));
@@ -6225,6 +6283,7 @@ challengeGrid.addEventListener("click", async (event) => {
     const challenge = challenges.find((item) => item.id === editButton.dataset.challengeEdit);
     if (!challenge) return;
     challengeForm.elements.challengeId.value = challenge.id;
+    challengeForm.elements.challengeType.value = challenge.challenge_type || "orb";
     challengeForm.elements.name.value = challenge.name || "";
     challengeForm.elements.description.value = challenge.description || "";
     challengeForm.elements.session.value = challenge.rules_json?.session || "";
@@ -6232,8 +6291,15 @@ challengeGrid.addEventListener("click", async (event) => {
     challengeForm.elements.startDate.value = String(challenge.starts_at || "").slice(0, 10);
     challengeForm.elements.endDate.value = String(challenge.ends_at || "").slice(0, 10);
     challengeForm.elements.tradeRule.value = challenge.rules_json?.tradeRule || "initial-only";
+    challengeForm.elements.propStartDate.value = String(challenge.starts_at || "").slice(0, 10);
+    challengeForm.elements.propEndDate.value = String(challenge.ends_at || "").slice(0, 10);
+    challengeForm.elements.startingBalance.value = challenge.rules_json?.startingBalance || "";
+    challengeForm.elements.profitTargetPercent.value = challenge.rules_json?.profitTargetPercent || "";
+    challengeForm.elements.dailyDrawdownPercent.value = challenge.rules_json?.dailyDrawdownPercent || "";
+    challengeForm.elements.maxDrawdownPercent.value = challenge.rules_json?.maxDrawdownPercent || "";
     challengeFormTitle.textContent = "Edit challenge";
     saveChallengeButton.textContent = "Save changes";
+    syncChallengeFormType();
     openDialog(challengeModal);
     return;
   }
