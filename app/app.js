@@ -2938,9 +2938,27 @@ function getAcceptedChallenges() {
 function syncTradeChallenge(preferredId = null) {
   const available = getAcceptedChallenges();
   const selectedId = preferredId !== null ? preferredId : tradeChallengeInput.value;
+  if (!available.length) {
+    tradeChallengeInput.innerHTML = '<option value="">Not part of a challenge</option>';
+    tradeChallengeInput.value = "";
+    challengeTradeSection.classList.add("hidden");
+    challengeRequirements.classList.add("hidden");
+    challengeRequirements.innerHTML = "";
+    challengeLimitMessage.classList.add("hidden");
+    challengeLimitMessage.innerHTML = "";
+    challengeSymbolSetup.classList.add("hidden");
+    form.classList.remove("challenge-selection-pending");
+    form.session.disabled = false;
+    form.strategy.disabled = false;
+    form.symbol.disabled = false;
+    form.openingRange.disabled = false;
+    form.direction.disabled = false;
+    syncConfiguredInputs();
+    return;
+  }
   tradeChallengeInput.innerHTML = '<option value="__choose__" disabled>Choose an option</option><option value="">Not part of a challenge</option>' + available.map((challenge) => `<option value="${challenge.id}">${escapeHtml(challenge.name)}</option>`).join("");
   if (selectedId === "__choose__" || selectedId === "" || available.some((challenge) => challenge.id === selectedId)) tradeChallengeInput.value = selectedId;
-  challengeTradeSection.classList.toggle("hidden", Boolean(editingTradeId) && available.length === 0);
+  challengeTradeSection.classList.remove("hidden");
   const selected = available.find((challenge) => challenge.id === tradeChallengeInput.value);
   const waitingForChoice = !editingTradeId && tradeChallengeInput.value === "__choose__";
   const tradeDate = form.tradeDate.value || toDateKey(new Date());
@@ -4821,7 +4839,7 @@ function resetForm() {
   form.symbol.disabled = false;
   form.openingRange.disabled = false;
   form.direction.disabled = false;
-  tradeChallengeInput.value = "__choose__";
+  tradeChallengeInput.value = getAcceptedChallenges().length ? "__choose__" : "";
   form.openingRange.value = "";
   form.entryTimeframe.value = "";
   form.entryModel.value = "";
