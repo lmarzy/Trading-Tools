@@ -1579,15 +1579,6 @@ function formatSummaryAmount(value) {
   }).format(value);
 }
 
-function truncateText(value, maxLength = 56) {
-  const text = String(value || "").trim();
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, maxLength).trim()}...`;
-}
-
 function getTradeLots(trade) {
   if (getTradeSizeType(trade) === "Contracts") {
     return 0;
@@ -2585,9 +2576,6 @@ function renderTable() {
 
   pageTrades.forEach((trade) => {
       const points = getTradePoints(trade);
-      const note = trade.notes || "";
-      const hasNote = Boolean(note.trim());
-      const isTruncated = note.trim().length > 56;
       const row = document.createElement("tr");
       row.dataset.tradeId = trade.id;
       row.className = `trade-row ${getOutcomeClass(trade.outcome)}`;
@@ -2606,18 +2594,6 @@ function renderTable() {
           ${formatAmount(trade.amount)}
         </td>
         <td data-label="Discipline">${renderDisciplineBadge(trade)}</td>
-        <td data-label="Notes" class="notes-cell">
-          ${
-            hasNote
-              ? `<span>${escapeHtml(truncateText(note))}</span>
-                ${
-                  isTruncated
-                    ? `<button class="note-view-button" type="button" data-action="view-note" data-id="${trade.id}" aria-label="View full note">View</button>`
-                    : ""
-                }`
-              : "-"
-          }
-        </td>
         <td data-label="Actions">
           <div class="actions">
             <button class="icon-button compact-icon" type="button" data-action="edit" data-id="${trade.id}" aria-label="Edit trade" title="Edit trade">✎</button>
@@ -5207,9 +5183,6 @@ tableBody.addEventListener("click", (event) => {
     deleteTrade(button.dataset.id);
   }
 
-  if (button.dataset.action === "view-note") {
-    openNoteModal(button.dataset.id);
-  }
 });
 
 symbolFilter.addEventListener("change", () => {

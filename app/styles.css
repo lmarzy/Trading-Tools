@@ -5916,8 +5916,7 @@ button:disabled,
 .ghost-button:disabled,
 .danger-button:disabled,
 .icon-button:disabled,
-.top-action:disabled,
-.note-view-button:disabled {
+.top-action:disabled {
   cursor: not-allowed;
   border-color: rgba(255, 255, 255, 0.035);
   background: #181818;
@@ -6012,38 +6011,8 @@ button:disabled,
   font-weight: 850;
 }
 
-.muted,
-.notes-cell {
+.muted {
   color: var(--muted-strong);
-}
-
-.notes-cell {
-  max-width: 320px;
-  white-space: normal;
-}
-
-.notes-cell span {
-  display: inline;
-}
-
-.note-view-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  margin-left: 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--field-2);
-  color: var(--ink);
-  padding: 0 10px;
-  font-size: 0.72rem;
-  font-weight: 900;
-}
-
-.note-view-button:not(:disabled):hover {
-  border-color: var(--line-hot);
-  color: var(--lime);
 }
 
 .note-modal {
