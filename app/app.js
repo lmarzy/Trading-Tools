@@ -22,6 +22,7 @@ const tradeModal = document.querySelector("#tradeModal");
 const formTitle = document.querySelector("#formTitle");
 const tradeIdInput = document.querySelector("#tradeId");
 const submitButton = document.querySelector("#submitButton");
+const tradeFormError = document.querySelector("#tradeFormError");
 const cancelEditButton = document.querySelector("#cancelEditButton");
 const openTradeModalButton = document.querySelector("#openTradeModalButton");
 const closeTradeModalButton = document.querySelector("#closeTradeModalButton");
@@ -755,6 +756,18 @@ function showToast(message, tone = "saved") {
     toast.classList.add("leaving");
     window.setTimeout(() => toast.remove(), 220);
   }, 2600);
+}
+
+function showTradeFormError(message = "") {
+  if (!tradeFormError) {
+    return;
+  }
+
+  tradeFormError.textContent = message;
+  tradeFormError.classList.toggle("hidden", !message);
+  if (message) {
+    tradeFormError.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
 }
 
 function askForConfirmation({
@@ -4917,6 +4930,7 @@ function validateTrade(trade) {
 }
 
 function resetForm() {
+  showTradeFormError("");
   editingTradeId = "";
   tradeIdInput.value = "";
   form.tradeDate.value = new Date().toISOString().slice(0, 10);
@@ -4970,6 +4984,7 @@ function startEdit(id) {
   }
 
   acknowledgedPreTradeRules = [];
+  showTradeFormError("");
   tradeIdInput.value = trade.id;
   editingTradeId = trade.id;
   form.tradeDate.value = trade.tradeDate;
@@ -5128,9 +5143,11 @@ form.addEventListener("submit", async (event) => {
   const trade = readForm();
   const validationMessage = validateTrade(trade);
   if (validationMessage) {
+    showTradeFormError(validationMessage);
     showToast(validationMessage, "warning");
     return;
   }
+  showTradeFormError("");
 
   const existingIndex = trades.findIndex((item) => item.id === trade.id);
   trade.ruleBreaches = getAutomatedRuleBreaches(trade);
@@ -5233,6 +5250,8 @@ marketTypeInput.addEventListener("change", syncSizeFromMarket);
 form.strategy.addEventListener("change", syncStrategyExecutionFields);
 tradeChallengeInput.addEventListener("change", () => syncTradeChallenge());
 form.tradeDate.addEventListener("change", () => syncTradeChallenge(tradeChallengeInput.value));
+form.addEventListener("input", () => showTradeFormError(""));
+form.addEventListener("change", () => showTradeFormError(""));
 saveChallengeSymbolButton.addEventListener("click", () => {
   const standardMarket = saveChallengeSymbolButton.dataset.challengeMarket;
   const existingSymbol = challengeExistingSymbol.value;

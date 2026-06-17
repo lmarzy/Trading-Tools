@@ -2421,6 +2421,18 @@ tbody td:last-child {
   box-shadow: 0 34px 90px rgba(0, 0, 0, 0.6);
 }
 
+.form-error {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 122, 122, 0.34);
+  border-radius: 14px;
+  background: rgba(255, 122, 122, 0.1);
+  color: var(--loss);
+  font-size: 0.86rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
 .reset-passcode-modal {
   width: min(560px, calc(100% - 32px));
 }
