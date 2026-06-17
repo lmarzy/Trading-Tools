@@ -5586,28 +5586,18 @@ button:disabled {
 }
 
 .price-leg-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr) 28px;
+  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr);
   align-items: end;
   gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--field);
+  padding: 0 38px 0 0;
+  border: 0;
+  background: transparent;
 }
 
 .price-leg-row label {
   padding: 0;
-}
-
-.price-leg-row small {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .price-leg-row input {
@@ -5623,15 +5613,16 @@ button:disabled {
   opacity: 1;
 }
 
-.price-leg-row .icon-button,
-.price-leg-remove-spacer {
+.price-leg-row .icon-button {
+  position: absolute;
+  right: 0;
+  bottom: 8px;
   width: 28px;
   height: 28px;
   min-height: 28px;
 }
 
 .price-leg-row .icon-button {
-  align-self: center;
   padding: 0;
   border-radius: 8px;
   color: var(--loss);

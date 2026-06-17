@@ -1753,7 +1753,6 @@ function renderPriceLegs(legs = []) {
       <label><span>Exit</span><input type="number" step="0.01" placeholder="0.00" value="${escapeHtml(leg.exit)}" data-leg-exit aria-label="Leg ${index + 2} exit"></label>
       <div class="price-points-preview flat" data-leg-points aria-live="polite"><span>Points</span><strong>-</strong></div>
       <button class="icon-button price-leg-remove" type="button" data-remove-price-leg aria-label="Remove leg ${index + 2}">×</button>
-      <small>Leg ${index + 2}</small>
     </div>
   `).join("");
   updateLegPointPreviews();
