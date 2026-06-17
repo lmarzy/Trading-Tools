@@ -5557,7 +5557,7 @@ button:disabled {
 .price-legs-panel {
   display: grid;
   gap: 10px;
-  padding: 0 14px 14px;
+  padding: 0 0 14px;
 }
 
 .price-legs-heading {
@@ -5565,6 +5565,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 0 14px;
 }
 
 .price-legs-heading p {
@@ -5591,7 +5592,7 @@ button:disabled {
   grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr);
   align-items: end;
   gap: 10px;
-  padding: 0 38px 0 0;
+  padding: 0 14px;
   border: 0;
   background: transparent;
 }
@@ -5615,18 +5616,15 @@ button:disabled {
 
 .price-leg-row .icon-button {
   position: absolute;
-  right: 0;
-  bottom: 8px;
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-}
-
-.price-leg-row .icon-button {
+  right: 18px;
+  top: -26px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--loss);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
 }
 
 .price-points-preview.positive strong {
