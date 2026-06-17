@@ -1718,8 +1718,26 @@ function readPriceLegInputs() {
   ]);
 }
 
+function readPriceLegDrafts() {
+  return [
+    { entry: form.entryPrice.value, exit: form.exitPrice.value, size: "1" },
+    ...[...priceLegsList.querySelectorAll("[data-price-leg]")]
+      .map((row) => ({
+        entry: row.querySelector("[data-leg-entry]")?.value || "",
+        exit: row.querySelector("[data-leg-exit]")?.value || "",
+        size: row.querySelector("[data-leg-size]")?.value || "1",
+      })),
+  ];
+}
+
 function renderPriceLegs(legs = []) {
-  const extraLegs = normalizePriceLegs(legs).slice(1);
+  const extraLegs = (Array.isArray(legs) ? legs : [])
+    .map((leg) => ({
+      entry: String(leg?.entry ?? "").trim(),
+      exit: String(leg?.exit ?? "").trim(),
+      size: String(leg?.size ?? "1").trim() || "1",
+    }))
+    .slice(1);
   priceLegsList.innerHTML = extraLegs.map((leg, index) => `
     <div class="price-leg-row" data-price-leg>
       <span>Leg ${index + 2}</span>
@@ -1732,7 +1750,7 @@ function renderPriceLegs(legs = []) {
 }
 
 function addPriceLeg() {
-  const current = readPriceLegInputs();
+  const current = readPriceLegDrafts();
   renderPriceLegs([...current, { entry: "", exit: "", size: "1" }]);
   const rows = priceLegsList.querySelectorAll("[data-price-leg]");
   rows[rows.length - 1]?.querySelector("[data-leg-entry]")?.focus();
@@ -5102,9 +5120,10 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const existingIndex = trades.findIndex((item) => item.id === trade.id);
   trade.ruleBreaches = getAutomatedRuleBreaches(trade);
   const unacknowledgedBreaches = trade.ruleBreaches.filter((rule) => !trade.continuedAfterRuleWarnings.includes(rule.type));
-  if (unacknowledgedBreaches.length) {
+  if (existingIndex < 0 && unacknowledgedBreaches.length) {
     const confirmed = await askForConfirmation({
       eyebrow: "Trading rule warning",
       title: `${unacknowledgedBreaches.length} rule ${unacknowledgedBreaches.length === 1 ? "limit" : "limits"} reached`,
@@ -5118,7 +5137,6 @@ form.addEventListener("submit", async (event) => {
     trade.continuedAfterRuleWarnings = [...new Set([...trade.continuedAfterRuleWarnings, ...unacknowledgedBreaches.map((rule) => rule.type)])];
   }
 
-  const existingIndex = trades.findIndex((item) => item.id === trade.id);
   if (existingIndex >= 0) {
     trades[existingIndex] = trade;
     showToast("Trade updated");
