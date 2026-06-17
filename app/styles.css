@@ -5513,10 +5513,10 @@ button:disabled {
 
 .price-details-grid {
   display: grid;
-  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(96px, 0.48fr) 16px;
+  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(88px, 0.42fr) 28px;
   gap: 8px;
   align-items: end;
-  padding: 0 14px 14px;
+  padding: 0 18px 14px 14px;
 }
 
 .price-details-grid label {
@@ -5603,10 +5603,10 @@ button:disabled {
 
 .price-leg-row .icon-button {
   align-self: end;
-  justify-self: end;
-  width: 16px;
-  height: 16px;
-  min-height: 16px;
+  justify-self: center;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
   margin-bottom: 14px;
   padding: 0;
   border: 0;
@@ -5627,7 +5627,7 @@ button:disabled {
 
 .price-leg-remove-spacer {
   display: block;
-  width: 16px;
+  width: 28px;
 }
 
 .price-points-preview.positive strong {
