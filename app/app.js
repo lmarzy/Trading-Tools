@@ -35,7 +35,6 @@ const priceDetailsDisclosure = document.querySelector("#priceDetailsDisclosure")
 const pricePointsPreview = document.querySelector("#pricePointsPreview");
 const priceLegsList = document.querySelector("#priceLegsList");
 const addPriceLegButton = document.querySelector("#addPriceLegButton");
-const priceBaseLegRow = document.querySelector("#priceBaseLegRow");
 const disciplineDisclosure = document.querySelector("#disciplineDisclosure");
 const tradingRulesDisclosure = document.querySelector("#tradingRulesDisclosure");
 const tradingRulesOptions = document.querySelector("#tradingRulesOptions");
@@ -1690,10 +1689,6 @@ function updatePricePointsPreview() {
   }
 
   const valueEl = pricePointsPreview.querySelector("strong");
-  if (priceBaseLegRow) {
-    priceBaseLegRow.querySelector("[data-base-leg-entry]").value = form.entryPrice.value || "-";
-    priceBaseLegRow.querySelector("[data-base-leg-exit]").value = form.exitPrice.value || "-";
-  }
   const points = getTradePoints({
     direction: form.direction.value,
     entryPrice: form.entryPrice.value,
@@ -1708,6 +1703,14 @@ function updatePricePointsPreview() {
   if (valueEl) {
     valueEl.textContent = formatPoints(points);
   }
+  updateLegPointPreviews();
+}
+
+function getLegPoints(leg) {
+  const entry = parseNumber(leg.entry);
+  const exit = parseNumber(leg.exit);
+  if (!Number.isFinite(entry) || !Number.isFinite(exit)) return null;
+  return form.direction.value === "Sell" ? entry - exit : exit - entry;
 }
 
 function readPriceLegInputs() {
@@ -1715,7 +1718,7 @@ function readPriceLegInputs() {
     .map((row) => ({
       entry: row.querySelector("[data-leg-entry]")?.value || "",
       exit: row.querySelector("[data-leg-exit]")?.value || "",
-      size: row.querySelector("[data-leg-size]")?.value || "1",
+      size: "1",
     }));
   return normalizePriceLegs([
     { entry: form.entryPrice.value, exit: form.exitPrice.value, size: "1" },
@@ -1730,7 +1733,7 @@ function readPriceLegDrafts() {
       .map((row) => ({
         entry: row.querySelector("[data-leg-entry]")?.value || "",
         exit: row.querySelector("[data-leg-exit]")?.value || "",
-        size: row.querySelector("[data-leg-size]")?.value || "1",
+        size: "1",
       })),
   ];
 }
@@ -1745,13 +1748,33 @@ function renderPriceLegs(legs = []) {
     .slice(1);
   priceLegsList.innerHTML = extraLegs.map((leg, index) => `
     <div class="price-leg-row" data-price-leg>
-      <span>Leg ${index + 2}</span>
-      <input type="number" step="0.01" placeholder="Entry" value="${escapeHtml(leg.entry)}" data-leg-entry aria-label="Leg ${index + 2} entry">
-      <input type="number" step="0.01" placeholder="Exit" value="${escapeHtml(leg.exit)}" data-leg-exit aria-label="Leg ${index + 2} exit">
-      <input type="number" min="0.01" step="0.01" placeholder="Size" value="${escapeHtml(leg.size || "1")}" data-leg-size aria-label="Leg ${index + 2} size">
+      <label><span>Direction</span><input type="text" value="${escapeHtml(form.direction.value || "Buy")}" data-leg-direction aria-label="Leg ${index + 2} direction" disabled></label>
+      <label><span>Entry</span><input type="number" step="0.01" placeholder="0.00" value="${escapeHtml(leg.entry)}" data-leg-entry aria-label="Leg ${index + 2} entry"></label>
+      <label><span>Exit</span><input type="number" step="0.01" placeholder="0.00" value="${escapeHtml(leg.exit)}" data-leg-exit aria-label="Leg ${index + 2} exit"></label>
+      <div class="price-points-preview flat" data-leg-points aria-live="polite"><span>Points</span><strong>-</strong></div>
       <button class="icon-button price-leg-remove" type="button" data-remove-price-leg aria-label="Remove leg ${index + 2}">×</button>
+      <small>Leg ${index + 2}</small>
     </div>
   `).join("");
+  updateLegPointPreviews();
+}
+
+function updateLegPointPreviews() {
+  priceLegsList.querySelectorAll("[data-price-leg]").forEach((row) => {
+    const directionInput = row.querySelector("[data-leg-direction]");
+    if (directionInput) directionInput.value = form.direction.value || "Buy";
+    const preview = row.querySelector("[data-leg-points]");
+    const valueEl = preview?.querySelector("strong");
+    if (!preview || !valueEl) return;
+    const points = getLegPoints({
+      entry: row.querySelector("[data-leg-entry]")?.value || "",
+      exit: row.querySelector("[data-leg-exit]")?.value || "",
+    });
+    preview.classList.toggle("positive", points > 0);
+    preview.classList.toggle("negative", points < 0);
+    preview.classList.toggle("flat", points === null || points === 0);
+    valueEl.textContent = formatPoints(points);
+  });
 }
 
 function addPriceLeg() {

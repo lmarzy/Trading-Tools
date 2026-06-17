@@ -5587,31 +5587,33 @@ button:disabled {
 
 .price-leg-row {
   display: grid;
-  grid-template-columns: minmax(72px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(72px, 0.55fr) 30px;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr) 28px;
+  align-items: end;
+  gap: 10px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--field);
 }
 
-.price-leg-row-base {
-  background: rgba(247, 250, 242, 0.035);
+.price-leg-row label {
+  padding: 0;
 }
 
-.price-leg-row span {
-  align-self: center;
+.price-leg-row small {
+  grid-column: 1 / -1;
+  grid-row: 2;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 900;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .price-leg-row input {
   width: 100%;
-  min-height: 36px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
 }
 
 .price-leg-row input:disabled {
@@ -5629,6 +5631,7 @@ button:disabled {
 }
 
 .price-leg-row .icon-button {
+  align-self: center;
   padding: 0;
   border-radius: 8px;
   color: var(--loss);
