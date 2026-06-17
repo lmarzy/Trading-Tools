@@ -1755,7 +1755,16 @@ function renderPriceLegs(legs = []) {
       <button class="icon-button price-leg-remove" type="button" data-remove-price-leg aria-label="Remove leg ${index + 2}">×</button>
     </div>
   `).join("");
+  bindPriceLegInputs();
   updateLegPointPreviews();
+}
+
+function bindPriceLegInputs() {
+  priceLegsList.querySelectorAll("[data-leg-entry], [data-leg-exit]").forEach((input) => {
+    input.addEventListener("input", updatePricePointsPreview);
+    input.addEventListener("change", updatePricePointsPreview);
+    input.addEventListener("keyup", updatePricePointsPreview);
+  });
 }
 
 function updateLegPointPreviews() {
