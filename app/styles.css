@@ -5554,6 +5554,69 @@ button:disabled {
   line-height: 1;
 }
 
+.price-legs-panel {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.price-legs-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.price-legs-heading p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.price-legs-heading .ghost-button {
+  min-height: 34px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+.price-legs-list {
+  display: grid;
+  gap: 8px;
+}
+
+.price-leg-row {
+  display: grid;
+  grid-template-columns: 58px repeat(3, minmax(0, 1fr)) 36px;
+  align-items: end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+}
+
+.price-leg-row span {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.price-leg-row input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.price-leg-row .icon-button {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  color: var(--loss);
+}
+
 .price-points-preview.positive strong {
   color: var(--lime);
 }
@@ -7538,6 +7601,15 @@ select,
   .strategy-card dl,
   .price-details-grid,
   .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .price-legs-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .price-leg-row {
     grid-template-columns: 1fr;
   }
 

@@ -33,6 +33,8 @@ const contractsField = document.querySelector("#contractsField");
 const notesDisclosure = document.querySelector("#notesDisclosure");
 const priceDetailsDisclosure = document.querySelector("#priceDetailsDisclosure");
 const pricePointsPreview = document.querySelector("#pricePointsPreview");
+const priceLegsList = document.querySelector("#priceLegsList");
+const addPriceLegButton = document.querySelector("#addPriceLegButton");
 const disciplineDisclosure = document.querySelector("#disciplineDisclosure");
 const tradingRulesDisclosure = document.querySelector("#tradingRulesDisclosure");
 const tradingRulesOptions = document.querySelector("#tradingRulesOptions");
@@ -1631,19 +1633,43 @@ function getTradeAmount(trade) {
 }
 
 function hasTradePriceDetails(trade) {
-  return trade.entryPrice !== undefined && trade.entryPrice !== "" && trade.exitPrice !== undefined && trade.exitPrice !== "";
+  return getTradePriceLegs(trade).length > 0;
+}
+
+function normalizePriceLegs(legs = []) {
+  if (!Array.isArray(legs)) return [];
+  return legs
+    .map((leg) => ({
+      entry: String(leg?.entry ?? "").trim(),
+      exit: String(leg?.exit ?? "").trim(),
+      size: String(leg?.size ?? "1").trim() || "1",
+    }))
+    .filter((leg) => leg.entry !== "" || leg.exit !== "");
+}
+
+function getTradePriceLegs(trade = {}) {
+  const legs = normalizePriceLegs(trade.priceLegs);
+  if (legs.length) return legs.filter((leg) => leg.entry !== "" && leg.exit !== "");
+  if (trade.entryPrice !== undefined && trade.entryPrice !== "" && trade.exitPrice !== undefined && trade.exitPrice !== "") {
+    return [{ entry: String(trade.entryPrice), exit: String(trade.exitPrice), size: "1" }];
+  }
+  return [];
 }
 
 function getTradePoints(trade) {
-  if (!hasTradePriceDetails(trade)) {
-    return null;
-  }
-
-  const entry = parseNumber(trade.entryPrice);
-  const exit = parseNumber(trade.exitPrice);
+  const legs = getTradePriceLegs(trade);
+  if (!legs.length) return null;
   const direction = trade.direction === "Sell" ? "Sell" : "Buy";
-  const points = direction === "Sell" ? entry - exit : exit - entry;
-  return Number.isFinite(points) ? points : null;
+  const totals = legs.reduce((acc, leg) => {
+    const entry = parseNumber(leg.entry);
+    const exit = parseNumber(leg.exit);
+    const size = Math.max(parseNumber(leg.size), 0);
+    if (!Number.isFinite(entry) || !Number.isFinite(exit) || !Number.isFinite(size) || size <= 0) return acc;
+    const points = direction === "Sell" ? entry - exit : exit - entry;
+    return { weighted: acc.weighted + points * size, size: acc.size + size };
+  }, { weighted: 0, size: 0 });
+  if (!totals.size) return null;
+  return totals.weighted / totals.size;
 }
 
 function formatPoints(value) {
@@ -1667,6 +1693,7 @@ function updatePricePointsPreview() {
     direction: form.direction.value,
     entryPrice: form.entryPrice.value,
     exitPrice: form.exitPrice.value,
+    priceLegs: readPriceLegInputs(),
   });
 
   pricePointsPreview.classList.toggle("positive", points > 0);
@@ -1676,6 +1703,40 @@ function updatePricePointsPreview() {
   if (valueEl) {
     valueEl.textContent = formatPoints(points);
   }
+}
+
+function readPriceLegInputs() {
+  const extraLegs = [...priceLegsList.querySelectorAll("[data-price-leg]")]
+    .map((row) => ({
+      entry: row.querySelector("[data-leg-entry]")?.value || "",
+      exit: row.querySelector("[data-leg-exit]")?.value || "",
+      size: row.querySelector("[data-leg-size]")?.value || "1",
+    }));
+  return normalizePriceLegs([
+    { entry: form.entryPrice.value, exit: form.exitPrice.value, size: "1" },
+    ...extraLegs,
+  ]);
+}
+
+function renderPriceLegs(legs = []) {
+  const extraLegs = normalizePriceLegs(legs).slice(1);
+  priceLegsList.innerHTML = extraLegs.map((leg, index) => `
+    <div class="price-leg-row" data-price-leg>
+      <span>Leg ${index + 2}</span>
+      <input type="number" step="0.01" placeholder="Entry" value="${escapeHtml(leg.entry)}" data-leg-entry aria-label="Leg ${index + 2} entry">
+      <input type="number" step="0.01" placeholder="Exit" value="${escapeHtml(leg.exit)}" data-leg-exit aria-label="Leg ${index + 2} exit">
+      <input type="number" min="0.01" step="0.01" placeholder="Size" value="${escapeHtml(leg.size || "1")}" data-leg-size aria-label="Leg ${index + 2} size">
+      <button class="icon-button" type="button" data-remove-price-leg aria-label="Remove leg ${index + 2}">×</button>
+    </div>
+  `).join("");
+}
+
+function addPriceLeg() {
+  const current = readPriceLegInputs();
+  renderPriceLegs([...current, { entry: "", exit: "", size: "1" }]);
+  const rows = priceLegsList.querySelectorAll("[data-price-leg]");
+  rows[rows.length - 1]?.querySelector("[data-leg-entry]")?.focus();
+  updatePricePointsPreview();
 }
 
 function getPointsClass(value) {
@@ -4753,6 +4814,7 @@ function readForm() {
     direction: form.direction.value,
     entryPrice: form.entryPrice.value,
     exitPrice: form.exitPrice.value,
+    priceLegs: readPriceLegInputs(),
     discipline: {
       followedPlan: form.followedPlan.checked,
       enteredEarly: form.enteredEarly.checked,
@@ -4790,8 +4852,9 @@ function validateTrade(trade) {
     return "Add an amount when marking a trade as Win or Loss.";
   }
 
-  if ((trade.entryPrice && !trade.exitPrice) || (!trade.entryPrice && trade.exitPrice)) {
-    return "Add both entry and exit prices to calculate points.";
+  const incompletePriceLeg = normalizePriceLegs(trade.priceLegs).find((leg) => (leg.entry && !leg.exit) || (!leg.entry && leg.exit));
+  if (incompletePriceLeg || (trade.entryPrice && !trade.exitPrice) || (!trade.entryPrice && trade.exitPrice)) {
+    return "Add both entry and exit for each price leg.";
   }
 
   if (trade.challengeId) {
@@ -4853,6 +4916,7 @@ function resetForm() {
   form.direction.value = "Buy";
   form.entryPrice.value = "";
   form.exitPrice.value = "";
+  renderPriceLegs([]);
   priceDetailsDisclosure.open = false;
   updatePricePointsPreview();
   DISCIPLINE_RULES.forEach((rule) => {
@@ -4901,6 +4965,7 @@ function startEdit(id) {
   form.direction.value = trade.direction === "Sell" ? "Sell" : "Buy";
   form.entryPrice.value = trade.entryPrice || "";
   form.exitPrice.value = trade.exitPrice || "";
+  renderPriceLegs(trade.priceLegs || []);
   priceDetailsDisclosure.open = hasTradePriceDetails(trade);
   updatePricePointsPreview();
   const discipline = getTradeDiscipline(trade);
@@ -5168,6 +5233,15 @@ saveChallengeSymbolButton.addEventListener("click", () => {
 ["direction", "entryPrice", "exitPrice"].forEach((name) => {
   form[name].addEventListener("input", updatePricePointsPreview);
   form[name].addEventListener("change", updatePricePointsPreview);
+});
+addPriceLegButton.addEventListener("click", addPriceLeg);
+priceLegsList.addEventListener("input", updatePricePointsPreview);
+priceLegsList.addEventListener("change", updatePricePointsPreview);
+priceLegsList.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("[data-remove-price-leg]");
+  if (!removeButton) return;
+  removeButton.closest("[data-price-leg]")?.remove();
+  updatePricePointsPreview();
 });
 performanceWeekMode.addEventListener("click", () => {
   performanceMode = "week";

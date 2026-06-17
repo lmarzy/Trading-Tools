@@ -17,10 +17,18 @@ function publicName(user: Record<string, unknown>) {
 }
 
 function tradePoints(trade: Record<string, unknown>) {
-  const entry = Number(trade.entryPrice);
-  const exit = Number(trade.exitPrice);
-  if (!Number.isFinite(entry) || !Number.isFinite(exit) || trade.entryPrice === "" || trade.exitPrice === "") return 0;
-  return trade.direction === "Sell" ? entry - exit : exit - entry;
+  const rawLegs = Array.isArray(trade.priceLegs) && trade.priceLegs.length
+    ? trade.priceLegs
+    : trade.entryPrice !== "" && trade.exitPrice !== "" ? [{ entry: trade.entryPrice, exit: trade.exitPrice, size: 1 }] : [];
+  const totals = rawLegs.reduce((acc, leg) => {
+    const entry = Number(leg?.entry);
+    const exit = Number(leg?.exit);
+    const size = Math.max(Number(leg?.size || 1), 0);
+    if (!Number.isFinite(entry) || !Number.isFinite(exit) || !Number.isFinite(size) || size <= 0) return acc;
+    const points = trade.direction === "Sell" ? entry - exit : exit - entry;
+    return { weighted: acc.weighted + points * size, size: acc.size + size };
+  }, { weighted: 0, size: 0 });
+  return totals.size ? totals.weighted / totals.size : 0;
 }
 
 function tradeAmount(trade: Record<string, unknown>) {

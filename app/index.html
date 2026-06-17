@@ -6,7 +6,7 @@
     <title>TRADERS HUB</title>
     <link rel="icon" type="image/png" href="assets/logo.png" />
     <link rel="apple-touch-icon" href="assets/logo.png" />
-    <link rel="stylesheet" href="styles.css?v=20260615-challenge-form-layout" />
+    <link rel="stylesheet" href="styles.css?v=20260617-price-legs" />
   </head>
   <body class="auth-locked app-checking">
     <section class="app-loading-screen" id="appLoadingScreen" aria-live="polite" aria-label="Loading Traders Hub">
@@ -495,6 +495,13 @@
                 <span>Points</span>
                 <strong>-</strong>
               </div>
+            </div>
+            <div class="price-legs-panel" id="priceLegsPanel">
+              <div class="price-legs-heading">
+                <p>Use legs if you laddered into the trade. Points are calculated as a size-weighted average.</p>
+                <button class="ghost-button" type="button" id="addPriceLegButton">Add leg</button>
+              </div>
+              <div class="price-legs-list" id="priceLegsList"></div>
             </div>
           </details>
 
@@ -1024,6 +1031,6 @@
 
     <script src="supabase-config.js?v=20260608-routing"></script>
     <script src="supabase-api.js?v=20260608-routing"></script>
-    <script src="app.js?v=20260615-futures-size-labels"></script>
+    <script src="app.js?v=20260617-price-legs"></script>
   </body>
 </html>
