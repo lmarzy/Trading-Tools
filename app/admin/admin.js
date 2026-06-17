@@ -24,6 +24,15 @@ function normalizeFeatureAccess(access = {}, role = "user") {
 function getNewUserFeatureAccess(role = roleInput.value) {
   return normalizeFeatureAccess(Object.fromEntries([...newUserFeatureInputs].map((input) => [input.value, input.checked])), role);
 }
+
+function getEditedUserFeatureAccess(passcode, role = "user") {
+  const featureInputs = [...document.querySelectorAll(`[data-user-feature][data-passcode-index="${passcode.index}"]`)];
+  if (!featureInputs.length) {
+    return normalizeFeatureAccess(passcode.featureAccess, role);
+  }
+
+  return normalizeFeatureAccess(Object.fromEntries(featureInputs.map((input) => [input.dataset.userFeature, input.checked])), role);
+}
 const generateUserCodeButton = document.querySelector("#generateUserCodeButton");
 const openAddUserModalButton = document.querySelector("#openAddUserModalButton");
 const addUserModal = document.querySelector("#addUserModal");
@@ -970,7 +979,7 @@ adminPasscodeList.addEventListener("click", async (event) => {
         trialEnabled: nextStatus.trialEnabled,
         trialWeeks: nextStatus.trialWeeks,
         resetTrial: statusSelect.value !== statusSelect.dataset.originalValue,
-        featureAccess: normalizeFeatureAccess(Object.fromEntries([...document.querySelectorAll(`[data-user-feature][data-passcode-index="${passcode.index}"]`)].map((input) => [input.dataset.userFeature, input.checked])), nextRole),
+        featureAccess: getEditedUserFeatureAccess(passcode, nextRole),
       });
       const savedUser = result.user || {};
       passcode.label = savedUser.label || nextLabel;
