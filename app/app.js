@@ -35,6 +35,7 @@ const priceDetailsDisclosure = document.querySelector("#priceDetailsDisclosure")
 const pricePointsPreview = document.querySelector("#pricePointsPreview");
 const priceLegsList = document.querySelector("#priceLegsList");
 const addPriceLegButton = document.querySelector("#addPriceLegButton");
+const priceBaseLegRow = document.querySelector("#priceBaseLegRow");
 const disciplineDisclosure = document.querySelector("#disciplineDisclosure");
 const tradingRulesDisclosure = document.querySelector("#tradingRulesDisclosure");
 const tradingRulesOptions = document.querySelector("#tradingRulesOptions");
@@ -1689,6 +1690,10 @@ function updatePricePointsPreview() {
   }
 
   const valueEl = pricePointsPreview.querySelector("strong");
+  if (priceBaseLegRow) {
+    priceBaseLegRow.querySelector("[data-base-leg-entry]").value = form.entryPrice.value || "-";
+    priceBaseLegRow.querySelector("[data-base-leg-exit]").value = form.exitPrice.value || "-";
+  }
   const points = getTradePoints({
     direction: form.direction.value,
     entryPrice: form.entryPrice.value,
@@ -1744,7 +1749,7 @@ function renderPriceLegs(legs = []) {
       <input type="number" step="0.01" placeholder="Entry" value="${escapeHtml(leg.entry)}" data-leg-entry aria-label="Leg ${index + 2} entry">
       <input type="number" step="0.01" placeholder="Exit" value="${escapeHtml(leg.exit)}" data-leg-exit aria-label="Leg ${index + 2} exit">
       <input type="number" min="0.01" step="0.01" placeholder="Size" value="${escapeHtml(leg.size || "1")}" data-leg-size aria-label="Leg ${index + 2} size">
-      <button class="icon-button" type="button" data-remove-price-leg aria-label="Remove leg ${index + 2}">×</button>
+      <button class="icon-button price-leg-remove" type="button" data-remove-price-leg aria-label="Remove leg ${index + 2}">×</button>
     </div>
   `).join("");
 }
