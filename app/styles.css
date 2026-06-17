@@ -5513,8 +5513,8 @@ button:disabled {
 
 .price-details-grid {
   display: grid;
-  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr);
-  gap: 10px;
+  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(96px, 0.48fr) 22px;
+  gap: 8px;
   align-items: end;
   padding: 0 14px 14px;
 }
@@ -5587,24 +5587,11 @@ button:disabled {
 }
 
 .price-leg-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(112px, 0.75fr) repeat(2, minmax(120px, 1fr)) minmax(112px, 0.65fr);
-  align-items: end;
-  gap: 10px;
-  padding: 0 14px;
-  border: 0;
-  background: transparent;
+  padding-top: 0;
 }
 
 .price-leg-row label {
   padding: 0;
-}
-
-.price-leg-row input {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
 }
 
 .price-leg-row input:disabled {
@@ -5615,16 +5602,21 @@ button:disabled {
 }
 
 .price-leg-row .icon-button {
-  position: absolute;
-  right: 18px;
-  top: -26px;
-  width: 24px;
-  height: 24px;
-  min-height: 24px;
+  align-self: end;
+  justify-self: end;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin-bottom: 11px;
   padding: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   color: var(--loss);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+}
+
+.price-leg-remove-spacer {
+  display: block;
+  width: 22px;
 }
 
 .price-points-preview.positive strong {
@@ -7617,10 +7609,6 @@ select,
   .price-legs-heading {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .price-leg-row {
-    grid-template-columns: 1fr;
   }
 
   .weekly-heading,

@@ -1747,7 +1747,7 @@ function renderPriceLegs(legs = []) {
     }))
     .slice(1);
   priceLegsList.innerHTML = extraLegs.map((leg, index) => `
-    <div class="price-leg-row" data-price-leg>
+    <div class="price-details-grid price-leg-row" data-price-leg>
       <label><span>Direction</span><input type="text" value="${escapeHtml(form.direction.value || "Buy")}" data-leg-direction aria-label="Leg ${index + 2} direction" disabled></label>
       <label><span>Entry</span><input type="number" step="0.01" placeholder="0.00" value="${escapeHtml(leg.entry)}" data-leg-entry aria-label="Leg ${index + 2} entry"></label>
       <label><span>Exit</span><input type="number" step="0.01" placeholder="0.00" value="${escapeHtml(leg.exit)}" data-leg-exit aria-label="Leg ${index + 2} exit"></label>
