@@ -2762,7 +2762,7 @@ function createBacktestRows(csvText, meta) {
   return csvRows.map((row) => ({
     id: crypto.randomUUID(),
     importedAt: new Date().toISOString(),
-    importName: meta.importName || `${meta.model} · ${meta.rangeTimeframe}`,
+    importName: meta.importName || `${meta.symbol} · ${meta.model} · ${meta.rangeTimeframe} / ${meta.breakTimeframe}`,
     symbol: meta.symbol,
     model: getBacktestCell(row, headerMap, ["Model"]) || meta.model,
     targetPoints: toBacktestNumber(meta.targetPoints),
@@ -6245,7 +6245,7 @@ backtestImportForm?.addEventListener("submit", async (event) => {
     targetPoints: document.querySelector("#backtestTargetPoints")?.value.trim() || "",
     rangeTimeframe: document.querySelector("#backtestRangeTimeframe")?.value || "",
     breakTimeframe: document.querySelector("#backtestBreakTimeframe")?.value || "",
-    importName: document.querySelector("#backtestImportName")?.value.trim() || "",
+    importName: "",
   };
   if (!meta.symbol || !meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
     showToast("Choose the scenario before importing.", "warning");

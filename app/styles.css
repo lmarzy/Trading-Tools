@@ -1685,20 +1685,11 @@ h2 {
 }
 
 .backtest-import-panel {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr);
-  gap: 16px;
   margin-bottom: 16px;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel);
-}
-
-.backtest-import-panel > div {
-  display: grid;
-  align-content: start;
-  gap: 8px;
 }
 
 .backtest-import-panel span,
@@ -1710,16 +1701,9 @@ h2 {
   text-transform: uppercase;
 }
 
-.backtest-import-panel p {
-  margin: 0;
-  color: var(--muted-strong);
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-
 .backtest-import-form {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 

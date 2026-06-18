@@ -966,17 +966,12 @@
           <div><p class="eyebrow">Test the data</p><h2>ORB Backtesting</h2></div>
         </div>
         <section class="backtest-import-panel hidden" id="backtestAdminPanel">
-          <div>
-            <span>Import scenario</span>
-            <p>Upload one CSV at a time and tag it with the scenario it represents. The app will keep the rows together for filtering and comparison.</p>
-          </div>
           <form class="backtest-import-form" id="backtestImportForm">
-            <label><span>Symbol</span><input id="backtestSymbol" type="text" required placeholder="e.g. NAS100"></label>
+            <label><span>Symbol</span><select id="backtestSymbol" required><option value="">Select symbol</option><option value="Nas">Nas</option><option value="Dax">Dax</option><option value="Nikkei">Nikkei</option><option value="Gold">Gold</option><option value="BTC">BTC</option></select></label>
             <label><span>Model</span><select id="backtestModel" required><option value="">Select model</option><option value="Fixed 1:1">Fixed 1:1</option><option value="ORB Range">ORB Range</option></select></label>
             <label><span>Range timeframe</span><select id="backtestRangeTimeframe" required><option value="">Select range</option><option value="5 min">5 min</option><option value="15 min">15 min</option></select></label>
             <label><span>Break timeframe</span><select id="backtestBreakTimeframe" required><option value="">Select break</option><option value="5 min">5 min</option></select></label>
-            <label class="backtest-target-field hidden" id="backtestTargetField"><span>Target points</span><input id="backtestTargetPoints" type="number" min="0" step="0.01" placeholder="e.g. 50"><small>Used for every row in this Fixed 1:1 import.</small></label>
-            <label><span>Import name</span><input id="backtestImportName" type="text" placeholder="Optional"></label>
+            <label class="backtest-target-field hidden" id="backtestTargetField"><span>Target points</span><input id="backtestTargetPoints" type="number" min="0" step="0.01" placeholder="e.g. 50"></label>
             <label class="backtest-file-field"><span>CSV file</span><input id="backtestCsvFile" type="file" accept=".csv,text/csv" required></label>
             <button class="primary-button" type="submit">Import CSV</button>
           </form>
