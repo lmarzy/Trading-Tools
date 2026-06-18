@@ -3902,12 +3902,12 @@ tbody td:last-child {
 }
 
 .weekly-review-drawer .review-insights {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .weekly-review-drawer .review-insights > div {
   align-content: start;
-  min-height: 92px;
+  min-height: 104px;
 }
 
 .weekly-review-drawer .review-form-panel {
@@ -3992,8 +3992,29 @@ tbody td:last-child {
   grid-template-columns: 1fr auto;
   gap: 4px 12px;
   padding: 12px;
+  border-left: 3px solid transparent;
   border-radius: 12px;
   background: var(--field);
+}
+
+.review-insights > div.profit {
+  border-left-color: var(--lime);
+}
+
+.review-insights > div.loss {
+  border-left-color: var(--loss);
+}
+
+.review-insights > div.flat {
+  border-left-color: var(--muted-strong);
+}
+
+.review-insights > div.profit strong {
+  color: var(--lime);
+}
+
+.review-insights > div.loss strong {
+  color: var(--loss);
 }
 
 .review-insights small {

@@ -3486,16 +3486,73 @@ function getTopReviewValue(weekTrades, key) {
   return [...totals.entries()].sort((a, b) => b[1].amount - a[1].amount)[0];
 }
 
+function getWeeklyGoalStatus(plan, weekTrades, amount) {
+  const checks = [];
+  const losses = Math.abs(Math.min(0, amount));
+  if (plan.profitTarget) {
+    const target = Number(plan.profitTarget);
+    if (Number.isFinite(target) && target > 0) {
+      checks.push({
+        label: "profit target",
+        met: amount >= target,
+        detail: `${formatSummaryAmount(amount)} / ${formatSummaryAmount(target)}`,
+      });
+    }
+  }
+
+  if (plan.maxWeeklyLoss) {
+    const maxLoss = Number(plan.maxWeeklyLoss);
+    if (Number.isFinite(maxLoss) && maxLoss > 0) {
+      checks.push({
+        label: "loss limit",
+        met: losses <= maxLoss,
+        detail: `${formatSummaryAmount(losses)} used from ${formatSummaryAmount(maxLoss)}`,
+      });
+    }
+  }
+
+  if (plan.maxTrades) {
+    const maxTrades = Number(plan.maxTrades);
+    if (Number.isFinite(maxTrades) && maxTrades > 0) {
+      checks.push({
+        label: "trade limit",
+        met: weekTrades.length <= maxTrades,
+        detail: `${weekTrades.length} / ${maxTrades} trades`,
+      });
+    }
+  }
+
+  if (!checks.length) {
+    return { title: "No weekly goals set", detail: "Open Weekly Plan to set measurable goals.", tone: "flat" };
+  }
+
+  const metCount = checks.filter((check) => check.met).length;
+  const missed = checks.filter((check) => !check.met).map((check) => check.label);
+  if (metCount === checks.length) {
+    return { title: "Weekly goals were met", detail: checks.map((check) => check.detail).join(" · "), tone: "profit" };
+  }
+
+  return {
+    title: `${metCount}/${checks.length} weekly goals met`,
+    detail: missed.length ? `Review ${missed.join(", ")}. ${checks.map((check) => check.detail).join(" · ")}` : checks.map((check) => check.detail).join(" · "),
+    tone: metCount ? "flat" : "loss",
+  };
+}
+
 function renderWeeklyReview() {
   if (!reviewSummaryGrid) return;
   const { weekdays, startKey, end, weekTrades } = getWeeklyReviewContext();
+  const plan = appConfig.weeklyPlans[startKey] || {};
   const wins = weekTrades.filter((trade) => trade.outcome === "Win").length;
   const losses = weekTrades.filter((trade) => trade.outcome === "Loss").length;
   const amount = weekTrades.reduce((total, trade) => total + getTradeAmount(trade), 0);
   const points = weekTrades.reduce((total, trade) => total + (getTradePoints(trade) || 0), 0);
   const breaches = weekTrades.reduce((total, trade) => total + (trade.ruleBreaches?.length || 0), 0);
+  const closedWeekTrades = weekTrades.filter((trade) => trade.outcome === "Win" || trade.outcome === "Loss");
+  const bestTrade = closedWeekTrades.length ? closedWeekTrades.reduce((best, trade) => (getTradeAmount(trade) > getTradeAmount(best) ? trade : best), closedWeekTrades[0]) : null;
+  const worstTrade = closedWeekTrades.length ? closedWeekTrades.reduce((worst, trade) => (getTradeAmount(trade) < getTradeAmount(worst) ? trade : worst), closedWeekTrades[0]) : null;
   const bestStrategy = getTopReviewValue(weekTrades, "strategy");
-  const bestSymbol = getTopReviewValue(weekTrades, "symbol");
+  const goalStatus = getWeeklyGoalStatus(plan, weekTrades, amount);
   const mistakes = DISCIPLINE_RULES.filter((rule) => !rule.positive)
     .map((rule) => ({ label: rule.label, count: weekTrades.filter((trade) => getTradeDiscipline(trade)[rule.key]).length }))
     .sort((a, b) => b.count - a.count);
@@ -3508,9 +3565,11 @@ function renderWeeklyReview() {
     ["Rule Breaches", breaches],
   ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
   reviewInsights.innerHTML = `
-    <div><span>Best strategy</span><strong>${escapeHtml(bestStrategy?.[0] || "-")}</strong><small>${bestStrategy ? formatSummaryAmount(bestStrategy[1].amount) : "No data"}</small></div>
-    <div><span>Best symbol</span><strong>${escapeHtml(bestSymbol?.[0] || "-")}</strong><small>${bestSymbol ? formatSummaryAmount(bestSymbol[1].amount) : "No data"}</small></div>
-    <div><span>Most common mistake</span><strong>${escapeHtml(mistakes[0]?.count ? mistakes[0].label : "-")}</strong><small>${mistakes[0]?.count || 0} recorded</small></div>
+    <div class="${bestTrade && getTradeAmount(bestTrade) > 0 ? "profit" : ""}"><span>Best trade</span><strong>${bestTrade ? `${escapeHtml(bestTrade.symbol)} · ${formatSummaryAmount(getTradeAmount(bestTrade))}` : "-"}</strong><small>${bestTrade ? `${escapeHtml(bestTrade.tradeDate || "")} · ${escapeHtml(bestTrade.strategy || "No strategy")}` : "No closed trades"}</small></div>
+    <div class="${worstTrade && getTradeAmount(worstTrade) < 0 ? "loss" : ""}"><span>Worst trade</span><strong>${worstTrade ? `${escapeHtml(worstTrade.symbol)} · ${formatSummaryAmount(getTradeAmount(worstTrade))}` : "-"}</strong><small>${worstTrade ? `${escapeHtml(worstTrade.tradeDate || "")} · ${escapeHtml(worstTrade.strategy || "No strategy")}` : "No closed trades"}</small></div>
+    <div class="${bestStrategy?.[1]?.amount > 0 ? "profit" : ""}"><span>Best strategy</span><strong>${escapeHtml(bestStrategy?.[0] || "-")}</strong><small>${bestStrategy ? `${formatSummaryAmount(bestStrategy[1].amount)} · ${bestStrategy[1].trades} trades` : "No data"}</small></div>
+    <div class="${mistakes[0]?.count ? "loss" : ""}"><span>Biggest mistake</span><strong>${escapeHtml(mistakes[0]?.count ? mistakes[0].label : "-")}</strong><small>${mistakes[0]?.count || 0} recorded</small></div>
+    <div class="${goalStatus.tone}"><span>Weekly goals</span><strong>${escapeHtml(goalStatus.title)}</strong><small>${escapeHtml(goalStatus.detail)}</small></div>
     <div><span>Continued after warning</span><strong>${weekTrades.filter((trade) => trade.continuedAfterRuleWarnings?.length).length}</strong><small>trades</small></div>
   `;
   reviewTradesList.innerHTML = weekTrades.length
