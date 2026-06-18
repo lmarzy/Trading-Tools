@@ -262,6 +262,8 @@ const emptyConfigButton = document.querySelector("#emptyConfigButton");
 const backtestAdminPanel = document.querySelector("#backtestAdminPanel");
 const backtestImportForm = document.querySelector("#backtestImportForm");
 const backtestCsvFile = document.querySelector("#backtestCsvFile");
+const backtestModel = document.querySelector("#backtestModel");
+const backtestTargetField = document.querySelector("#backtestTargetField");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
 const backtestFilterModel = document.querySelector("#backtestFilterModel");
@@ -2807,6 +2809,12 @@ function getBacktestTargetLabel(row) {
   if (row.model === "Fixed 1:1") return `${formatPoints(target)} target`;
   if (row.model === "ORB Range") return `${formatPoints(target)} range`;
   return formatPoints(target);
+}
+
+function updateBacktestTargetField() {
+  if (!backtestTargetField || !backtestModel) return;
+  const isFixedOneToOne = backtestModel.value === "Fixed 1:1";
+  backtestTargetField.classList.toggle("hidden", !isFixedOneToOne);
 }
 
 function syncBacktestFilter(select, values, label) {
@@ -6188,6 +6196,9 @@ backtestImportForm?.addEventListener("submit", async (event) => {
 [backtestFilterModel, backtestFilterSymbol, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
   select?.addEventListener("change", renderBacktesting);
 });
+
+backtestModel?.addEventListener("change", updateBacktestTargetField);
+updateBacktestTargetField();
 
 clearBacktestsButton?.addEventListener("click", async () => {
   if (!getBacktestRows().length) {

@@ -975,6 +975,7 @@
             <label><span>Model</span><select id="backtestModel" required><option value="">Select model</option><option value="Fixed 1:1">Fixed 1:1</option><option value="ORB Range">ORB Range</option></select></label>
             <label><span>Range timeframe</span><select id="backtestRangeTimeframe" required><option value="">Select range</option><option value="5 min">5 min</option><option value="15 min">15 min</option></select></label>
             <label><span>Break timeframe</span><select id="backtestBreakTimeframe" required><option value="">Select break</option><option value="5 min">5 min</option></select></label>
+            <div class="backtest-target-field hidden" id="backtestTargetField"><span>Target points</span><strong>Uses CSV range</strong><small>For Fixed 1:1, each row targets the same number of points as its range.</small></div>
             <label><span>Import name</span><input id="backtestImportName" type="text" placeholder="Optional"></label>
             <label class="backtest-file-field"><span>CSV file</span><input id="backtestCsvFile" type="file" accept=".csv,text/csv" required></label>
             <button class="primary-button" type="submit">Import CSV</button>
