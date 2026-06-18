@@ -355,6 +355,7 @@ const SESSION_DEFINITIONS = {
   "Singapore/HK": { timeZone: "Asia/Singapore", start: 9, end: 17 },
   Frankfurt: { timeZone: "Europe/Berlin", start: 8, end: 17 },
   London: { timeZone: "Europe/London", start: 8, end: 17 },
+  "London 8:30": { timeZone: "Europe/London", start: 8, startMinute: 30, end: 17 },
   "New York": { timeZone: "America/New_York", start: 8, end: 17 },
 };
 const DEFAULT_SESSION_OPTIONS = [...Object.keys(SESSION_DEFINITIONS), "N/A"];
@@ -379,7 +380,7 @@ function getTimeZoneOffset(date, timeZone) {
   return Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second)) - date.getTime();
 }
 
-function getSessionLocalDate(timeZone, hour) {
+function getSessionLocalDate(timeZone, hour, minute = 0) {
   const now = new Date();
   const zoneDate = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -387,7 +388,7 @@ function getSessionLocalDate(timeZone, hour) {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(now).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
-  const estimate = new Date(Date.UTC(Number(zoneDate.year), Number(zoneDate.month) - 1, Number(zoneDate.day), hour));
+  const estimate = new Date(Date.UTC(Number(zoneDate.year), Number(zoneDate.month) - 1, Number(zoneDate.day), hour, minute));
   return new Date(estimate.getTime() - getTimeZoneOffset(estimate, timeZone));
 }
 
@@ -395,7 +396,7 @@ function getSessionDisplayLabel(session) {
   const definition = SESSION_DEFINITIONS[session];
   if (!definition) return session;
   const formatter = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${session} (${formatter.format(getSessionLocalDate(definition.timeZone, definition.start))}–${formatter.format(getSessionLocalDate(definition.timeZone, definition.end))} local)`;
+  return `${session} (${formatter.format(getSessionLocalDate(definition.timeZone, definition.start, definition.startMinute || 0))}–${formatter.format(getSessionLocalDate(definition.timeZone, definition.end, definition.endMinute || 0))} local)`;
 }
 
 function getOrderedSessions() {
