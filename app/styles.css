@@ -6406,6 +6406,10 @@ button:disabled,
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 14px 16px;
   border: 1px solid rgba(200, 255, 79, 0.22);
   border-radius: 16px;
@@ -6413,10 +6417,32 @@ button:disabled,
   color: var(--ink);
   box-shadow: var(--shadow);
   font-weight: 850;
+  pointer-events: auto;
   transform: translateY(0);
   transition:
     opacity 180ms ease,
     transform 180ms ease;
+}
+
+.toast span {
+  min-width: 0;
+}
+
+.toast button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--lime);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.toast button:hover {
+  color: var(--ink);
 }
 
 .toast.warning {

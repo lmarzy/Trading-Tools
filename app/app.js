@@ -747,15 +747,29 @@ function setSaveStatus(status, message) {
   }
 }
 
-function showToast(message, tone = "saved") {
+function showToast(message, tone = "saved", action = null) {
   const toast = document.createElement("div");
   toast.className = `toast ${tone}`;
-  toast.textContent = message;
+  const messageEl = document.createElement("span");
+  messageEl.textContent = message;
+  toast.appendChild(messageEl);
+
+  if (action?.label && typeof action.onClick === "function") {
+    const actionButton = document.createElement("button");
+    actionButton.type = "button";
+    actionButton.textContent = action.label;
+    actionButton.addEventListener("click", () => {
+      action.onClick();
+      toast.remove();
+    });
+    toast.appendChild(actionButton);
+  }
+
   toastStack.appendChild(toast);
   window.setTimeout(() => {
     toast.classList.add("leaving");
     window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
+  }, action ? 5200 : 2600);
 }
 
 function showTradeFormError(message = "") {
@@ -5182,10 +5196,16 @@ form.addEventListener("submit", async (event) => {
 
   if (existingIndex >= 0) {
     trades[existingIndex] = trade;
-    showToast("Trade updated");
+    showToast("Trade updated", "saved", {
+      label: "View dashboard",
+      onClick: () => navigateToRoute("dashboard"),
+    });
   } else {
     trades.push(trade);
-    showToast("Trade added");
+    showToast("Trade added", "saved", {
+      label: "Weekly review",
+      onClick: () => openWeeklyReview(),
+    });
   }
 
   saveTrades();
@@ -5745,7 +5765,10 @@ weeklyReviewForm.addEventListener("submit", (event) => {
   };
   saveConfig();
   renderWeeklyReview();
-  showToast("Weekly review saved");
+  showToast("Weekly review saved", "saved", {
+    label: "View dashboard",
+    onClick: () => navigateToRoute("dashboard"),
+  });
 });
 weeklyPlanForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -5761,7 +5784,10 @@ weeklyPlanForm.addEventListener("submit", (event) => {
   saveConfig();
   renderWeeklyPlan();
   renderHubDashboard();
-  showToast("Weekly plan saved");
+  showToast("Weekly plan saved", "saved", {
+    label: "View dashboard",
+    onClick: () => navigateToRoute("dashboard"),
+  });
 });
 reviewTradesList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-review-trade]");
