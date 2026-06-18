@@ -46,6 +46,7 @@ create table if not exists public.orb_backtests (
   model text not null,
   range_timeframe text not null,
   break_timeframe text not null,
+  import_id uuid,
   import_name text,
   test_date date,
   target_points numeric,
@@ -65,6 +66,7 @@ create table if not exists public.orb_backtests (
 );
 
 alter table public.orb_backtests add column if not exists target_points numeric;
+alter table public.orb_backtests add column if not exists import_id uuid;
 
 create table if not exists public.challenges (
   id uuid primary key default gen_random_uuid(),

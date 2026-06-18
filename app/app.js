@@ -265,6 +265,7 @@ const backtestCsvFile = document.querySelector("#backtestCsvFile");
 const backtestModel = document.querySelector("#backtestModel");
 const backtestTargetField = document.querySelector("#backtestTargetField");
 const backtestTargetPoints = document.querySelector("#backtestTargetPoints");
+const backtestScenarioTabs = document.querySelector("#backtestScenarioTabs");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
 const backtestFilterModel = document.querySelector("#backtestFilterModel");
@@ -693,6 +694,7 @@ let challengesLoaded = false;
 let orbBacktests = [];
 let orbBacktestsLoading = false;
 let orbBacktestsLoaded = false;
+let activeBacktestScenarioKey = "";
 let trades = [];
 let appConfig = structuredClone(DEFAULT_CONFIG);
 let editingTradeId = "";
@@ -2785,8 +2787,52 @@ function getBacktestRows() {
   return Array.isArray(orbBacktests) ? orbBacktests : [];
 }
 
+function getBacktestScenarioKey(row) {
+  if (row.importId) return row.importId;
+  return [
+    row.symbol || "Unknown",
+    row.importName || row.model || "Scenario",
+    row.model || "Unknown",
+    row.rangeTimeframe || "Range",
+    row.breakTimeframe || "Break",
+    row.targetPoints || "",
+  ].join("|");
+}
+
+function getBacktestScenarioLabel(rows) {
+  const row = rows[0] || {};
+  const title = row.importName || `${row.model || "Scenario"} · ${row.rangeTimeframe || "-"} / ${row.breakTimeframe || "-"}`;
+  const symbol = row.symbol ? `${row.symbol} · ` : "";
+  return {
+    title: `${symbol}${title}`,
+    meta: `${row.model || "-"} · ${row.rangeTimeframe || "-"} range · ${row.breakTimeframe || "-"} break · ${rows.length} rows`,
+  };
+}
+
+function getBacktestScenarios() {
+  const grouped = new Map();
+  getBacktestRows().forEach((row) => {
+    const key = getBacktestScenarioKey(row);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  });
+  return [...grouped.entries()].map(([key, rows]) => ({ key, rows, ...getBacktestScenarioLabel(rows) }));
+}
+
+function getActiveBacktestRows() {
+  const scenarios = getBacktestScenarios();
+  if (!scenarios.length) {
+    activeBacktestScenarioKey = "";
+    return [];
+  }
+  if (!scenarios.some((scenario) => scenario.key === activeBacktestScenarioKey)) {
+    activeBacktestScenarioKey = scenarios[0].key;
+  }
+  return scenarios.find((scenario) => scenario.key === activeBacktestScenarioKey)?.rows || [];
+}
+
 function getFilteredBacktests() {
-  return getBacktestRows().filter((row) => {
+  return getActiveBacktestRows().filter((row) => {
     const matchesModel = !backtestFilterModel || backtestFilterModel.value === "All" || row.model === backtestFilterModel.value;
     const matchesSymbol = !backtestFilterSymbol || backtestFilterSymbol.value === "All" || row.symbol === backtestFilterSymbol.value;
     const matchesRange = !backtestFilterRange || backtestFilterRange.value === "All" || row.rangeTimeframe === backtestFilterRange.value;
@@ -2829,11 +2875,24 @@ function syncBacktestFilter(select, values, label) {
   select.value = values.includes(current) ? current : "All";
 }
 
+function renderBacktestScenarioTabs() {
+  if (!backtestScenarioTabs) return;
+  const scenarios = getBacktestScenarios();
+  backtestScenarioTabs.classList.toggle("hidden", !scenarios.length);
+  backtestScenarioTabs.innerHTML = scenarios.map((scenario) => `
+    <button class="backtest-scenario-tab ${scenario.key === activeBacktestScenarioKey ? "active" : ""}" type="button" data-backtest-scenario="${escapeHtml(scenario.key)}">
+      <strong>${escapeHtml(scenario.title)}</strong>
+      <span>${escapeHtml(scenario.meta)}</span>
+    </button>
+  `).join("");
+}
+
 function renderBacktesting() {
   if (!backtestSummaryGrid || !backtestTableBody) return;
   const isAdmin = sessionStorage.getItem(AUTH_ROLE_KEY) === "admin";
   backtestAdminPanel?.classList.toggle("hidden", !isAdmin);
-  const rows = getBacktestRows();
+  const rows = getActiveBacktestRows();
+  renderBacktestScenarioTabs();
   syncBacktestFilter(backtestFilterModel, [...new Set(rows.map((row) => row.model).filter(Boolean))], "All models");
   syncBacktestFilter(backtestFilterSymbol, [...new Set(rows.map((row) => row.symbol).filter(Boolean))], "All symbols");
   syncBacktestFilter(backtestFilterRange, [...new Set(rows.map((row) => row.rangeTimeframe).filter(Boolean))], "All ranges");
@@ -6196,12 +6255,24 @@ backtestImportForm?.addEventListener("submit", async (event) => {
   }
   await orbBacktestRequest({ action: "import", rows });
   backtestImportForm.reset();
+  activeBacktestScenarioKey = "";
+  updateBacktestTargetField();
   await loadOrbBacktests({ showLoading: false });
   showToast(`${rows.length} backtest rows imported`);
 });
 
 [backtestFilterModel, backtestFilterSymbol, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
   select?.addEventListener("change", renderBacktesting);
+});
+
+backtestScenarioTabs?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-backtest-scenario]");
+  if (!button) return;
+  activeBacktestScenarioKey = button.dataset.backtestScenario || "";
+  [backtestFilterModel, backtestFilterSymbol, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
+    if (select) select.value = "All";
+  });
+  renderBacktesting();
 });
 
 backtestModel?.addEventListener("change", updateBacktestTargetField);
@@ -6221,6 +6292,7 @@ clearBacktestsButton?.addEventListener("click", async () => {
   });
   if (!confirmed) return;
   await orbBacktestRequest({ action: "clear" });
+  activeBacktestScenarioKey = "";
   await loadOrbBacktests({ showLoading: false });
   showToast("Backtest rows cleared", "warning");
 });

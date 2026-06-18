@@ -35,6 +35,7 @@ function dbRowToClient(row: Record<string, unknown>) {
     model: row.model,
     rangeTimeframe: row.range_timeframe,
     breakTimeframe: row.break_timeframe,
+    importId: row.import_id,
     importName: row.import_name,
     date: row.test_date,
     targetPoints: Number(row.target_points || 0),
@@ -54,11 +55,13 @@ function dbRowToClient(row: Record<string, unknown>) {
 }
 
 function importRows(rows: Record<string, unknown>[], currentUser: Record<string, unknown>) {
+  const importId = crypto.randomUUID();
   return rows.map((row) => ({
     symbol: String(row.symbol || "").trim(),
     model: String(row.model || "").trim(),
     range_timeframe: String(row.rangeTimeframe || "").trim(),
     break_timeframe: String(row.breakTimeframe || "").trim(),
+    import_id: importId,
     import_name: String(row.importName || "").trim() || null,
     test_date: toDate(row.date),
     target_points: toNumber(row.targetPoints),
