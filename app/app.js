@@ -2847,15 +2847,12 @@ function renderBacktesting() {
   const flips = filtered.filter((row) => row.flip === "Yes").length;
   const flipWins = filtered.filter((row) => row.flip === "Yes" && row.flipResult === "Win").length;
   const averageRange = filtered.length ? filtered.reduce((sum, row) => sum + row.range, 0) / filtered.length : 0;
-  const targetRows = filtered.filter((row) => getBacktestTargetPoints(row) > 0);
-  const averageTarget = targetRows.length ? targetRows.reduce((sum, row) => sum + getBacktestTargetPoints(row), 0) / targetRows.length : 0;
   const averagePullback = filtered.length ? filtered.reduce((sum, row) => sum + row.nextCandlePullback, 0) / filtered.length : 0;
   backtestSummaryGrid.innerHTML = [
     ["Rows", filtered.length],
     ["Win Rate", `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`],
     ["Flip Win Rate", `${flips ? Math.round((flipWins / flips) * 100) : 0}%`],
     ["Avg Range", formatPoints(averageRange)],
-    ["Avg Target", formatPoints(averageTarget)],
     ["Avg Pullback", formatPoints(averagePullback)],
   ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
   backtestTableBody.innerHTML = filtered.length ? filtered.map((row) => `
