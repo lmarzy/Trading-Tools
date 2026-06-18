@@ -7999,6 +7999,207 @@ select,
   }
 }
 
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 14px;
+  }
+
+  .topbar {
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .brand-lockup img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .header-route-nav {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    width: 100%;
+    padding: 4px;
+    border-radius: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .header-route-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-route-nav a {
+    min-width: max-content;
+    padding: 10px 14px;
+    font-size: 0.72rem;
+  }
+
+  .news-alert-button,
+  .user-menu-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .user-menu {
+    width: auto;
+  }
+
+  .user-popover {
+    position: absolute;
+    right: 0;
+    width: min(280px, calc(100vw - 28px));
+  }
+
+  .dashboard-setup-alert {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .hub-panel,
+  .hub-review-strip,
+  .table-panel,
+  .review-panel,
+  .calculator-card,
+  .training-hero,
+  .training-stage {
+    border-radius: 16px;
+  }
+
+  .hub-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hub-panel-heading a,
+  .hub-panel-heading button {
+    align-self: flex-start;
+  }
+
+  .hub-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hub-amount-stat {
+    grid-column: 1 / -1;
+  }
+
+  .hub-review-strip {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .dashboard-section-tabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-section-tabs button,
+  .dashboard-section-tabs .review-action-button {
+    width: auto;
+    min-width: max-content;
+    padding-inline: 14px;
+  }
+
+  .weekly-action-group {
+    display: contents;
+  }
+
+  .analytics-insights,
+  .weekly-review-drawer .review-insights {
+    grid-template-columns: 1fr;
+  }
+
+  .review-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-summary-grid article:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .weekly-review-nav {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .weekly-review-nav strong {
+    text-align: center;
+  }
+
+  .trade-modal {
+    width: calc(100% - 16px);
+    max-height: calc(100vh - 16px);
+  }
+
+  .trade-form {
+    max-height: calc(100vh - 16px);
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .form-section,
+  .notes-disclosure {
+    border-radius: 14px;
+  }
+
+  .table-tools {
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .table-tools label {
+    min-width: 0;
+  }
+
+  .table-wrap {
+    padding: 12px 14px 18px;
+  }
+
+  tbody tr {
+    border-radius: 14px;
+  }
+
+  tbody td {
+    grid-template-columns: minmax(86px, 0.38fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 8px 2px;
+    overflow-wrap: anywhere;
+  }
+
+  .toast-stack {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .toast {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 /* Final surface hierarchy override. */
 .hub-panel,
 .hub-review-strip,
