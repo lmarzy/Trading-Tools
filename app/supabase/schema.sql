@@ -48,6 +48,7 @@ create table if not exists public.orb_backtests (
   break_timeframe text not null,
   import_name text,
   test_date date,
+  target_points numeric,
   range_value numeric,
   first_candle_direction text,
   overall_bias text,
@@ -62,6 +63,8 @@ create table if not exists public.orb_backtests (
   created_by uuid references public.app_users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+alter table public.orb_backtests add column if not exists target_points numeric;
 
 create table if not exists public.challenges (
   id uuid primary key default gen_random_uuid(),

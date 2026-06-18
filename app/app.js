@@ -264,6 +264,7 @@ const backtestImportForm = document.querySelector("#backtestImportForm");
 const backtestCsvFile = document.querySelector("#backtestCsvFile");
 const backtestModel = document.querySelector("#backtestModel");
 const backtestTargetField = document.querySelector("#backtestTargetField");
+const backtestTargetPoints = document.querySelector("#backtestTargetPoints");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
 const backtestFilterModel = document.querySelector("#backtestFilterModel");
@@ -2762,6 +2763,7 @@ function createBacktestRows(csvText, meta) {
     importName: meta.importName || `${meta.model} · ${meta.rangeTimeframe}`,
     symbol: meta.symbol,
     model: getBacktestCell(row, headerMap, ["Model"]) || meta.model,
+    targetPoints: toBacktestNumber(meta.targetPoints),
     rangeTimeframe: getBacktestCell(row, headerMap, ["Range Timeframe"]) || meta.rangeTimeframe,
     breakTimeframe: getBacktestCell(row, headerMap, ["Break Timeframe"]) || meta.breakTimeframe,
     date: getBacktestCell(row, headerMap, ["Date"]),
@@ -2796,6 +2798,8 @@ function getFilteredBacktests() {
 }
 
 function getBacktestTargetPoints(row) {
+  const fixedTarget = Number(row.targetPoints || 0);
+  if (Number.isFinite(fixedTarget) && fixedTarget > 0) return fixedTarget;
   const range = Number(row.range || 0);
   if (!Number.isFinite(range) || range <= 0) return 0;
   if (row.model === "Fixed 1:1") return range;
@@ -2815,6 +2819,7 @@ function updateBacktestTargetField() {
   if (!backtestTargetField || !backtestModel) return;
   const isFixedOneToOne = backtestModel.value === "Fixed 1:1";
   backtestTargetField.classList.toggle("hidden", !isFixedOneToOne);
+  if (!isFixedOneToOne && backtestTargetPoints) backtestTargetPoints.value = "";
 }
 
 function syncBacktestFilter(select, values, label) {
@@ -6174,12 +6179,17 @@ backtestImportForm?.addEventListener("submit", async (event) => {
   const meta = {
     symbol: document.querySelector("#backtestSymbol")?.value.trim() || "",
     model: document.querySelector("#backtestModel")?.value || "",
+    targetPoints: document.querySelector("#backtestTargetPoints")?.value.trim() || "",
     rangeTimeframe: document.querySelector("#backtestRangeTimeframe")?.value || "",
     breakTimeframe: document.querySelector("#backtestBreakTimeframe")?.value || "",
     importName: document.querySelector("#backtestImportName")?.value.trim() || "",
   };
   if (!meta.symbol || !meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
     showToast("Choose the scenario before importing.", "warning");
+    return;
+  }
+  if (meta.model === "Fixed 1:1" && (!Number(meta.targetPoints) || Number(meta.targetPoints) <= 0)) {
+    showToast("Enter the Fixed 1:1 target points before importing.", "warning");
     return;
   }
   const rows = createBacktestRows(await file.text(), meta);
