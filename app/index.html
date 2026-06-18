@@ -965,12 +965,13 @@
         <div class="view-header">
           <div><p class="eyebrow">Test the data</p><h2>ORB Backtesting</h2></div>
         </div>
-        <section class="backtest-import-panel">
+        <section class="backtest-import-panel hidden" id="backtestAdminPanel">
           <div>
             <span>Import scenario</span>
             <p>Upload one CSV at a time and tag it with the scenario it represents. The app will keep the rows together for filtering and comparison.</p>
           </div>
           <form class="backtest-import-form" id="backtestImportForm">
+            <label><span>Symbol</span><input id="backtestSymbol" type="text" required placeholder="e.g. NAS100"></label>
             <label><span>Model</span><select id="backtestModel" required><option value="">Select model</option><option value="Fixed 1:1">Fixed 1:1</option><option value="ORB Range">ORB Range</option></select></label>
             <label><span>Range timeframe</span><select id="backtestRangeTimeframe" required><option value="">Select range</option><option value="5 min">5 min</option><option value="15 min">15 min</option></select></label>
             <label><span>Break timeframe</span><select id="backtestBreakTimeframe" required><option value="">Select break</option><option value="5 min">5 min</option></select></label>
@@ -983,6 +984,7 @@
         <section class="table-panel backtest-table-panel">
           <div class="table-tools backtest-tools">
             <label><span>Model</span><select id="backtestFilterModel"><option value="All">All models</option></select></label>
+            <label><span>Symbol</span><select id="backtestFilterSymbol"><option value="All">All symbols</option></select></label>
             <label><span>Range</span><select id="backtestFilterRange"><option value="All">All ranges</option></select></label>
             <label><span>Bias</span><select id="backtestFilterBias"><option value="All">All bias</option></select></label>
             <label><span>Result</span><select id="backtestFilterResult"><option value="All">All results</option></select></label>

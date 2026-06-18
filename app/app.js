@@ -259,11 +259,13 @@ const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
 const marketSummaryGrid = document.querySelector("#marketSummaryGrid");
 const emptyAddTradeButton = document.querySelector("#emptyAddTradeButton");
 const emptyConfigButton = document.querySelector("#emptyConfigButton");
+const backtestAdminPanel = document.querySelector("#backtestAdminPanel");
 const backtestImportForm = document.querySelector("#backtestImportForm");
 const backtestCsvFile = document.querySelector("#backtestCsvFile");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
 const backtestFilterModel = document.querySelector("#backtestFilterModel");
+const backtestFilterSymbol = document.querySelector("#backtestFilterSymbol");
 const backtestFilterRange = document.querySelector("#backtestFilterRange");
 const backtestFilterBias = document.querySelector("#backtestFilterBias");
 const backtestFilterResult = document.querySelector("#backtestFilterResult");
@@ -290,7 +292,6 @@ const DEFAULT_CONFIG = {
   weeklyPlans: {},
   weeklyReviews: {},
   trainingProgress: {},
-  orbBacktests: [],
 };
 
 const AUTOMATED_RULE_TYPES = [
@@ -686,6 +687,9 @@ let currentUserLabel = "";
 let challenges = [];
 let challengesLoading = false;
 let challengesLoaded = false;
+let orbBacktests = [];
+let orbBacktestsLoading = false;
+let orbBacktestsLoaded = false;
 let trades = [];
 let appConfig = structuredClone(DEFAULT_CONFIG);
 let editingTradeId = "";
@@ -1198,6 +1202,8 @@ async function logout() {
     currentUserLabel = "";
     challenges = [];
     challengesLoaded = false;
+    orbBacktests = [];
+    orbBacktestsLoaded = false;
     adminNavLink.classList.add("hidden");
     userPopover.classList.add("hidden");
     userMenuButton.setAttribute("aria-expanded", "false");
@@ -1285,6 +1291,7 @@ async function loadUserState(userId, userLabel) {
   await Promise.all([
     hydrateUserStateFromSupabase(),
     loadChallenges({ showLoading: false }),
+    loadOrbBacktests({ showLoading: false }),
   ]);
   scheduleSupabaseSave();
   currentTablePage = 1;
@@ -1323,7 +1330,6 @@ async function hydrateUserStateFromSupabase() {
       weeklyPlans: remoteData.config?.weeklyPlans && typeof remoteData.config.weeklyPlans === "object" ? remoteData.config.weeklyPlans : {},
       weeklyReviews: remoteData.config?.weeklyReviews && typeof remoteData.config.weeklyReviews === "object" ? remoteData.config.weeklyReviews : {},
       trainingProgress: remoteData.config?.trainingProgress && typeof remoteData.config.trainingProgress === "object" ? remoteData.config.trainingProgress : {},
-      orbBacktests: Array.isArray(remoteData.config?.orbBacktests) ? remoteData.config.orbBacktests : [],
     };
     trainingStepIndex = Math.min(
       TRAINING_STEPS.length - 1,
@@ -2752,6 +2758,7 @@ function createBacktestRows(csvText, meta) {
     id: crypto.randomUUID(),
     importedAt: new Date().toISOString(),
     importName: meta.importName || `${meta.model} · ${meta.rangeTimeframe}`,
+    symbol: meta.symbol,
     model: getBacktestCell(row, headerMap, ["Model"]) || meta.model,
     rangeTimeframe: getBacktestCell(row, headerMap, ["Range Timeframe"]) || meta.rangeTimeframe,
     breakTimeframe: getBacktestCell(row, headerMap, ["Break Timeframe"]) || meta.breakTimeframe,
@@ -2771,17 +2778,18 @@ function createBacktestRows(csvText, meta) {
 }
 
 function getBacktestRows() {
-  return Array.isArray(appConfig.orbBacktests) ? appConfig.orbBacktests : [];
+  return Array.isArray(orbBacktests) ? orbBacktests : [];
 }
 
 function getFilteredBacktests() {
   return getBacktestRows().filter((row) => {
     const matchesModel = !backtestFilterModel || backtestFilterModel.value === "All" || row.model === backtestFilterModel.value;
+    const matchesSymbol = !backtestFilterSymbol || backtestFilterSymbol.value === "All" || row.symbol === backtestFilterSymbol.value;
     const matchesRange = !backtestFilterRange || backtestFilterRange.value === "All" || row.rangeTimeframe === backtestFilterRange.value;
     const matchesBias = !backtestFilterBias || backtestFilterBias.value === "All" || row.overallBias === backtestFilterBias.value;
     const matchesResult = !backtestFilterResult || backtestFilterResult.value === "All" || row.result === backtestFilterResult.value;
     const matchesFlip = !backtestFilterFlip || backtestFilterFlip.value === "All" || row.flip === backtestFilterFlip.value;
-    return matchesModel && matchesRange && matchesBias && matchesResult && matchesFlip;
+    return matchesModel && matchesSymbol && matchesRange && matchesBias && matchesResult && matchesFlip;
   });
 }
 
@@ -2794,8 +2802,11 @@ function syncBacktestFilter(select, values, label) {
 
 function renderBacktesting() {
   if (!backtestSummaryGrid || !backtestTableBody) return;
+  const isAdmin = sessionStorage.getItem(AUTH_ROLE_KEY) === "admin";
+  backtestAdminPanel?.classList.toggle("hidden", !isAdmin);
   const rows = getBacktestRows();
   syncBacktestFilter(backtestFilterModel, [...new Set(rows.map((row) => row.model).filter(Boolean))], "All models");
+  syncBacktestFilter(backtestFilterSymbol, [...new Set(rows.map((row) => row.symbol).filter(Boolean))], "All symbols");
   syncBacktestFilter(backtestFilterRange, [...new Set(rows.map((row) => row.rangeTimeframe).filter(Boolean))], "All ranges");
   syncBacktestFilter(backtestFilterBias, [...new Set(rows.map((row) => row.overallBias).filter(Boolean))], "All bias");
   syncBacktestFilter(backtestFilterResult, [...new Set(rows.map((row) => row.result).filter(Boolean))], "All results");
@@ -2818,14 +2829,35 @@ function renderBacktesting() {
   backtestTableBody.innerHTML = filtered.length ? filtered.map((row) => `
     <tr>
       <td data-label="Date">${escapeHtml(row.date || "-")}</td>
-      <td data-label="Scenario"><strong>${escapeHtml(row.model || "-")}</strong><small>${escapeHtml(row.rangeTimeframe || "-")} range · ${escapeHtml(row.breakTimeframe || "-")} break</small></td>
+      <td data-label="Scenario"><strong>${escapeHtml(row.symbol || "-")} · ${escapeHtml(row.model || "-")}</strong><small>${escapeHtml(row.rangeTimeframe || "-")} range · ${escapeHtml(row.breakTimeframe || "-")} break</small></td>
       <td data-label="Bias">${escapeHtml(row.overallBias || "-")}<small>${escapeHtml(row.firstCandleDirection || "-")} first candle</small></td>
       <td data-label="Break">${escapeHtml(row.breakDirection || "-")}<small>${formatPoints(row.breakAmount)} · ${escapeHtml(row.timeToBreak || "-")}</small></td>
       <td data-label="Reaction">${escapeHtml(row.nextCandleReaction || "-")}<small>${formatPoints(row.nextCandlePullback)} pullback</small></td>
       <td data-label="Result"><span class="badge ${row.result === "Win" ? "win" : row.result === "Loss" ? "loss" : "open"}">${escapeHtml(row.result || "-")}</span></td>
       <td data-label="Flip">${escapeHtml(row.flip || "-")}<small>${escapeHtml(row.flipResult || "-")}</small></td>
     </tr>
-  `).join("") : '<tr><td colspan="7" class="table-message">Import ORB backtest CSV data to start filtering scenarios.</td></tr>';
+  `).join("") : `<tr><td colspan="7" class="table-message">${orbBacktestsLoading ? "Loading ORB backtest data..." : "No ORB backtest data available yet."}</td></tr>`;
+}
+
+async function orbBacktestRequest(body) {
+  const passcodeHash = sessionStorage.getItem(AUTH_HASH_KEY);
+  return callSupabaseFunction("orb-backtests", body, { "x-user-passcode-hash": passcodeHash || "" });
+}
+
+async function loadOrbBacktests({ showLoading = true } = {}) {
+  if (!window.callSupabaseFunction || !currentUserId || orbBacktestsLoading) return;
+  orbBacktestsLoading = true;
+  if (showLoading) renderBacktesting();
+  try {
+    const result = await orbBacktestRequest({ action: "list" });
+    orbBacktests = Array.isArray(result.rows) ? result.rows : [];
+    orbBacktestsLoaded = true;
+  } catch (error) {
+    showToast(error.message || "Could not load ORB backtests", "warning");
+  } finally {
+    orbBacktestsLoading = false;
+    renderBacktesting();
+  }
 }
 
 function renderTable() {
@@ -4719,7 +4751,6 @@ function saveOnboardingWizard() {
     weeklyPlans: appConfig.weeklyPlans && typeof appConfig.weeklyPlans === "object" ? appConfig.weeklyPlans : {},
     weeklyReviews: appConfig.weeklyReviews && typeof appConfig.weeklyReviews === "object" ? appConfig.weeklyReviews : {},
     trainingProgress: appConfig.trainingProgress && typeof appConfig.trainingProgress === "object" ? appConfig.trainingProgress : {},
-    orbBacktests: Array.isArray(appConfig.orbBacktests) ? appConfig.orbBacktests : [],
   };
   saveConfig();
   syncConfiguredInputs();
@@ -4904,6 +4935,9 @@ function navigateToRoute(route, { replace = false } = {}) {
   if (normalizedRoute === "challenges") {
     if (challengesLoaded) renderChallenges();
     else loadChallenges();
+  }
+  if (normalizedRoute === "backtesting" && !orbBacktestsLoaded) {
+    loadOrbBacktests();
   }
 }
 
@@ -6110,12 +6144,13 @@ backtestImportForm?.addEventListener("submit", async (event) => {
     return;
   }
   const meta = {
+    symbol: document.querySelector("#backtestSymbol")?.value.trim() || "",
     model: document.querySelector("#backtestModel")?.value || "",
     rangeTimeframe: document.querySelector("#backtestRangeTimeframe")?.value || "",
     breakTimeframe: document.querySelector("#backtestBreakTimeframe")?.value || "",
     importName: document.querySelector("#backtestImportName")?.value.trim() || "",
   };
-  if (!meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
+  if (!meta.symbol || !meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
     showToast("Choose the scenario before importing.", "warning");
     return;
   }
@@ -6124,14 +6159,13 @@ backtestImportForm?.addEventListener("submit", async (event) => {
     showToast("No usable rows found in that CSV.", "warning");
     return;
   }
-  appConfig.orbBacktests = [...getBacktestRows(), ...rows];
-  saveConfig();
+  await orbBacktestRequest({ action: "import", rows });
   backtestImportForm.reset();
-  renderBacktesting();
+  await loadOrbBacktests({ showLoading: false });
   showToast(`${rows.length} backtest rows imported`);
 });
 
-[backtestFilterModel, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
+[backtestFilterModel, backtestFilterSymbol, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
   select?.addEventListener("change", renderBacktesting);
 });
 
@@ -6148,9 +6182,8 @@ clearBacktestsButton?.addEventListener("click", async () => {
     tone: "warning",
   });
   if (!confirmed) return;
-  appConfig.orbBacktests = [];
-  saveConfig();
-  renderBacktesting();
+  await orbBacktestRequest({ action: "clear" });
+  await loadOrbBacktests({ showLoading: false });
   showToast("Backtest rows cleared", "warning");
 });
 

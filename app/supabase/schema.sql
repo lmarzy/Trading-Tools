@@ -22,7 +22,7 @@ create table if not exists public.app_users (
 
 create table if not exists public.user_data (
   user_id uuid primary key references public.app_users(id) on delete cascade,
-  config_json jsonb not null default '{"symbols":[],"symbolsByMarket":{"CFD":[],"Futures":[]},"symbolMarketMap":{},"sessions":[],"trackSessions":false,"accounts":[],"strategies":[],"marketTypes":[],"accountBalances":{},"accountSettings":{},"checklistRules":[],"automatedRules":[],"blockedTradingDays":[],"weeklyPlans":{},"weeklyReviews":{},"trainingProgress":{},"orbBacktests":[]}'::jsonb,
+  config_json jsonb not null default '{"symbols":[],"symbolsByMarket":{"CFD":[],"Futures":[]},"symbolMarketMap":{},"sessions":[],"trackSessions":false,"accounts":[],"strategies":[],"marketTypes":[],"accountBalances":{},"accountSettings":{},"checklistRules":[],"automatedRules":[],"blockedTradingDays":[],"weeklyPlans":{},"weeklyReviews":{},"trainingProgress":{}}'::jsonb,
   trades_json jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
@@ -38,6 +38,29 @@ create table if not exists public.news_events (
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+create table if not exists public.orb_backtests (
+  id uuid primary key default gen_random_uuid(),
+  symbol text not null,
+  model text not null,
+  range_timeframe text not null,
+  break_timeframe text not null,
+  import_name text,
+  test_date date,
+  range_value numeric,
+  first_candle_direction text,
+  overall_bias text,
+  time_to_break text,
+  break_direction text,
+  break_amount numeric,
+  next_candle_reaction text,
+  next_candle_pullback numeric,
+  result text,
+  flip text,
+  flip_result text,
+  created_by uuid references public.app_users(id) on delete set null,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.challenges (
@@ -68,11 +91,13 @@ create table if not exists public.challenge_members (
 create index if not exists app_users_role_active_idx on public.app_users(role, active);
 create index if not exists user_data_updated_at_idx on public.user_data(updated_at);
 create index if not exists news_events_time_active_idx on public.news_events(event_time, active);
+create index if not exists orb_backtests_symbol_model_idx on public.orb_backtests(symbol, model, range_timeframe);
 create index if not exists challenges_creator_idx on public.challenges(creator_id, created_at);
 create index if not exists challenge_members_user_idx on public.challenge_members(user_id, invitation_status);
 
 alter table public.app_users enable row level security;
 alter table public.user_data enable row level security;
 alter table public.news_events enable row level security;
+alter table public.orb_backtests enable row level security;
 alter table public.challenges enable row level security;
 alter table public.challenge_members enable row level security;
