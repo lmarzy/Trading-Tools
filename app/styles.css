@@ -5675,6 +5675,29 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.section-tip {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.section-tip::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: var(--lime);
+  vertical-align: 0.08em;
+}
+
+.plan-tip {
+  grid-column: 1 / -1;
+  padding: 2px 0 0;
+}
+
 .trade-form label {
   gap: 7px;
 }

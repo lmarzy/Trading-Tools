@@ -318,6 +318,7 @@
               <label><span>Maximum weekly loss</span><input name="maxWeeklyLoss" type="number" min="0" step="0.01" placeholder="Optional"></label>
               <label><span>Maximum trades</span><input name="maxTrades" type="number" min="1" step="1" placeholder="Optional"></label>
               <label><span>Maximum risk per trade</span><input name="maxRiskPerTrade" type="number" min="0" step="0.01" placeholder="Optional"></label>
+              <p class="section-tip plan-tip">Use this as a weekly boundary, not a prediction. Keep it simple enough to follow when trading gets busy.</p>
               <label><span>Discipline focus</span><input name="disciplineFocus" type="text" placeholder="e.g. Wait for confirmation"></label>
               <label><span>Learning goal</span><input name="learningGoal" type="text" placeholder="e.g. Complete the FVG module"></label>
               <label class="plan-wide"><span>What would make this a successful week?</span><textarea name="intention" rows="4" placeholder="Describe the process you want to follow, not only the result."></textarea></label>
@@ -397,6 +398,7 @@
                 <select id="strategy" name="strategy"></select>
               </label>
             </div>
+            <p class="section-tip">If the trade is still open, leave the result as Pending and update it later from the journal table.</p>
           </section>
 
           <details class="notes-disclosure hidden" id="orbDetailsDisclosure">
@@ -507,6 +509,7 @@
 
           <details class="notes-disclosure discipline-disclosure" id="disciplineDisclosure">
             <summary>Discipline</summary>
+            <p class="section-tip">Only tick what actually happened. A clean trade can be left blank, or marked as Plan followed.</p>
             <div class="discipline-groups">
               <div class="discipline-group positive">
                 <span>Positive</span>
