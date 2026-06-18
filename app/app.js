@@ -2845,10 +2845,11 @@ function getFilteredBacktests() {
 
 function getBacktestTargetPoints(row) {
   const fixedTarget = Number(row.targetPoints || 0);
-  if (Number.isFinite(fixedTarget) && fixedTarget > 0) return fixedTarget;
+  if (row.model === "Fixed 1:1") {
+    return Number.isFinite(fixedTarget) && fixedTarget > 0 ? fixedTarget : 0;
+  }
   const range = Number(row.range || 0);
   if (!Number.isFinite(range) || range <= 0) return 0;
-  if (row.model === "Fixed 1:1") return range;
   if (row.model === "ORB Range") return range;
   return 0;
 }
@@ -2856,9 +2857,15 @@ function getBacktestTargetPoints(row) {
 function getBacktestTargetLabel(row) {
   const target = getBacktestTargetPoints(row);
   if (!target) return "-";
-  if (row.model === "Fixed 1:1") return `${formatPoints(target)} target`;
+  if (row.model === "Fixed 1:1") return `${formatPoints(target)} fixed`;
   if (row.model === "ORB Range") return `${formatPoints(target)} range`;
   return formatPoints(target);
+}
+
+function getBacktestTargetContext(row) {
+  if (row.model === "Fixed 1:1") return "fixed from break";
+  if (row.model === "ORB Range") return "range based";
+  return "";
 }
 
 function updateBacktestTargetField() {
@@ -2919,7 +2926,7 @@ function renderBacktesting() {
       <td data-label="Date">${escapeHtml(row.date || "-")}</td>
       <td data-label="Scenario"><strong>${escapeHtml(row.symbol || "-")} · ${escapeHtml(row.model || "-")}</strong><small>${escapeHtml(row.rangeTimeframe || "-")} range · ${escapeHtml(row.breakTimeframe || "-")} break</small></td>
       <td data-label="Bias">${escapeHtml(row.overallBias || "-")}<small>${escapeHtml(row.firstCandleDirection || "-")} first candle</small></td>
-      <td data-label="Target">${getBacktestTargetLabel(row)}<small>${row.model === "Fixed 1:1" ? "1:1 from range" : "range based"}</small></td>
+      <td data-label="Target">${getBacktestTargetLabel(row)}<small>${escapeHtml(getBacktestTargetContext(row))}</small></td>
       <td data-label="Break">${escapeHtml(row.breakDirection || "-")}<small>${formatPoints(row.breakAmount)} · ${escapeHtml(row.timeToBreak || "-")}</small></td>
       <td data-label="Reaction">${escapeHtml(row.nextCandleReaction || "-")}<small>${formatPoints(row.nextCandlePullback)} pullback</small></td>
       <td data-label="Result"><span class="badge ${row.result === "Win" ? "win" : row.result === "Loss" ? "loss" : "open"}">${escapeHtml(row.result || "-")}</span></td>
