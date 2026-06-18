@@ -238,6 +238,7 @@ const equityCurrent = document.querySelector("#equityCurrent");
 const equityHigh = document.querySelector("#equityHigh");
 const equityLow = document.querySelector("#equityLow");
 const equityTrades = document.querySelector("#equityTrades");
+const analyticsInsights = document.querySelector("#analyticsInsights");
 const analyticsGrid = document.querySelector("#analyticsGrid");
 const analyticsBreakdowns = document.querySelector("#analyticsBreakdowns");
 const analyticsDisciplineBreakdowns = document.querySelector("#analyticsDisciplineBreakdowns");
@@ -2252,6 +2253,89 @@ function getBreakdownItems(closedTrades, key, options = []) {
     .sort((a, b) => b.net - a.net);
 }
 
+function getBestPerformingItem(items, minimumTrades = 2) {
+  return items
+    .filter((item) => item.total >= minimumTrades)
+    .sort((a, b) => {
+      if (b.net !== a.net) return b.net - a.net;
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.total - a.total;
+    })[0] || null;
+}
+
+function renderAnalyticsInsights(closedTrades, summary) {
+  if (!analyticsInsights) {
+    return;
+  }
+
+  if (!closedTrades.length) {
+    analyticsInsights.innerHTML = `
+      <article class="analytics-insight-card">
+        <span>Insight</span>
+        <strong>Close a few trades to unlock written insights.</strong>
+        <p>Once you have wins and losses recorded, this section will highlight patterns in your strategy, session, and discipline data.</p>
+      </article>
+    `;
+    return;
+  }
+
+  const insights = [];
+  const strategy = getBestPerformingItem(getBreakdownItems(closedTrades, "strategy", appConfig.strategies));
+  if (strategy) {
+    insights.push({
+      tone: strategy.net > 0 ? "profit" : "flat",
+      label: "Strategy",
+      title: `${strategy.label} is your best-performing strategy.`,
+      detail: `${strategy.total} closed trades · ${formatPercent(strategy.winRate)} win rate · ${formatSummaryAmount(strategy.net)} net.`,
+    });
+  }
+
+  if (appConfig.trackSessions) {
+    const session = getBestPerformingItem(getBreakdownItems(closedTrades, "session", appConfig.sessions));
+    if (session) {
+      insights.push({
+        tone: session.net > 0 ? "profit" : "flat",
+        label: "Session",
+        title: `${session.label} currently has the strongest results.`,
+        detail: `${session.total} closed trades · ${formatPercent(session.winRate)} win rate · ${formatSummaryAmount(session.net)} net.`,
+      });
+    }
+  }
+
+  const lossTrades = closedTrades.filter((trade) => trade.outcome === "Loss");
+  const mistakeCounts = DISCIPLINE_RULES
+    .filter((rule) => !rule.positive)
+    .map((rule) => ({
+      ...rule,
+      count: lossTrades.filter((trade) => Boolean(getTradeDiscipline(trade)[rule.key])).length,
+    }))
+    .filter((rule) => rule.count > 0)
+    .sort((a, b) => b.count - a.count);
+  if (mistakeCounts[0]) {
+    insights.push({
+      tone: "loss",
+      label: "Discipline",
+      title: `Most tracked losses include ${mistakeCounts[0].label.toLowerCase()}.`,
+      detail: `${mistakeCounts[0].count} ${mistakeCounts[0].count === 1 ? "loss" : "losses"} tagged from ${lossTrades.length} losing trades.`,
+    });
+  }
+
+  insights.push({
+    tone: summary.net > 0 ? "profit" : summary.net < 0 ? "loss" : "flat",
+    label: "Overall",
+    title: summary.net > 0 ? "Your closed trades are currently net positive." : summary.net < 0 ? "Your closed trades are currently net negative." : "Your closed trades are currently flat.",
+    detail: `${summary.total} closed trades · ${formatPercent(summary.winRate)} win rate · ${formatSummaryAmount(summary.net)} net.`,
+  });
+
+  analyticsInsights.innerHTML = insights.slice(0, 4).map((insight) => `
+    <article class="analytics-insight-card ${insight.tone}">
+      <span>${escapeHtml(insight.label)}</span>
+      <strong>${escapeHtml(insight.title)}</strong>
+      <p>${escapeHtml(insight.detail)}</p>
+    </article>
+  `).join("");
+}
+
 function renderAnalytics() {
   const closedTrades = getClosedTrades();
   const summary = summarizeTradeSet(closedTrades);
@@ -2272,6 +2356,8 @@ function renderAnalytics() {
     : 0;
   const cleanTrades = allDisciplineScores.filter((score) => score === DISCIPLINE_MAX_SCORE).length;
   const cleanTradeRate = allDisciplineScores.length ? (cleanTrades / allDisciplineScores.length) * 100 : 0;
+
+  renderAnalyticsInsights(closedTrades, summary);
 
   const metricCards = [
     { label: "Win Rate", value: formatPercent(summary.winRate), tone: summary.winRate >= 50 ? "profit" : summary.total ? "loss" : "flat" },
