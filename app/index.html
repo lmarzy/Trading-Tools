@@ -999,7 +999,7 @@
       <form class="trade-form" id="challengeForm">
         <div class="form-heading"><div><p class="eyebrow" id="challengeFormEyebrow">New challenge</p><h2 id="challengeFormTitle">Create a challenge</h2></div><button class="icon-button" type="button" id="closeChallengeModalButton" aria-label="Close">×</button></div>
         <input type="hidden" name="challengeId">
-        <label><span>Challenge type</span><select name="challengeType" required><option value="orb">ORB challenge</option><option value="prop">Prop challenge</option></select></label>
+        <label><span>Challenge type</span><select name="challengeType" required><option value="orb">ORB challenge</option><option value="prop">Prop challenge</option><option value="custom">Custom challenge</option></select></label>
         <label><span>Name</span><input name="name" required maxlength="80" placeholder="e.g. London ORB Challenge"></label>
         <label><span>Description</span><textarea name="description" rows="3" maxlength="500" placeholder="What is this group working towards?"></textarea></label>
         <div class="field-row" data-challenge-fields="orb">
@@ -1022,6 +1022,10 @@
         <div class="field-row hidden" data-challenge-fields="prop">
           <label><span>Daily drawdown %</span><input name="dailyDrawdownPercent" type="number" min="0.5" max="100" step="0.5" placeholder="5"></label>
           <label><span>Max drawdown %</span><input name="maxDrawdownPercent" type="number" min="0.5" max="100" step="0.5" placeholder="10"></label>
+        </div>
+        <div class="field-row hidden" data-challenge-fields="custom">
+          <label><span>Start date</span><input name="customStartDate" type="date"></label>
+          <label><span>End date</span><input name="customEndDate" type="date"></label>
         </div>
         <p class="muted" id="challengeFormHelp">The leaderboard ranks total points gained, then wins. When flips are enabled, the second trade must use the opposite direction.</p>
         <div class="modal-actions"><button class="ghost-button" type="button" id="cancelChallengeButton">Cancel</button><button class="primary-button" type="submit" id="saveChallengeButton">Create challenge</button></div>

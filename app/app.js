@@ -3017,7 +3017,7 @@ function renderHubDashboard() {
 }
 
 function getChallengeTodayStatus(challenge) {
-  if (challenge.challenge_type === "prop") return "Open for trades";
+  if (challenge.challenge_type === "prop" || challenge.challenge_type === "custom") return "Open for trades";
   const today = toDateKey(new Date());
   const dayTrades = trades.filter((trade) => trade.challengeId === challenge.id && trade.tradeDate === today).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
   const initialTrade = dayTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayTrades[0];
@@ -3042,7 +3042,7 @@ function renderHubChallenges() {
       const own = position >= 0 ? leaderboard[position] : { wins: 0, points: 0 };
       const status = getChallengeTodayStatus(challenge);
       return `<article class="hub-challenge-item">
-        <div><span>${escapeHtml(challenge.rules_json?.standardMarket || "ORB Challenge")}</span><strong>${escapeHtml(challenge.name)}</strong><small>${escapeHtml(status)}</small></div>
+        <div><span>${escapeHtml(challenge.challenge_type === "custom" ? "Custom Challenge" : challenge.rules_json?.standardMarket || "ORB Challenge")}</span><strong>${escapeHtml(challenge.name)}</strong><small>${escapeHtml(status)}</small></div>
         <dl><div><dt>Position</dt><dd>${position >= 0 ? `#${position + 1}` : "-"}</dd></div><div><dt>Wins</dt><dd>${own.wins || 0}</dd></div><div><dt>Points</dt><dd class="${getPointsClass(own.points)}">${formatPoints(own.points || 0)}</dd></div></dl>
         <button class="ghost-button" type="button" data-hub-challenge-trade="${challenge.id}" ${status === "Completed today" || status === "Initial trade pending" ? "disabled" : ""}>${status === "Flip available" ? "Add flip" : "Add trade"}</button>
       </article>`;
@@ -3114,13 +3114,17 @@ function renderChallenges() {
     const members = challenge.members || [];
     const leaderboard = challenge.leaderboard || [];
     const isProp = challenge.challenge_type === "prop";
+    const isCustom = challenge.challenge_type === "custom";
     const rules = challenge.rules_json || {};
     return `<article class="challenge-card">
-      <div class="challenge-card-heading"><div><span>${isProp ? "Prop challenge" : "ORB challenge"} · ${escapeHtml(challenge.status)}</span><h3>${escapeHtml(challenge.name)}</h3></div>${challenge.isCreator ? '<b>Creator</b>' : ""}</div>
+      <div class="challenge-card-heading"><div><span>${isProp ? "Prop challenge" : isCustom ? "Custom challenge" : "ORB challenge"} · ${escapeHtml(challenge.status)}</span><h3>${escapeHtml(challenge.name)}</h3></div>${challenge.isCreator ? '<b>Creator</b>' : ""}</div>
       <p>${escapeHtml(challenge.description || "No description added.")}</p>
       ${isProp
         ? `<div class="challenge-rule-strip"><span>${formatAmount(rules.startingBalance)} start</span><span>${Number(rules.profitTargetPercent || 0)}% target</span><span>${Number(rules.dailyDrawdownPercent || 0)}% daily drawdown</span><span>${Number(rules.maxDrawdownPercent || 0)}% max drawdown</span></div>
           <div class="challenge-leaderboard prop-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>P/L</span><span>Progress</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.netAmount)}">${formatSummaryAmount(entry.netAmount)}</b><b class="${getPointsClass(entry.profitPercent)}">${entry.profitPercent >= 0 ? "+" : ""}${Number(entry.profitPercent || 0).toFixed(2)}%</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>`
+        : isCustom
+          ? `<div class="challenge-rule-strip"><span>Custom rules</span><span>Any linked journal trade</span><span>Points leaderboard</span></div>
+          <div class="challenge-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>Points</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.points)}">${formatPoints(entry.points)}</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>`
         : `<div class="challenge-rule-strip"><span>${escapeHtml(rules.standardMarket || "Market not set")}</span><span>${escapeHtml(rules.session || "-")} session</span><span>ORB</span><span>${rules.tradeRule === "allow-flip" ? "Flip after loss enabled" : "Initial trade only"}</span></div>
           <div class="challenge-leaderboard"><div class="challenge-leaderboard-head"><span>Trader</span><span>Trades</span><span>Wins</span><span>Points</span></div>${leaderboard.map((entry, index) => `<div><strong><i>${index + 1}</i>${escapeHtml(entry.name)}</strong><span>${entry.trades}</span><span>${entry.wins}</span><b class="${getPointsClass(entry.points)}">${formatPoints(entry.points)}</b></div>`).join("") || '<p class="muted">No qualifying trades yet.</p>'}</div>`}
       <div class="challenge-members"><span>${members.filter((member) => member.status === "accepted").length} participants</span>${members.slice(0, 4).map((member) => `<i title="${escapeHtml(member.name)}">${escapeHtml(member.name.split(" ").map((part) => part[0]).join("").slice(0, 2))}</i>`).join("")}</div>
@@ -3134,11 +3138,11 @@ function renderChallenges() {
     <div>
       <p class="eyebrow">Trade together</p>
       <h2>No challenges yet</h2>
-      <p>Create an ORB or prop challenge for your group, or wait for another trader to send you an invitation.</p>
+      <p>Create an ORB, prop, or custom challenge for your group, or wait for another trader to send you an invitation.</p>
       <ol class="empty-state-steps compact-steps" aria-label="Challenge setup steps">
         <li><span>1</span>Create an ORB challenge for one-trade-per-day accountability.</li>
         <li><span>2</span>Create a prop challenge to track progress against a target.</li>
-        <li><span>3</span>Invite members, then link trades from the Journal.</li>
+        <li><span>3</span>Use custom challenges for flexible group competitions.</li>
       </ol>
     </div>
     <button class="primary-button" type="button" data-create-first-challenge>Create challenge</button>
@@ -3150,7 +3154,7 @@ function getAcceptedChallenges() {
   return challenges.filter((challenge) => {
     const start = String(challenge.starts_at || "").slice(0, 10);
     const end = String(challenge.ends_at || "").slice(0, 10);
-    return challenge.invitationStatus === "accepted" && ["orb", "prop"].includes(challenge.challenge_type) && challenge.status === "active" && (!start || today >= start) && (!end || today <= end);
+    return challenge.invitationStatus === "accepted" && ["orb", "prop", "custom"].includes(challenge.challenge_type) && challenge.status === "active" && (!start || today >= start) && (!end || today <= end);
   });
 }
 
@@ -3182,12 +3186,13 @@ function syncTradeChallenge(preferredId = null) {
   const waitingForChoice = !editingTradeId && tradeChallengeInput.value === "__choose__";
   const tradeDate = form.tradeDate.value || toDateKey(new Date());
   const isProp = selected?.challenge_type === "prop";
+  const isCustom = selected?.challenge_type === "custom";
   const dayTrades = selected ? trades.filter((trade) => trade.id !== editingTradeId && trade.challengeId === selected.id && trade.tradeDate === tradeDate).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))) : [];
   const initialTrade = dayTrades.find((trade) => (trade.challengeTradeType || "initial") === "initial") || dayTrades[0];
   const flipTrade = dayTrades.find((trade) => trade.challengeTradeType === "flip");
   const flipsAllowed = selected?.rules_json?.tradeRule === "allow-flip";
   const flipEligible = flipsAllowed && initialTrade?.outcome === "Loss" && !flipTrade;
-  const challengeBlocked = Boolean(!isProp && initialTrade && !flipEligible);
+  const challengeBlocked = Boolean(!isProp && !isCustom && initialTrade && !flipEligible);
   form.classList.toggle("challenge-selection-pending", waitingForChoice || challengeBlocked);
   challengeLimitMessage.classList.toggle("hidden", !challengeBlocked);
   challengeSymbolSetup.classList.add("hidden");
@@ -3206,13 +3211,18 @@ function syncTradeChallenge(preferredId = null) {
     syncConfiguredInputs();
     return;
   }
-  if (isProp) {
+  if (isProp || isCustom) {
     form.session.disabled = false;
     form.strategy.disabled = false;
     form.symbol.disabled = false;
     form.openingRange.disabled = false;
     form.direction.disabled = false;
     syncConfiguredInputs();
+    if (isCustom) {
+      challengeRequirements.innerHTML = `<strong>${escapeHtml(selected.name)} · Custom challenge</strong><span>Any linked trade counts · leaderboard ranks points, then wins</span>`;
+      syncStrategyExecutionFields();
+      return;
+    }
     const target = Number(selected.rules_json?.profitTargetPercent || 0);
     const balance = Number(selected.rules_json?.startingBalance || 0);
     challengeRequirements.innerHTML = `<strong>${escapeHtml(selected.name)} · Prop challenge</strong><span>${formatAmount(balance)} starting balance · ${target}% profit target · all linked trades count</span>`;
@@ -5017,7 +5027,7 @@ function readForm() {
     challengeId: selectedChallenge?.id || "",
     challengeName: selectedChallenge?.name || "",
     challengeMarket: selectedChallenge?.rules_json?.standardMarket || "",
-    challengeTradeType: selectedChallenge?.challenge_type === "orb" && initialChallengeTrade ? "flip" : selectedChallenge?.challenge_type === "orb" ? "initial" : selectedChallenge ? "prop" : "",
+    challengeTradeType: selectedChallenge?.challenge_type === "orb" && initialChallengeTrade ? "flip" : selectedChallenge?.challenge_type === "orb" ? "initial" : selectedChallenge?.challenge_type === "prop" ? "prop" : selectedChallenge?.challenge_type === "custom" ? "custom" : "",
     openingRange: isOrbStrategy(form.strategy.value) ? form.openingRange.value : "",
     entryTimeframe: isOrbStrategy(form.strategy.value) ? form.entryTimeframe.value : "",
     entryModel: isOrbStrategy(form.strategy.value) ? form.entryModel.value : "",
@@ -5083,6 +5093,10 @@ function validateTrade(trade) {
     if ((start && trade.tradeDate < start) || (end && trade.tradeDate > end)) return "The trade date must be within the challenge period.";
     if (challenge.challenge_type === "prop") {
       if ((trade.outcome === "Win" || trade.outcome === "Loss") && !trade.amount) return "Add the trade amount so prop challenge progress can be calculated.";
+      return "";
+    }
+    if (challenge.challenge_type === "custom") {
+      if (!hasTradePriceDetails(trade)) return "Add entry and exit prices so custom challenge points can be calculated.";
       return "";
     }
     const dayTrades = trades.filter((item) => item.id !== trade.id && item.challengeId === trade.challengeId && item.tradeDate === trade.tradeDate).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -6510,20 +6524,26 @@ document.addEventListener("click", (event) => {
 function syncChallengeFormType() {
   const type = challengeForm.elements.challengeType.value;
   const isProp = type === "prop";
+  const isCustom = type === "custom";
   challengeForm.querySelectorAll("[data-challenge-fields]").forEach((section) => {
     section.classList.toggle("hidden", section.dataset.challengeFields !== type);
   });
   ["session", "standardMarket", "startDate", "endDate"].forEach((name) => {
-    challengeForm.elements[name].required = !isProp;
+    challengeForm.elements[name].required = type === "orb";
   });
   ["propStartDate", "propEndDate", "startingBalance", "profitTargetPercent", "dailyDrawdownPercent", "maxDrawdownPercent"].forEach((name) => {
     challengeForm.elements[name].required = isProp;
   });
-  challengeFormEyebrow.textContent = isProp ? "Prop challenge" : "ORB challenge";
+  ["customStartDate", "customEndDate"].forEach((name) => {
+    challengeForm.elements[name].required = isCustom;
+  });
+  challengeFormEyebrow.textContent = isProp ? "Prop challenge" : isCustom ? "Custom challenge" : "ORB challenge";
   challengeFormHelp.textContent = isProp
     ? "Every linked journal trade contributes to progress. The leaderboard ranks profit percentage against the shared virtual starting balance."
+    : isCustom
+      ? "Use a custom challenge for flexible group competitions. Any linked journal trade counts and the leaderboard ranks points, then wins."
     : "The leaderboard ranks total points gained, then wins. When flips are enabled, the second trade must use the opposite direction.";
-  challengeForm.elements.name.placeholder = isProp ? "e.g. 50K Prop Challenge" : "e.g. London ORB Challenge";
+  challengeForm.elements.name.placeholder = isProp ? "e.g. 50K Prop Challenge" : isCustom ? "e.g. June Consistency Challenge" : "e.g. London ORB Challenge";
 }
 
 challengeForm.elements.challengeType.addEventListener("change", syncChallengeFormType);
@@ -6538,6 +6558,8 @@ openCreateChallengeButton.addEventListener("click", () => {
   challengeForm.elements.endDate.value = toDateKey(end);
   challengeForm.elements.propStartDate.value = toDateKey(today);
   challengeForm.elements.propEndDate.value = toDateKey(end);
+  challengeForm.elements.customStartDate.value = toDateKey(today);
+  challengeForm.elements.customEndDate.value = toDateKey(end);
   challengeForm.elements.challengeId.value = "";
   challengeFormTitle.textContent = "Create a challenge";
   saveChallengeButton.textContent = "Create challenge";
@@ -6617,6 +6639,8 @@ challengeGrid.addEventListener("click", async (event) => {
     challengeForm.elements.tradeRule.value = challenge.rules_json?.tradeRule || "initial-only";
     challengeForm.elements.propStartDate.value = String(challenge.starts_at || "").slice(0, 10);
     challengeForm.elements.propEndDate.value = String(challenge.ends_at || "").slice(0, 10);
+    challengeForm.elements.customStartDate.value = String(challenge.starts_at || "").slice(0, 10);
+    challengeForm.elements.customEndDate.value = String(challenge.ends_at || "").slice(0, 10);
     challengeForm.elements.startingBalance.value = challenge.rules_json?.startingBalance || "";
     challengeForm.elements.profitTargetPercent.value = challenge.rules_json?.profitTargetPercent || "";
     challengeForm.elements.dailyDrawdownPercent.value = challenge.rules_json?.dailyDrawdownPercent || "";

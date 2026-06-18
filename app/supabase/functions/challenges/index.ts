@@ -37,9 +37,9 @@ function tradeAmount(trade: Record<string, unknown>) {
 }
 
 function challengeValues(body: Record<string, unknown>) {
-  const type = body.challengeType === "prop" ? "prop" : "orb";
-  const startDate = type === "prop" ? body.propStartDate : body.startDate;
-  const endDate = type === "prop" ? body.propEndDate : body.endDate;
+  const type = body.challengeType === "prop" ? "prop" : body.challengeType === "custom" ? "custom" : "orb";
+  const startDate = type === "prop" ? body.propStartDate : type === "custom" ? body.customStartDate : body.startDate;
+  const endDate = type === "prop" ? body.propEndDate : type === "custom" ? body.customEndDate : body.endDate;
   const startsAt = startDate ? new Date(`${startDate}T00:00:00Z`) : null;
   const endsAt = endDate ? new Date(`${endDate}T23:59:59Z`) : null;
   if (!startsAt || !endsAt || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt < startsAt) return null;
@@ -52,6 +52,12 @@ function challengeValues(body: Record<string, unknown>) {
     return {
       type, startsAt, endsAt, rankingMethod: "profit_percentage",
       rules: { startingBalance, profitTargetPercent, dailyDrawdownPercent, maxDrawdownPercent },
+    };
+  }
+  if (type === "custom") {
+    return {
+      type, startsAt, endsAt, rankingMethod: "points",
+      rules: { scope: "custom", scoring: "points" },
     };
   }
   const session = String(body.session || "").trim();
@@ -173,7 +179,7 @@ Deno.serve(async (req) => {
             .filter((trade: Record<string, unknown>) => trade.challengeId === challenge.id)
             .sort((a: Record<string, unknown>, b: Record<string, unknown>) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
             .filter((trade: Record<string, unknown>, index: number, trades: Record<string, unknown>[]) => {
-              if (challenge.challenge_type === "prop") return true;
+              if (challenge.challenge_type === "prop" || challenge.challenge_type === "custom") return true;
               const sameDay = trades.filter((item) => item.tradeDate === trade.tradeDate);
               return sameDay.indexOf(trade) < Number(challenge.rules_json?.maxTradesPerDay || 1);
             });
