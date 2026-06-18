@@ -2793,6 +2793,22 @@ function getFilteredBacktests() {
   });
 }
 
+function getBacktestTargetPoints(row) {
+  const range = Number(row.range || 0);
+  if (!Number.isFinite(range) || range <= 0) return 0;
+  if (row.model === "Fixed 1:1") return range;
+  if (row.model === "ORB Range") return range;
+  return 0;
+}
+
+function getBacktestTargetLabel(row) {
+  const target = getBacktestTargetPoints(row);
+  if (!target) return "-";
+  if (row.model === "Fixed 1:1") return `${formatPoints(target)} target`;
+  if (row.model === "ORB Range") return `${formatPoints(target)} range`;
+  return formatPoints(target);
+}
+
 function syncBacktestFilter(select, values, label) {
   if (!select) return;
   const current = select.value || "All";
@@ -2818,12 +2834,15 @@ function renderBacktesting() {
   const flips = filtered.filter((row) => row.flip === "Yes").length;
   const flipWins = filtered.filter((row) => row.flip === "Yes" && row.flipResult === "Win").length;
   const averageRange = filtered.length ? filtered.reduce((sum, row) => sum + row.range, 0) / filtered.length : 0;
+  const targetRows = filtered.filter((row) => getBacktestTargetPoints(row) > 0);
+  const averageTarget = targetRows.length ? targetRows.reduce((sum, row) => sum + getBacktestTargetPoints(row), 0) / targetRows.length : 0;
   const averagePullback = filtered.length ? filtered.reduce((sum, row) => sum + row.nextCandlePullback, 0) / filtered.length : 0;
   backtestSummaryGrid.innerHTML = [
     ["Rows", filtered.length],
     ["Win Rate", `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`],
     ["Flip Win Rate", `${flips ? Math.round((flipWins / flips) * 100) : 0}%`],
     ["Avg Range", formatPoints(averageRange)],
+    ["Avg Target", formatPoints(averageTarget)],
     ["Avg Pullback", formatPoints(averagePullback)],
   ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
   backtestTableBody.innerHTML = filtered.length ? filtered.map((row) => `
@@ -2831,12 +2850,13 @@ function renderBacktesting() {
       <td data-label="Date">${escapeHtml(row.date || "-")}</td>
       <td data-label="Scenario"><strong>${escapeHtml(row.symbol || "-")} · ${escapeHtml(row.model || "-")}</strong><small>${escapeHtml(row.rangeTimeframe || "-")} range · ${escapeHtml(row.breakTimeframe || "-")} break</small></td>
       <td data-label="Bias">${escapeHtml(row.overallBias || "-")}<small>${escapeHtml(row.firstCandleDirection || "-")} first candle</small></td>
+      <td data-label="Target">${getBacktestTargetLabel(row)}<small>${row.model === "Fixed 1:1" ? "1:1 from range" : "range based"}</small></td>
       <td data-label="Break">${escapeHtml(row.breakDirection || "-")}<small>${formatPoints(row.breakAmount)} · ${escapeHtml(row.timeToBreak || "-")}</small></td>
       <td data-label="Reaction">${escapeHtml(row.nextCandleReaction || "-")}<small>${formatPoints(row.nextCandlePullback)} pullback</small></td>
       <td data-label="Result"><span class="badge ${row.result === "Win" ? "win" : row.result === "Loss" ? "loss" : "open"}">${escapeHtml(row.result || "-")}</span></td>
       <td data-label="Flip">${escapeHtml(row.flip || "-")}<small>${escapeHtml(row.flipResult || "-")}</small></td>
     </tr>
-  `).join("") : `<tr><td colspan="7" class="table-message">${orbBacktestsLoading ? "Loading ORB backtest data..." : "No ORB backtest data available yet."}</td></tr>`;
+  `).join("") : `<tr><td colspan="8" class="table-message">${orbBacktestsLoading ? "Loading ORB backtest data..." : "No ORB backtest data available yet."}</td></tr>`;
 }
 
 async function orbBacktestRequest(body) {
