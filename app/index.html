@@ -49,6 +49,7 @@
             <a href="index.html?view=dashboard" data-app-route="dashboard">Dashboard</a>
             <a href="index.html?view=tracker" data-app-route="journal">Journal</a>
             <a href="index.html?view=challenges" data-app-route="challenges">Challenges</a>
+            <a href="index.html?view=backtesting" data-app-route="backtesting">Backtesting</a>
             <a href="index.html?view=calculator" data-app-route="calculator">Calculator</a>
             <a href="index.html?view=training" data-app-route="training">Training</a>
           </nav>
@@ -958,6 +959,55 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="app-view" id="backtestingView" aria-label="ORB Backtesting">
+        <div class="view-header">
+          <div><p class="eyebrow">Test the data</p><h2>ORB Backtesting</h2></div>
+        </div>
+        <section class="backtest-import-panel">
+          <div>
+            <span>Import scenario</span>
+            <p>Upload one CSV at a time and tag it with the scenario it represents. The app will keep the rows together for filtering and comparison.</p>
+          </div>
+          <form class="backtest-import-form" id="backtestImportForm">
+            <label><span>Model</span><select id="backtestModel" required><option value="">Select model</option><option value="Fixed 1:1">Fixed 1:1</option><option value="ORB Range">ORB Range</option></select></label>
+            <label><span>Range timeframe</span><select id="backtestRangeTimeframe" required><option value="">Select range</option><option value="5 min">5 min</option><option value="15 min">15 min</option></select></label>
+            <label><span>Break timeframe</span><select id="backtestBreakTimeframe" required><option value="">Select break</option><option value="5 min">5 min</option></select></label>
+            <label><span>Import name</span><input id="backtestImportName" type="text" placeholder="Optional"></label>
+            <label class="backtest-file-field"><span>CSV file</span><input id="backtestCsvFile" type="file" accept=".csv,text/csv" required></label>
+            <button class="primary-button" type="submit">Import CSV</button>
+          </form>
+        </section>
+        <section class="backtest-summary-grid" id="backtestSummaryGrid"></section>
+        <section class="table-panel backtest-table-panel">
+          <div class="table-tools backtest-tools">
+            <label><span>Model</span><select id="backtestFilterModel"><option value="All">All models</option></select></label>
+            <label><span>Range</span><select id="backtestFilterRange"><option value="All">All ranges</option></select></label>
+            <label><span>Bias</span><select id="backtestFilterBias"><option value="All">All bias</option></select></label>
+            <label><span>Result</span><select id="backtestFilterResult"><option value="All">All results</option></select></label>
+            <label><span>Flip</span><select id="backtestFilterFlip"><option value="All">All flips</option></select></label>
+            <div class="toolbar-actions">
+              <button class="ghost-button" type="button" id="clearBacktestsButton">Clear backtests</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="backtest-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Scenario</th>
+                  <th>Bias</th>
+                  <th>Break</th>
+                  <th>Reaction</th>
+                  <th>Result</th>
+                  <th>Flip</th>
+                </tr>
+              </thead>
+              <tbody id="backtestTableBody"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
       </div>
     </main>

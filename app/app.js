@@ -259,6 +259,16 @@ const accountBalanceGrid = document.querySelector("#accountBalanceGrid");
 const marketSummaryGrid = document.querySelector("#marketSummaryGrid");
 const emptyAddTradeButton = document.querySelector("#emptyAddTradeButton");
 const emptyConfigButton = document.querySelector("#emptyConfigButton");
+const backtestImportForm = document.querySelector("#backtestImportForm");
+const backtestCsvFile = document.querySelector("#backtestCsvFile");
+const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
+const backtestTableBody = document.querySelector("#backtestTableBody");
+const backtestFilterModel = document.querySelector("#backtestFilterModel");
+const backtestFilterRange = document.querySelector("#backtestFilterRange");
+const backtestFilterBias = document.querySelector("#backtestFilterBias");
+const backtestFilterResult = document.querySelector("#backtestFilterResult");
+const backtestFilterFlip = document.querySelector("#backtestFilterFlip");
+const clearBacktestsButton = document.querySelector("#clearBacktestsButton");
 
 const DEFAULT_CONFIG = {
   symbols: [],
@@ -280,6 +290,7 @@ const DEFAULT_CONFIG = {
   weeklyPlans: {},
   weeklyReviews: {},
   trainingProgress: {},
+  orbBacktests: [],
 };
 
 const AUTOMATED_RULE_TYPES = [
@@ -1205,7 +1216,7 @@ function applyFeatureAccess(access = {}, role = "user") {
     : access;
   document.querySelectorAll("[data-app-route]").forEach((link) => {
     const route = link.dataset.appRoute;
-    const feature = route === "tracker" || route === "journal" ? "journal" : route;
+    const feature = route === "tracker" || route === "journal" || route === "backtesting" ? "journal" : route;
     if (["journal", "calculator", "training", "challenges"].includes(feature)) {
       link.classList.toggle("hidden", allowed?.[feature] !== true);
     }
@@ -1312,6 +1323,7 @@ async function hydrateUserStateFromSupabase() {
       weeklyPlans: remoteData.config?.weeklyPlans && typeof remoteData.config.weeklyPlans === "object" ? remoteData.config.weeklyPlans : {},
       weeklyReviews: remoteData.config?.weeklyReviews && typeof remoteData.config.weeklyReviews === "object" ? remoteData.config.weeklyReviews : {},
       trainingProgress: remoteData.config?.trainingProgress && typeof remoteData.config.trainingProgress === "object" ? remoteData.config.trainingProgress : {},
+      orbBacktests: Array.isArray(remoteData.config?.orbBacktests) ? remoteData.config.orbBacktests : [],
     };
     trainingStepIndex = Math.min(
       TRAINING_STEPS.length - 1,
@@ -2684,6 +2696,138 @@ function renderAccountBalances() {
   });
 }
 
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      row.push(cell.trim());
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell.trim());
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell.trim());
+  if (row.some(Boolean)) rows.push(row);
+  return rows;
+}
+
+function normalizeBacktestHeader(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function getBacktestCell(row, headerMap, names) {
+  const index = names
+    .map(normalizeBacktestHeader)
+    .map((name) => headerMap.get(name))
+    .find((value) => value !== undefined);
+  return index === undefined ? "" : row[index] || "";
+}
+
+function toBacktestNumber(value) {
+  const number = Number(String(value || "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(number) ? number : 0;
+}
+
+function createBacktestRows(csvText, meta) {
+  const csvRows = parseCsvRows(csvText);
+  const headers = csvRows.shift() || [];
+  const headerMap = new Map(headers.map((header, index) => [normalizeBacktestHeader(header), index]));
+  return csvRows.map((row) => ({
+    id: crypto.randomUUID(),
+    importedAt: new Date().toISOString(),
+    importName: meta.importName || `${meta.model} · ${meta.rangeTimeframe}`,
+    model: getBacktestCell(row, headerMap, ["Model"]) || meta.model,
+    rangeTimeframe: getBacktestCell(row, headerMap, ["Range Timeframe"]) || meta.rangeTimeframe,
+    breakTimeframe: getBacktestCell(row, headerMap, ["Break Timeframe"]) || meta.breakTimeframe,
+    date: getBacktestCell(row, headerMap, ["Date"]),
+    range: toBacktestNumber(getBacktestCell(row, headerMap, ["Range"])),
+    firstCandleDirection: getBacktestCell(row, headerMap, ["First Candle Direction"]),
+    overallBias: getBacktestCell(row, headerMap, ["Overall Bias"]),
+    timeToBreak: getBacktestCell(row, headerMap, ["Time to Break"]),
+    breakDirection: getBacktestCell(row, headerMap, ["Break Direction"]),
+    breakAmount: toBacktestNumber(getBacktestCell(row, headerMap, ["Break Amount"])),
+    nextCandleReaction: getBacktestCell(row, headerMap, ["Next Candle Reaction"]),
+    nextCandlePullback: toBacktestNumber(getBacktestCell(row, headerMap, ["Next Candle Pullback"])),
+    result: getBacktestCell(row, headerMap, ["Result"]),
+    flip: getBacktestCell(row, headerMap, ["Flip"]),
+    flipResult: getBacktestCell(row, headerMap, ["Flip Result"]),
+  })).filter((row) => row.date || row.result || row.breakDirection);
+}
+
+function getBacktestRows() {
+  return Array.isArray(appConfig.orbBacktests) ? appConfig.orbBacktests : [];
+}
+
+function getFilteredBacktests() {
+  return getBacktestRows().filter((row) => {
+    const matchesModel = !backtestFilterModel || backtestFilterModel.value === "All" || row.model === backtestFilterModel.value;
+    const matchesRange = !backtestFilterRange || backtestFilterRange.value === "All" || row.rangeTimeframe === backtestFilterRange.value;
+    const matchesBias = !backtestFilterBias || backtestFilterBias.value === "All" || row.overallBias === backtestFilterBias.value;
+    const matchesResult = !backtestFilterResult || backtestFilterResult.value === "All" || row.result === backtestFilterResult.value;
+    const matchesFlip = !backtestFilterFlip || backtestFilterFlip.value === "All" || row.flip === backtestFilterFlip.value;
+    return matchesModel && matchesRange && matchesBias && matchesResult && matchesFlip;
+  });
+}
+
+function syncBacktestFilter(select, values, label) {
+  if (!select) return;
+  const current = select.value || "All";
+  select.innerHTML = `<option value="All">${label}</option>${values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
+  select.value = values.includes(current) ? current : "All";
+}
+
+function renderBacktesting() {
+  if (!backtestSummaryGrid || !backtestTableBody) return;
+  const rows = getBacktestRows();
+  syncBacktestFilter(backtestFilterModel, [...new Set(rows.map((row) => row.model).filter(Boolean))], "All models");
+  syncBacktestFilter(backtestFilterRange, [...new Set(rows.map((row) => row.rangeTimeframe).filter(Boolean))], "All ranges");
+  syncBacktestFilter(backtestFilterBias, [...new Set(rows.map((row) => row.overallBias).filter(Boolean))], "All bias");
+  syncBacktestFilter(backtestFilterResult, [...new Set(rows.map((row) => row.result).filter(Boolean))], "All results");
+  syncBacktestFilter(backtestFilterFlip, [...new Set(rows.map((row) => row.flip).filter(Boolean))], "All flips");
+
+  const filtered = getFilteredBacktests();
+  const wins = filtered.filter((row) => row.result === "Win").length;
+  const losses = filtered.filter((row) => row.result === "Loss").length;
+  const flips = filtered.filter((row) => row.flip === "Yes").length;
+  const flipWins = filtered.filter((row) => row.flip === "Yes" && row.flipResult === "Win").length;
+  const averageRange = filtered.length ? filtered.reduce((sum, row) => sum + row.range, 0) / filtered.length : 0;
+  const averagePullback = filtered.length ? filtered.reduce((sum, row) => sum + row.nextCandlePullback, 0) / filtered.length : 0;
+  backtestSummaryGrid.innerHTML = [
+    ["Rows", filtered.length],
+    ["Win Rate", `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`],
+    ["Flip Win Rate", `${flips ? Math.round((flipWins / flips) * 100) : 0}%`],
+    ["Avg Range", formatPoints(averageRange)],
+    ["Avg Pullback", formatPoints(averagePullback)],
+  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  backtestTableBody.innerHTML = filtered.length ? filtered.map((row) => `
+    <tr>
+      <td data-label="Date">${escapeHtml(row.date || "-")}</td>
+      <td data-label="Scenario"><strong>${escapeHtml(row.model || "-")}</strong><small>${escapeHtml(row.rangeTimeframe || "-")} range · ${escapeHtml(row.breakTimeframe || "-")} break</small></td>
+      <td data-label="Bias">${escapeHtml(row.overallBias || "-")}<small>${escapeHtml(row.firstCandleDirection || "-")} first candle</small></td>
+      <td data-label="Break">${escapeHtml(row.breakDirection || "-")}<small>${formatPoints(row.breakAmount)} · ${escapeHtml(row.timeToBreak || "-")}</small></td>
+      <td data-label="Reaction">${escapeHtml(row.nextCandleReaction || "-")}<small>${formatPoints(row.nextCandlePullback)} pullback</small></td>
+      <td data-label="Result"><span class="badge ${row.result === "Win" ? "win" : row.result === "Loss" ? "loss" : "open"}">${escapeHtml(row.result || "-")}</span></td>
+      <td data-label="Flip">${escapeHtml(row.flip || "-")}<small>${escapeHtml(row.flipResult || "-")}</small></td>
+    </tr>
+  `).join("") : '<tr><td colspan="7" class="table-message">Import ORB backtest CSV data to start filtering scenarios.</td></tr>';
+}
+
 function renderTable() {
   const visibleTrades = getVisibleTradesSorted();
   const totalPages = Math.max(1, Math.ceil(visibleTrades.length / TABLE_PAGE_SIZE));
@@ -2976,6 +3120,7 @@ function render() {
   renderPerformanceCalendar();
   renderStrategyBreakdown();
   renderAccountBalances();
+  renderBacktesting();
   renderTable();
   renderWeeklyPlan();
   renderWeeklyReview();
@@ -4574,6 +4719,7 @@ function saveOnboardingWizard() {
     weeklyPlans: appConfig.weeklyPlans && typeof appConfig.weeklyPlans === "object" ? appConfig.weeklyPlans : {},
     weeklyReviews: appConfig.weeklyReviews && typeof appConfig.weeklyReviews === "object" ? appConfig.weeklyReviews : {},
     trainingProgress: appConfig.trainingProgress && typeof appConfig.trainingProgress === "object" ? appConfig.trainingProgress : {},
+    orbBacktests: Array.isArray(appConfig.orbBacktests) ? appConfig.orbBacktests : [],
   };
   saveConfig();
   syncConfiguredInputs();
@@ -4709,6 +4855,7 @@ function showView(viewId) {
 function getViewFromRoute(route) {
   if (route === "journal" || route === "tracker") return "trackerView";
   if (route === "challenges") return "challengesView";
+  if (route === "backtesting") return "backtestingView";
   if (route === "calculator") return "calculatorView";
   if (route === "training") return "trainingView";
   return "dashboardView";
@@ -4717,6 +4864,7 @@ function getViewFromRoute(route) {
 function getRouteFromView(viewId) {
   if (viewId === "trackerView") return "journal";
   if (viewId === "challengesView") return "challenges";
+  if (viewId === "backtestingView") return "backtesting";
   if (viewId === "calculatorView") return "calculator";
   if (viewId === "trainingView") return "training";
   return "dashboard";
@@ -4734,7 +4882,7 @@ function updateActiveRoute(route) {
 function navigateToRoute(route, { replace = false } = {}) {
   const access = JSON.parse(sessionStorage.getItem(AUTH_FEATURES_KEY) || "{}");
   const role = sessionStorage.getItem(AUTH_ROLE_KEY) || "user";
-  const requestedFeature = route === "tracker" || route === "journal" ? "journal" : route;
+  const requestedFeature = route === "tracker" || route === "journal" || route === "backtesting" ? "journal" : route;
   if (role !== "admin" && ["journal", "calculator", "training", "challenges"].includes(requestedFeature) && access?.[requestedFeature] !== true) {
     route = "dashboard";
     showToast("That feature is not included in your access.", "warning");
@@ -5953,6 +6101,59 @@ reviewTradesList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-review-trade]");
   if (button) openTradeDrawer(button.dataset.reviewTrade);
 });
+
+backtestImportForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const file = backtestCsvFile.files?.[0];
+  if (!file) {
+    showToast("Choose a CSV file to import.", "warning");
+    return;
+  }
+  const meta = {
+    model: document.querySelector("#backtestModel")?.value || "",
+    rangeTimeframe: document.querySelector("#backtestRangeTimeframe")?.value || "",
+    breakTimeframe: document.querySelector("#backtestBreakTimeframe")?.value || "",
+    importName: document.querySelector("#backtestImportName")?.value.trim() || "",
+  };
+  if (!meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
+    showToast("Choose the scenario before importing.", "warning");
+    return;
+  }
+  const rows = createBacktestRows(await file.text(), meta);
+  if (!rows.length) {
+    showToast("No usable rows found in that CSV.", "warning");
+    return;
+  }
+  appConfig.orbBacktests = [...getBacktestRows(), ...rows];
+  saveConfig();
+  backtestImportForm.reset();
+  renderBacktesting();
+  showToast(`${rows.length} backtest rows imported`);
+});
+
+[backtestFilterModel, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
+  select?.addEventListener("change", renderBacktesting);
+});
+
+clearBacktestsButton?.addEventListener("click", async () => {
+  if (!getBacktestRows().length) {
+    showToast("No backtest rows to clear.", "warning");
+    return;
+  }
+  const confirmed = await askForConfirmation({
+    eyebrow: "Clear backtests",
+    title: "Clear all ORB backtest rows?",
+    message: "This removes imported backtesting rows for this user. Journal trades are not affected.",
+    confirmText: "Clear rows",
+    tone: "warning",
+  });
+  if (!confirmed) return;
+  appConfig.orbBacktests = [];
+  saveConfig();
+  renderBacktesting();
+  showToast("Backtest rows cleared", "warning");
+});
+
 trainingContent.addEventListener("click", (event) => {
   const answerButton = event.target.closest("[data-training-answer]");
   if (!answerButton) return;

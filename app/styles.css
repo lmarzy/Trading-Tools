@@ -1684,6 +1684,85 @@ h2 {
   font-weight: 800;
 }
 
+.backtest-import-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.backtest-import-panel > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.backtest-import-panel span,
+.backtest-summary-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.backtest-import-panel p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.backtest-import-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.backtest-file-field {
+  grid-column: span 2;
+}
+
+.backtest-import-form .primary-button {
+  align-self: end;
+}
+
+.backtest-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.backtest-summary-grid article {
+  display: grid;
+  gap: 10px;
+  min-height: 108px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.backtest-summary-grid strong {
+  color: var(--value);
+  font-family: Impact, "Arial Narrow", "Franklin Gothic Condensed", system-ui, sans-serif;
+  font-size: clamp(1.7rem, 2.4vw, 2.8rem);
+  line-height: 0.95;
+}
+
+.backtest-table td small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
 .weekly-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -8127,6 +8206,16 @@ select,
   .analytics-insights,
   .weekly-review-drawer .review-insights {
     grid-template-columns: 1fr;
+  }
+
+  .backtest-import-panel,
+  .backtest-import-form,
+  .backtest-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .backtest-file-field {
+    grid-column: auto;
   }
 
   .review-summary-grid {
