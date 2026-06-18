@@ -969,8 +969,13 @@ function renderNewsEvents() {
   if (!visibleEvents.length) {
     newsEventsList.innerHTML = `
       <div class="empty-state compact-empty-state">
-        <h2>No events found</h2>
-        <p>${newsFilter === "today" ? "No economic events found for today." : "No economic events found for the next week."}</p>
+        <h2>${newsFilter === "today" ? "No events today" : "No events this week"}</h2>
+        <p>${newsFilter === "today" ? "There are no saved economic events for today. You can still check your plan and trade normally." : "There are no saved events for the selected week. Check back before your next session."}</p>
+        <ol class="empty-state-steps compact-steps" aria-label="News checklist">
+          <li><span>1</span>Check the event time before trading.</li>
+          <li><span>2</span>Watch USD events if you trade Gold, Nasdaq, or US futures.</li>
+          <li><span>3</span>Add notes to trades if news affected the setup.</li>
+        </ol>
       </div>
     `;
     return;
@@ -2620,8 +2625,12 @@ function renderTable() {
   emptyState.classList.toggle("hidden", visibleTrades.length > 0);
   emptyState.querySelector("h2").textContent = trades.length ? "No trades match" : "No trades yet";
   emptyState.querySelector("p").textContent = trades.length
-    ? "Adjust your filters to bring trades back into view."
+    ? "Your journal has trades, but none match the current filters. Clear or change the filters to bring them back."
     : "Configure your inputs, then add your first trade to start building your journal.";
+  const emptySteps = document.querySelector("#emptyStateSteps");
+  if (emptySteps) {
+    emptySteps.classList.toggle("hidden", trades.length > 0);
+  }
   tablePagination.classList.toggle("hidden", visibleTrades.length === 0);
   paginationStatus.textContent = visibleTrades.length
     ? `Showing ${pageStart + 1}-${Math.min(pageEnd, visibleTrades.length)} of ${visibleTrades.length} trades`
@@ -3025,6 +3034,11 @@ function renderChallenges() {
       <p class="eyebrow">Trade together</p>
       <h2>No challenges yet</h2>
       <p>Create an ORB or prop challenge for your group, or wait for another trader to send you an invitation.</p>
+      <ol class="empty-state-steps compact-steps" aria-label="Challenge setup steps">
+        <li><span>1</span>Create an ORB challenge for one-trade-per-day accountability.</li>
+        <li><span>2</span>Create a prop challenge to track progress against a target.</li>
+        <li><span>3</span>Invite members, then link trades from the Journal.</li>
+      </ol>
     </div>
     <button class="primary-button" type="button" data-create-first-challenge>Create challenge</button>
   </div>`;

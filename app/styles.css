@@ -6096,6 +6096,52 @@ button:disabled,
   color: var(--muted-strong);
 }
 
+.empty-state-steps {
+  display: grid;
+  gap: 8px;
+  width: min(560px, 100%);
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted-strong);
+  text-align: left;
+}
+
+.empty-state-steps li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.empty-state-steps span {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(185, 255, 87, 0.12);
+  color: var(--lime);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.compact-steps {
+  width: min(430px, 100%);
+  margin-top: 4px;
+}
+
+.compact-steps li {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+}
+
 .empty-state-actions {
   display: flex;
   justify-content: center;
