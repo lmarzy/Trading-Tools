@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId } = await req.json();
+    const { userId, includeConfig = true, includeTrades = true } = await req.json();
     if (!userId) {
       return jsonResponse({ error: "Missing user id" }, 400);
     }
@@ -39,9 +39,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Access denied" }, 401);
     }
 
+    const selectedColumns = [
+      includeConfig ? "config_json" : null,
+      includeTrades ? "trades_json" : null,
+      "updated_at",
+    ].filter(Boolean).join(",");
+
     const { data, error } = await supabase
       .from("user_data")
-      .select("config_json,trades_json,updated_at")
+      .select(selectedColumns)
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -50,8 +56,8 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse({
-      config: data?.config_json || { symbols: [], sessions: [], accounts: [], strategies: [], marketTypes: [], accountBalances: {} },
-      trades: data?.trades_json || [],
+      ...(includeConfig ? { config: data?.config_json || { symbols: [], sessions: [], accounts: [], strategies: [], marketTypes: [], accountBalances: {} } } : {}),
+      ...(includeTrades ? { trades: data?.trades_json || [] } : {}),
       updatedAt: data?.updated_at || null,
     });
   } catch {

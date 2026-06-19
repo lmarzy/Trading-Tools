@@ -7337,6 +7337,47 @@ tbody tr.trade-row:hover td {
   background: rgba(247, 250, 242, 0.08);
 }
 
+.table-loading-row td {
+  pointer-events: none;
+}
+
+.table-loading-row:hover td {
+  background: var(--field);
+}
+
+.table-loading-row td:first-child::before {
+  display: none;
+}
+
+.table-skeleton-line {
+  display: block;
+  width: min(100%, 76px);
+  height: 13px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(247, 250, 242, 0.08), rgba(247, 250, 242, 0.18), rgba(247, 250, 242, 0.08));
+  background-size: 220% 100%;
+  animation: tableSkeletonPulse 1.25s ease-in-out infinite;
+  animation-delay: var(--delay, 0ms);
+}
+
+.table-skeleton-line.wide {
+  width: min(100%, 118px);
+}
+
+.table-skeleton-line.short {
+  width: min(100%, 54px);
+}
+
+@keyframes tableSkeletonPulse {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
 .wizard-rail {
   gap: 14px;
 }

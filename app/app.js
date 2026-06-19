@@ -732,6 +732,8 @@ let acknowledgedPreTradeRules = [];
 let newsEvents = [];
 let newsFilter = "today";
 let newsLoaded = false;
+let tradesLoading = false;
+let tradesLoaded = false;
 const MOTION_DURATION_MS = 190;
 let pendingConfirmResolve = null;
 
@@ -1198,6 +1200,8 @@ function setAppLocked() {
   document.body.classList.add("auth-locked");
   passcodeGate.removeAttribute("hidden");
   updateTrialBanner(false, "");
+  tradesLoading = false;
+  tradesLoaded = false;
   passcodeInput.focus();
 }
 
@@ -1217,6 +1221,9 @@ async function logout() {
     sessionStorage.removeItem(ONBOARDING_DISMISSED_KEY);
     currentUserId = "";
     currentUserLabel = "";
+    trades = [];
+    tradesLoading = false;
+    tradesLoaded = false;
     challenges = [];
     challengesLoaded = false;
     orbBacktests = [];
@@ -1305,8 +1312,9 @@ async function loadUserState(userId, userLabel) {
   currentUserLabel = userLabel;
   trades = loadTrades();
   appConfig = loadConfig();
-  await hydrateUserStateFromSupabase();
-  scheduleSupabaseSave();
+  tradesLoaded = false;
+  tradesLoading = true;
+  await hydrateUserStateFromSupabase({ includeTrades: false });
   currentTablePage = 1;
   syncConfiguredInputs();
   resetForm();
@@ -1318,23 +1326,35 @@ function loadBackgroundUserData() {
   const role = sessionStorage.getItem(AUTH_ROLE_KEY) || "user";
   const canUse = (feature) => role === "admin" || access?.[feature] === true;
   window.setTimeout(() => {
+    loadTradesFromSupabase();
     loadNewsEvents();
     if (canUse("challenges")) loadChallenges({ showLoading: false });
     if (canUse("backtesting")) loadOrbBacktests({ showLoading: false });
   }, 0);
 }
 
-async function hydrateUserStateFromSupabase() {
+async function hydrateUserStateFromSupabase({ includeConfig = true, includeTrades = true } = {}) {
   if (!window.callSupabaseFunction || !currentUserId) {
+    if (includeTrades) {
+      tradesLoading = false;
+      tradesLoaded = true;
+    }
     return;
   }
 
   try {
     isHydratingUserState = true;
-    const remoteData = await callSupabaseFunction("get-user-data", { userId: currentUserId });
-    trades = Array.isArray(remoteData.trades)
+    const remoteData = await callSupabaseFunction("get-user-data", { userId: currentUserId, includeConfig, includeTrades });
+    if (includeTrades) {
+      trades = Array.isArray(remoteData.trades)
       ? remoteData.trades.map((trade) => ({ ...trade, strategy: normalizeStrategyName(trade.strategy) }))
       : [];
+      tradesLoaded = true;
+      tradesLoading = false;
+    }
+    if (!includeConfig) {
+      return;
+    }
     const marketTypes = normalizeMarketTypes(remoteData.config?.marketTypes);
     const symbolsByMarket = normalizeSymbolsByMarket(remoteData.config?.symbolsByMarket);
     appConfig = {
@@ -1360,6 +1380,9 @@ async function hydrateUserStateFromSupabase() {
       Math.max(0, Number(appConfig.trainingProgress[TRAINING_MODULE_ID]?.step) || 0),
     );
   } catch (error) {
+    if (includeTrades) {
+      tradesLoading = false;
+    }
     if (error.message === "Access denied") {
       showToast("Your access is no longer active.");
       setAppLocked();
@@ -1371,8 +1394,28 @@ async function hydrateUserStateFromSupabase() {
   }
 }
 
+async function loadTradesFromSupabase() {
+  if (!currentUserId || tradesLoaded || !window.callSupabaseFunction) {
+    tradesLoading = false;
+    return;
+  }
+
+  tradesLoading = true;
+  renderTable();
+  updateAddTradeAvailability();
+  try {
+    await hydrateUserStateFromSupabase({ includeConfig: false, includeTrades: true });
+    currentTablePage = 1;
+    render();
+  } catch {
+    tradesLoading = false;
+    renderTable();
+    updateAddTradeAvailability();
+  }
+}
+
 function scheduleSupabaseSave() {
-  if (isHydratingUserState || !window.callSupabaseFunction || !currentUserId) {
+  if (isHydratingUserState || tradesLoading || !tradesLoaded || !window.callSupabaseFunction || !currentUserId) {
     return;
   }
 
@@ -1382,7 +1425,7 @@ function scheduleSupabaseSave() {
 }
 
 async function syncUserDataToSupabase() {
-  if (!currentUserId || !window.callSupabaseFunction) {
+  if (!currentUserId || !window.callSupabaseFunction || tradesLoading || !tradesLoaded) {
     return;
   }
 
@@ -1422,12 +1465,17 @@ function userHasStartedConfig() {
 
 function updateAddTradeAvailability() {
   const isComplete = userConfigComplete();
-  openTradeModalButton.disabled = !isComplete;
-  emptyAddTradeButton.disabled = !isComplete;
-  openTradeModalButton.title = isComplete ? "Add trade" : "Complete your trade config before adding trades";
+  const canAddTrade = isComplete && !tradesLoading;
+  openTradeModalButton.disabled = !canAddTrade;
+  emptyAddTradeButton.disabled = !canAddTrade;
+  openTradeModalButton.title = !isComplete
+    ? "Complete your trade config before adding trades"
+    : tradesLoading
+      ? "Trades are still loading"
+      : "Add trade";
   emptyAddTradeButton.title = openTradeModalButton.title;
-  openTradeModalButton.setAttribute("aria-disabled", String(!isComplete));
-  emptyAddTradeButton.setAttribute("aria-disabled", String(!isComplete));
+  openTradeModalButton.setAttribute("aria-disabled", String(!canAddTrade));
+  emptyAddTradeButton.setAttribute("aria-disabled", String(!canAddTrade));
 }
 
 function getConfigSetupStatus() {
@@ -2976,6 +3024,25 @@ async function loadOrbBacktests({ showLoading = true } = {}) {
 }
 
 function renderTable() {
+  if (tradesLoading && !tradesLoaded) {
+    tableBody.innerHTML = Array.from({ length: 6 }, (_, rowIndex) => `
+      <tr class="trade-row table-loading-row" aria-hidden="true">
+        ${Array.from({ length: 13 }, (_, cellIndex) => `
+          <td data-label="${cellIndex === 0 ? "Loading" : ""}">
+            <span class="table-skeleton-line ${cellIndex === 5 ? "wide" : cellIndex > 8 ? "short" : ""}" style="--delay: ${rowIndex * 60 + cellIndex * 18}ms"></span>
+          </td>
+        `).join("")}
+      </tr>
+    `).join("");
+    emptyState.classList.add("hidden");
+    tablePagination.classList.remove("hidden");
+    paginationStatus.textContent = "Loading trades...";
+    prevPageButton.disabled = true;
+    nextPageButton.disabled = true;
+    syncSessionVisibility();
+    return;
+  }
+
   const visibleTrades = getVisibleTradesSorted();
   const totalPages = Math.max(1, Math.ceil(visibleTrades.length / TABLE_PAGE_SIZE));
   currentTablePage = Math.min(currentTablePage, totalPages);
