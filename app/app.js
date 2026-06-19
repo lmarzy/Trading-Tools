@@ -1089,6 +1089,7 @@ async function loadNewsEvents() {
     newsLoaded = true;
     updateNewsBadge();
     renderNewsEvents();
+    renderHubDashboard();
   } catch (error) {
     newsEventsList.innerHTML = `
       <div class="empty-state compact-empty-state">
@@ -1182,7 +1183,7 @@ async function setAppUnlocked(
       adminNavLink.classList.toggle("hidden", userRole !== "admin");
       updateTrialBanner(trialEnabled, trialEndsAt);
       await loadUserState(userId, userLabel || userId);
-      loadNewsEvents();
+      loadBackgroundUserData();
     }
   } catch (error) {
     console.error("Unable to finish loading the user session", error);
@@ -1304,16 +1305,23 @@ async function loadUserState(userId, userLabel) {
   currentUserLabel = userLabel;
   trades = loadTrades();
   appConfig = loadConfig();
-  await Promise.all([
-    hydrateUserStateFromSupabase(),
-    loadChallenges({ showLoading: false }),
-    loadOrbBacktests({ showLoading: false }),
-  ]);
+  await hydrateUserStateFromSupabase();
   scheduleSupabaseSave();
   currentTablePage = 1;
   syncConfiguredInputs();
   resetForm();
   render();
+}
+
+function loadBackgroundUserData() {
+  const access = JSON.parse(sessionStorage.getItem(AUTH_FEATURES_KEY) || "{}");
+  const role = sessionStorage.getItem(AUTH_ROLE_KEY) || "user";
+  const canUse = (feature) => role === "admin" || access?.[feature] === true;
+  window.setTimeout(() => {
+    loadNewsEvents();
+    if (canUse("challenges")) loadChallenges({ showLoading: false });
+    if (canUse("backtesting")) loadOrbBacktests({ showLoading: false });
+  }, 0);
 }
 
 async function hydrateUserStateFromSupabase() {
@@ -3287,7 +3295,9 @@ function renderHubDashboard() {
   const nextChapter = TRAINING_CHAPTERS.find((chapter) => !getTrainingProgress(chapter.id).completed);
   hubTrainingDetail.textContent = nextChapter ? `Next: ${nextChapter.title}` : "Course complete.";
   const todayEvents = newsEvents.filter((event) => toLocalDateKey(event.date) === toLocalDateKey());
-  hubNewsList.innerHTML = todayEvents.length
+  hubNewsList.innerHTML = !newsLoaded
+    ? '<div class="hub-news-empty">Loading economic events...</div>'
+    : todayEvents.length
     ? todayEvents.slice(0, 6).map((event) => `<button type="button" data-hub-news><span>${escapeHtml(formatNewsEventTime(event.date))}</span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.currency || "")} · ${escapeHtml(event.impact || "")}</small></button>`).join("")
     : '<div class="hub-news-empty">No economic events scheduled for today.</div>';
   hubReviewStatus.textContent = appConfig.weeklyReviews[getWeekdays()[0].key]?.completedAt ? "Complete" : "Incomplete";
