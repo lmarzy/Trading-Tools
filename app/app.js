@@ -2913,13 +2913,14 @@ function renderBacktesting() {
   const flips = filtered.filter((row) => row.flip === "Yes").length;
   const flipWins = filtered.filter((row) => row.flip === "Yes" && row.flipResult === "Win").length;
   const averageRange = filtered.length ? filtered.reduce((sum, row) => sum + row.range, 0) / filtered.length : 0;
-  const averagePullback = filtered.length ? filtered.reduce((sum, row) => sum + row.nextCandlePullback, 0) / filtered.length : 0;
   backtestSummaryGrid.innerHTML = [
-    ["Rows", filtered.length],
+    ["Trades", filtered.length],
+    ["Average Range", formatPoints(averageRange)],
+    ["Wins", wins],
+    ["Losses", losses],
     ["Win Rate", `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`],
-    ["Flip Win Rate", `${flips ? Math.round((flipWins / flips) * 100) : 0}%`],
-    ["Avg Range", formatPoints(averageRange)],
-    ["Avg Pullback", formatPoints(averagePullback)],
+    ["Flips", flips],
+    ["Flip Wins", flipWins],
   ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
   backtestTableBody.innerHTML = filtered.length ? filtered.map((row) => `
     <tr>
