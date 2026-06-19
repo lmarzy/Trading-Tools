@@ -2936,7 +2936,7 @@ function renderBacktesting() {
       <td data-label="Reaction">${escapeHtml(row.nextCandleReaction || "-")}<small>${formatPoints(row.nextCandlePullback)} pullback</small></td>
       <td data-label="Result"><span class="badge ${row.result === "Win" ? "win" : row.result === "Loss" ? "loss" : "open"}">${escapeHtml(row.result || "-")}</span></td>
       <td data-label="Flip">${escapeHtml(row.flip || "-")}</td>
-      <td data-label="Flip Win">${escapeHtml(row.flipResult || "-")}</td>
+      <td data-label="Flip Result">${escapeHtml(row.flipResult || "-")}</td>
     </tr>
   `).join("") : `<tr><td colspan="9" class="table-message">${orbBacktestsLoading ? "Loading ORB backtest data..." : "No ORB backtest data available yet."}</td></tr>`;
 }
