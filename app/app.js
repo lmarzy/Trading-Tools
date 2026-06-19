@@ -379,6 +379,15 @@ function normalizeSessions(options, fallback = []) {
   return [...sessions, NO_SPECIFIC_SESSION];
 }
 
+function ensureCurrentSessionOptions(options) {
+  const sessions = normalizeSessions(options, []);
+  const editableSessions = sessions.filter((option) => option !== NO_SPECIFIC_SESSION);
+  if (editableSessions.includes("London") && !editableSessions.includes("London 8:30")) {
+    editableSessions.splice(editableSessions.indexOf("London") + 1, 0, "London 8:30");
+  }
+  return normalizeSessions(editableSessions, []);
+}
+
 function getTimeZoneOffset(date, timeZone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -1319,7 +1328,7 @@ async function hydrateUserStateFromSupabase() {
       symbols: flattenSymbolsByMarket(symbolsByMarket),
       symbolsByMarket,
       symbolMarketMap: normalizeSymbolMarketMap(remoteData.config?.symbolMarketMap, flattenSymbolsByMarket(symbolsByMarket)),
-      sessions: Boolean(remoteData.config?.trackSessions) ? normalizeSessions(remoteData.config?.sessions, DEFAULT_CONFIG.sessions) : [],
+      sessions: Boolean(remoteData.config?.trackSessions) ? ensureCurrentSessionOptions(remoteData.config?.sessions) : [],
       trackSessions: Boolean(remoteData.config?.trackSessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
       strategies: normalizeStrategies(remoteData.config?.strategies, DEFAULT_CONFIG.strategies),
