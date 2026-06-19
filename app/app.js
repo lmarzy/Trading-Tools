@@ -265,12 +265,9 @@ const backtestCsvFile = document.querySelector("#backtestCsvFile");
 const backtestModel = document.querySelector("#backtestModel");
 const backtestTargetField = document.querySelector("#backtestTargetField");
 const backtestTargetPoints = document.querySelector("#backtestTargetPoints");
-const backtestScenarioTabs = document.querySelector("#backtestScenarioTabs");
+const backtestDatasetSelect = document.querySelector("#backtestDatasetSelect");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
-const backtestFilterModel = document.querySelector("#backtestFilterModel");
-const backtestFilterSymbol = document.querySelector("#backtestFilterSymbol");
-const backtestFilterRange = document.querySelector("#backtestFilterRange");
 const backtestFilterBias = document.querySelector("#backtestFilterBias");
 const backtestFilterResult = document.querySelector("#backtestFilterResult");
 const backtestFilterFlip = document.querySelector("#backtestFilterFlip");
@@ -2837,13 +2834,10 @@ function getActiveBacktestRows() {
 
 function getFilteredBacktests() {
   return getActiveBacktestRows().filter((row) => {
-    const matchesModel = !backtestFilterModel || backtestFilterModel.value === "All" || row.model === backtestFilterModel.value;
-    const matchesSymbol = !backtestFilterSymbol || backtestFilterSymbol.value === "All" || row.symbol === backtestFilterSymbol.value;
-    const matchesRange = !backtestFilterRange || backtestFilterRange.value === "All" || row.rangeTimeframe === backtestFilterRange.value;
     const matchesBias = !backtestFilterBias || backtestFilterBias.value === "All" || row.overallBias === backtestFilterBias.value;
     const matchesResult = !backtestFilterResult || backtestFilterResult.value === "All" || row.result === backtestFilterResult.value;
     const matchesFlip = !backtestFilterFlip || backtestFilterFlip.value === "All" || row.flip === backtestFilterFlip.value;
-    return matchesModel && matchesSymbol && matchesRange && matchesBias && matchesResult && matchesFlip;
+    return matchesBias && matchesResult && matchesFlip;
   });
 }
 
@@ -2886,16 +2880,16 @@ function syncBacktestFilter(select, values, label) {
   select.value = values.includes(current) ? current : "All";
 }
 
-function renderBacktestScenarioTabs() {
-  if (!backtestScenarioTabs) return;
+function renderBacktestDatasetSelect() {
+  if (!backtestDatasetSelect) return;
   const scenarios = getBacktestScenarios();
-  backtestScenarioTabs.classList.toggle("hidden", !scenarios.length);
-  backtestScenarioTabs.innerHTML = scenarios.map((scenario) => `
-    <button class="backtest-scenario-tab ${scenario.key === activeBacktestScenarioKey ? "active" : ""}" type="button" data-backtest-scenario="${escapeHtml(scenario.key)}">
-      <strong>${escapeHtml(scenario.title)}</strong>
-      <span>${escapeHtml(scenario.meta)}</span>
-    </button>
-  `).join("");
+  if (!scenarios.some((scenario) => scenario.key === activeBacktestScenarioKey)) {
+    activeBacktestScenarioKey = scenarios[0]?.key || "";
+  }
+  backtestDatasetSelect.innerHTML = `<option value="">Select dataset</option>${scenarios.map((scenario) => `
+    <option value="${escapeHtml(scenario.key)}">${escapeHtml(`${scenario.title} · ${scenario.meta}`)}</option>
+  `).join("")}`;
+  backtestDatasetSelect.value = activeBacktestScenarioKey;
 }
 
 function renderBacktesting() {
@@ -2903,10 +2897,7 @@ function renderBacktesting() {
   const isAdmin = sessionStorage.getItem(AUTH_ROLE_KEY) === "admin";
   backtestAdminPanel?.classList.toggle("hidden", !isAdmin);
   const rows = getActiveBacktestRows();
-  renderBacktestScenarioTabs();
-  syncBacktestFilter(backtestFilterModel, [...new Set(rows.map((row) => row.model).filter(Boolean))], "All models");
-  syncBacktestFilter(backtestFilterSymbol, [...new Set(rows.map((row) => row.symbol).filter(Boolean))], "All symbols");
-  syncBacktestFilter(backtestFilterRange, [...new Set(rows.map((row) => row.rangeTimeframe).filter(Boolean))], "All ranges");
+  renderBacktestDatasetSelect();
   syncBacktestFilter(backtestFilterBias, [...new Set(rows.map((row) => row.overallBias).filter(Boolean))], "All bias");
   syncBacktestFilter(backtestFilterResult, [...new Set(rows.map((row) => row.result).filter(Boolean))], "All results");
   syncBacktestFilter(backtestFilterFlip, [...new Set(rows.map((row) => row.flip).filter(Boolean))], "All flips");
@@ -6275,15 +6266,13 @@ backtestImportForm?.addEventListener("submit", async (event) => {
   showToast(`${rows.length} backtest rows imported`);
 });
 
-[backtestFilterModel, backtestFilterSymbol, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
+[backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
   select?.addEventListener("change", renderBacktesting);
 });
 
-backtestScenarioTabs?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-backtest-scenario]");
-  if (!button) return;
-  activeBacktestScenarioKey = button.dataset.backtestScenario || "";
-  [backtestFilterModel, backtestFilterSymbol, backtestFilterRange, backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
+backtestDatasetSelect?.addEventListener("change", () => {
+  activeBacktestScenarioKey = backtestDatasetSelect.value || "";
+  [backtestFilterBias, backtestFilterResult, backtestFilterFlip].forEach((select) => {
     if (select) select.value = "All";
   });
   renderBacktesting();
