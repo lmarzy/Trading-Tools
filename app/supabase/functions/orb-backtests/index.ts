@@ -32,6 +32,7 @@ function dbRowToClient(row: Record<string, unknown>) {
   return {
     id: row.id,
     symbol: row.symbol,
+    session: row.session,
     model: row.model,
     rangeTimeframe: row.range_timeframe,
     breakTimeframe: row.break_timeframe,
@@ -58,6 +59,7 @@ function importRows(rows: Record<string, unknown>[], currentUser: Record<string,
   const importId = crypto.randomUUID();
   return rows.map((row) => ({
     symbol: String(row.symbol || "").trim(),
+    session: String(row.session || "").trim() || null,
     model: String(row.model || "").trim(),
     range_timeframe: String(row.rangeTimeframe || "").trim(),
     break_timeframe: String(row.breakTimeframe || "").trim(),

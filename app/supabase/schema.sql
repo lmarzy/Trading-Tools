@@ -43,6 +43,7 @@ create table if not exists public.news_events (
 create table if not exists public.orb_backtests (
   id uuid primary key default gen_random_uuid(),
   symbol text not null,
+  session text,
   model text not null,
   range_timeframe text not null,
   break_timeframe text not null,
@@ -67,6 +68,7 @@ create table if not exists public.orb_backtests (
 
 alter table public.orb_backtests add column if not exists target_points numeric;
 alter table public.orb_backtests add column if not exists import_id uuid;
+alter table public.orb_backtests add column if not exists session text;
 
 create table if not exists public.challenges (
   id uuid primary key default gen_random_uuid(),

@@ -268,7 +268,6 @@ const backtestTargetPoints = document.querySelector("#backtestTargetPoints");
 const backtestScenarioTabs = document.querySelector("#backtestScenarioTabs");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
-const backtestTableTitle = document.querySelector("#backtestTableTitle");
 const backtestFilterModel = document.querySelector("#backtestFilterModel");
 const backtestFilterSymbol = document.querySelector("#backtestFilterSymbol");
 const backtestFilterRange = document.querySelector("#backtestFilterRange");
@@ -2765,6 +2764,7 @@ function createBacktestRows(csvText, meta) {
     importedAt: new Date().toISOString(),
     importName: meta.importName || `${meta.model} · ${meta.rangeTimeframe} / ${meta.breakTimeframe}`,
     symbol: meta.symbol,
+    session: meta.session,
     model: getBacktestCell(row, headerMap, ["Model"]) || meta.model,
     targetPoints: toBacktestNumber(meta.targetPoints),
     rangeTimeframe: getBacktestCell(row, headerMap, ["Range Timeframe"]) || meta.rangeTimeframe,
@@ -2793,6 +2793,7 @@ function getBacktestScenarioKey(row) {
   return [
     row.symbol || "Unknown",
     row.importName || row.model || "Scenario",
+    row.session || "Session",
     row.model || "Unknown",
     row.rangeTimeframe || "Range",
     row.breakTimeframe || "Break",
@@ -2805,9 +2806,9 @@ function getBacktestScenarioLabel(rows) {
   const symbolPrefix = row.symbol ? `${row.symbol} · ` : "";
   const rawTitle = row.importName || `${row.model || "Scenario"} · ${row.rangeTimeframe || "-"} / ${row.breakTimeframe || "-"}`;
   const title = row.symbol && rawTitle.startsWith(symbolPrefix) ? rawTitle.slice(symbolPrefix.length) : rawTitle;
-  const symbol = row.symbol ? `${row.symbol} · ` : "";
+  const context = [row.symbol, row.session].filter(Boolean).join(" · ");
   return {
-    title: `${symbol}${title}`,
+    title: `${context ? `${context} · ` : ""}${title}`,
     meta: `${row.model || "-"} · ${row.rangeTimeframe || "-"} range · ${row.breakTimeframe || "-"} break · ${rows.length} rows`,
   };
 }
@@ -2903,12 +2904,6 @@ function renderBacktesting() {
   backtestAdminPanel?.classList.toggle("hidden", !isAdmin);
   const rows = getActiveBacktestRows();
   renderBacktestScenarioTabs();
-  const activeScenario = getBacktestScenarios().find((scenario) => scenario.key === activeBacktestScenarioKey);
-  if (backtestTableTitle) {
-    backtestTableTitle.innerHTML = activeScenario
-      ? `<strong>${escapeHtml(activeScenario.title)}</strong><span>${escapeHtml(activeScenario.meta)}</span>`
-      : "";
-  }
   syncBacktestFilter(backtestFilterModel, [...new Set(rows.map((row) => row.model).filter(Boolean))], "All models");
   syncBacktestFilter(backtestFilterSymbol, [...new Set(rows.map((row) => row.symbol).filter(Boolean))], "All symbols");
   syncBacktestFilter(backtestFilterRange, [...new Set(rows.map((row) => row.rangeTimeframe).filter(Boolean))], "All ranges");
@@ -6251,13 +6246,14 @@ backtestImportForm?.addEventListener("submit", async (event) => {
   }
   const meta = {
     symbol: document.querySelector("#backtestSymbol")?.value.trim() || "",
+    session: document.querySelector("#backtestSession")?.value || "",
     model: document.querySelector("#backtestModel")?.value || "",
     targetPoints: document.querySelector("#backtestTargetPoints")?.value.trim() || "",
     rangeTimeframe: document.querySelector("#backtestRangeTimeframe")?.value || "",
     breakTimeframe: document.querySelector("#backtestBreakTimeframe")?.value || "",
     importName: "",
   };
-  if (!meta.symbol || !meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
+  if (!meta.symbol || !meta.session || !meta.model || !meta.rangeTimeframe || !meta.breakTimeframe) {
     showToast("Choose the scenario before importing.", "warning");
     return;
   }
