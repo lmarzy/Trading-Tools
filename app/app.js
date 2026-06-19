@@ -4009,26 +4009,16 @@ function renderConfig() {
     sessionSection.innerHTML = `
       <div class="config-section-heading">
         <h3>Session Value(s)</h3>
-        <div class="config-add-row">
-          <input type="text" placeholder="Add session" aria-label="Add Session" />
-          <button class="ghost-button" type="button" data-config-action="add" data-config-key="sessions">Add</button>
-        </div>
       </div>
-      <div class="config-list">
-        ${
-          appConfig.sessions.filter((option) => option !== NO_SPECIFIC_SESSION).length
-            ? appConfig.sessions.filter((option) => option !== NO_SPECIFIC_SESSION)
-                .map(
-                  (option) => `
-                    <span class="config-pill">
-                      ${escapeHtml(getSessionDisplayLabel(option))}
-                      <button type="button" aria-label="Remove ${escapeHtml(option)}" data-config-action="remove" data-config-key="sessions" data-config-value="${escapeHtml(option)}">x</button>
-                    </span>
-                  `,
-                )
-                .join("")
-            : '<span class="muted">No values yet.</span>'
-        }
+      <div class="wizard-session-list">
+        ${DEFAULT_SESSION_OPTIONS.filter((session) => session !== NO_SPECIFIC_SESSION).map(
+          (session) => `
+            <label class="wizard-session-option">
+              <input type="checkbox" value="${escapeHtml(session)}" data-config-session-choice ${appConfig.sessions.includes(session) ? "checked" : ""} />
+              <span>${escapeHtml(getSessionDisplayLabel(session))}</span>
+            </label>
+          `,
+        ).join("")}
       </div>
     `;
     configGrid.appendChild(sessionSection);
@@ -5915,6 +5905,16 @@ configGrid.addEventListener("change", (event) => {
     resetForm();
     render();
     showToast("Strategies updated");
+    return;
+  }
+  if (event.target.matches("[data-config-session-choice]")) {
+    const selected = [...configGrid.querySelectorAll("[data-config-session-choice]:checked")].map((input) => input.value);
+    appConfig.sessions = normalizeSessions(selected, []);
+    saveConfig();
+    syncConfiguredInputs();
+    resetForm();
+    render();
+    showToast("Sessions updated");
     return;
   }
   const restriction = event.target.closest("[data-rule-restriction]");
