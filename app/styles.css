@@ -1789,6 +1789,24 @@ h2 {
   line-height: 0.95;
 }
 
+.backtest-table-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.backtest-table-title strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.backtest-table-title span {
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .backtest-table td small {
   display: block;
   margin-top: 4px;

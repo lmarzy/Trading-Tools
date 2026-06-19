@@ -268,6 +268,7 @@ const backtestTargetPoints = document.querySelector("#backtestTargetPoints");
 const backtestScenarioTabs = document.querySelector("#backtestScenarioTabs");
 const backtestSummaryGrid = document.querySelector("#backtestSummaryGrid");
 const backtestTableBody = document.querySelector("#backtestTableBody");
+const backtestTableTitle = document.querySelector("#backtestTableTitle");
 const backtestFilterModel = document.querySelector("#backtestFilterModel");
 const backtestFilterSymbol = document.querySelector("#backtestFilterSymbol");
 const backtestFilterRange = document.querySelector("#backtestFilterRange");
@@ -2900,6 +2901,12 @@ function renderBacktesting() {
   backtestAdminPanel?.classList.toggle("hidden", !isAdmin);
   const rows = getActiveBacktestRows();
   renderBacktestScenarioTabs();
+  const activeScenario = getBacktestScenarios().find((scenario) => scenario.key === activeBacktestScenarioKey);
+  if (backtestTableTitle) {
+    backtestTableTitle.innerHTML = activeScenario
+      ? `<strong>${escapeHtml(activeScenario.title)}</strong><span>${escapeHtml(activeScenario.meta)}</span>`
+      : "";
+  }
   syncBacktestFilter(backtestFilterModel, [...new Set(rows.map((row) => row.model).filter(Boolean))], "All models");
   syncBacktestFilter(backtestFilterSymbol, [...new Set(rows.map((row) => row.symbol).filter(Boolean))], "All symbols");
   syncBacktestFilter(backtestFilterRange, [...new Set(rows.map((row) => row.rangeTimeframe).filter(Boolean))], "All ranges");
@@ -2925,7 +2932,7 @@ function renderBacktesting() {
   backtestTableBody.innerHTML = filtered.length ? filtered.map((row) => `
     <tr>
       <td data-label="Date">${escapeHtml(row.date || "-")}</td>
-      <td data-label="Scenario"><strong>${escapeHtml(row.symbol || "-")} · ${escapeHtml(row.model || "-")}</strong><small>${escapeHtml(row.rangeTimeframe || "-")} range · ${escapeHtml(row.breakTimeframe || "-")} break</small></td>
+      <td data-label="Range">${formatPoints(row.range)}</td>
       <td data-label="Bias">${escapeHtml(row.overallBias || "-")}<small>${escapeHtml(row.firstCandleDirection || "-")} first candle</small></td>
       <td data-label="Target">${getBacktestTargetLabel(row)}<small>${escapeHtml(getBacktestTargetContext(row))}</small></td>
       <td data-label="Break">${escapeHtml(row.breakDirection || "-")}<small>${formatPoints(row.breakAmount)} · ${escapeHtml(row.timeToBreak || "-")}</small></td>
