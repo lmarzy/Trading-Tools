@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
         role: user.role,
         trialEnabled: Boolean(user.trial_enabled),
         trialEndsAt: user.trial_ends_at || null,
-        featureAccess: user.role === "admin" ? { journal: true, calculator: true, training: true, challenges: true } : user.feature_access,
+        featureAccess: user.role === "admin" ? { journal: true, backtesting: true, calculator: true, training: true, challenges: true } : user.feature_access,
       },
     });
   } catch {

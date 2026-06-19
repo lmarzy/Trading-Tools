@@ -15,10 +15,12 @@ create table if not exists public.app_users (
   trial_started_at timestamptz,
   trial_ends_at timestamptz,
   disabled_reason text,
-  feature_access jsonb not null default '{"journal":true,"calculator":true,"training":false,"challenges":false}'::jsonb,
+  feature_access jsonb not null default '{"journal":true,"backtesting":false,"calculator":true,"training":false,"challenges":false}'::jsonb,
   created_at timestamptz not null default now(),
   last_login_at timestamptz
 );
+
+alter table public.app_users alter column feature_access set default '{"journal":true,"backtesting":false,"calculator":true,"training":false,"challenges":false}'::jsonb;
 
 create table if not exists public.user_data (
   user_id uuid primary key references public.app_users(id) on delete cascade,

@@ -1220,12 +1220,12 @@ async function logout() {
 
 function applyFeatureAccess(access = {}, role = "user") {
   const allowed = role === "admin"
-    ? { journal: true, calculator: true, training: true, challenges: true }
+    ? { journal: true, backtesting: true, calculator: true, training: true, challenges: true }
     : access;
   document.querySelectorAll("[data-app-route]").forEach((link) => {
     const route = link.dataset.appRoute;
-    const feature = route === "tracker" || route === "journal" || route === "backtesting" ? "journal" : route;
-    if (["journal", "calculator", "training", "challenges"].includes(feature)) {
+    const feature = route === "tracker" || route === "journal" ? "journal" : route;
+    if (["journal", "backtesting", "calculator", "training", "challenges"].includes(feature)) {
       link.classList.toggle("hidden", allowed?.[feature] !== true);
     }
   });
@@ -5006,8 +5006,8 @@ function updateActiveRoute(route) {
 function navigateToRoute(route, { replace = false } = {}) {
   const access = JSON.parse(sessionStorage.getItem(AUTH_FEATURES_KEY) || "{}");
   const role = sessionStorage.getItem(AUTH_ROLE_KEY) || "user";
-  const requestedFeature = route === "tracker" || route === "journal" || route === "backtesting" ? "journal" : route;
-  if (role !== "admin" && ["journal", "calculator", "training", "challenges"].includes(requestedFeature) && access?.[requestedFeature] !== true) {
+  const requestedFeature = route === "tracker" || route === "journal" ? "journal" : route;
+  if (role !== "admin" && ["journal", "backtesting", "calculator", "training", "challenges"].includes(requestedFeature) && access?.[requestedFeature] !== true) {
     route = "dashboard";
     showToast("That feature is not included in your access.", "warning");
   }

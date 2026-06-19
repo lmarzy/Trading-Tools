@@ -14,7 +14,7 @@ const statusInput = document.querySelector("#statusInput");
 const trialDurationField = document.querySelector("#trialDurationField");
 const trialWeeksInput = document.querySelector("#trialWeeksInput");
 const newUserFeatureInputs = document.querySelectorAll("[data-new-user-feature]");
-const FEATURE_KEYS = ["journal", "calculator", "training", "challenges"];
+const FEATURE_KEYS = ["journal", "backtesting", "calculator", "training", "challenges"];
 
 function normalizeFeatureAccess(access = {}, role = "user") {
   if (role === "admin") return Object.fromEntries(FEATURE_KEYS.map((key) => [key, true]));

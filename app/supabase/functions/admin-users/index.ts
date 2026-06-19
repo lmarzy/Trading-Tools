@@ -2,8 +2,8 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 
 const USER_SELECT = "id,label,first_name,last_name,email,role,passcode_code,active,trial_enabled,trial_weeks,trial_started_at,trial_ends_at,disabled_reason,feature_access,created_at,last_login_at";
-const DEFAULT_FEATURE_ACCESS = { journal: true, calculator: true, training: false, challenges: false };
-const ADMIN_FEATURE_ACCESS = { journal: true, calculator: true, training: true, challenges: true };
+const DEFAULT_FEATURE_ACCESS = { journal: true, backtesting: false, calculator: true, training: false, challenges: false };
+const ADMIN_FEATURE_ACCESS = { journal: true, backtesting: true, calculator: true, training: true, challenges: true };
 
 function normaliseFeatureAccess(value: unknown, role: string) {
   if (role === "admin") return ADMIN_FEATURE_ACCESS;

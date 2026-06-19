@@ -12,7 +12,7 @@ async function authenticate(req: Request, supabase: SupabaseClient) {
     .eq("active", true)
     .maybeSingle();
   if (!data || (data.trial_enabled && data.trial_ends_at && new Date(data.trial_ends_at).getTime() <= Date.now())) return null;
-  if (data.role !== "admin" && data.feature_access?.journal !== true) return null;
+  if (data.role !== "admin" && data.feature_access?.backtesting !== true) return null;
   return data;
 }
 
