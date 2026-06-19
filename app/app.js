@@ -2763,7 +2763,7 @@ function createBacktestRows(csvText, meta) {
   return csvRows.map((row) => ({
     id: crypto.randomUUID(),
     importedAt: new Date().toISOString(),
-    importName: meta.importName || `${meta.symbol} · ${meta.model} · ${meta.rangeTimeframe} / ${meta.breakTimeframe}`,
+    importName: meta.importName || `${meta.model} · ${meta.rangeTimeframe} / ${meta.breakTimeframe}`,
     symbol: meta.symbol,
     model: getBacktestCell(row, headerMap, ["Model"]) || meta.model,
     targetPoints: toBacktestNumber(meta.targetPoints),
@@ -2802,7 +2802,9 @@ function getBacktestScenarioKey(row) {
 
 function getBacktestScenarioLabel(rows) {
   const row = rows[0] || {};
-  const title = row.importName || `${row.model || "Scenario"} · ${row.rangeTimeframe || "-"} / ${row.breakTimeframe || "-"}`;
+  const symbolPrefix = row.symbol ? `${row.symbol} · ` : "";
+  const rawTitle = row.importName || `${row.model || "Scenario"} · ${row.rangeTimeframe || "-"} / ${row.breakTimeframe || "-"}`;
+  const title = row.symbol && rawTitle.startsWith(symbolPrefix) ? rawTitle.slice(symbolPrefix.length) : rawTitle;
   const symbol = row.symbol ? `${row.symbol} · ` : "";
   return {
     title: `${symbol}${title}`,
