@@ -368,22 +368,27 @@ const SESSION_DEFINITIONS = {
   "Singapore/HK": { timeZone: "Asia/Singapore", start: 9, end: 17 },
   Frankfurt: { timeZone: "Europe/Berlin", start: 8, end: 17 },
   London: { timeZone: "Europe/London", start: 8, end: 17 },
-  "London 8:30": { timeZone: "Europe/London", start: 8, startMinute: 30, end: 17 },
+  "London Open": { timeZone: "Europe/London", start: 8, startMinute: 30, end: 17 },
   "New York": { timeZone: "America/New_York", start: 8, end: 17 },
 };
 const DEFAULT_SESSION_OPTIONS = [...Object.keys(SESSION_DEFINITIONS), "N/A"];
 const NO_SPECIFIC_SESSION = "N/A";
+const LEGACY_SESSION_LABELS = {
+  "London 8:30": "London Open",
+};
 
 function normalizeSessions(options, fallback = []) {
-  const sessions = normalizeOptions(options, fallback).filter((option) => option !== NO_SPECIFIC_SESSION);
+  const sessions = normalizeOptions(options, fallback)
+    .map((option) => LEGACY_SESSION_LABELS[option] || option)
+    .filter((option) => option !== NO_SPECIFIC_SESSION);
   return [...sessions, NO_SPECIFIC_SESSION];
 }
 
 function ensureCurrentSessionOptions(options) {
   const sessions = normalizeSessions(options, []);
   const editableSessions = sessions.filter((option) => option !== NO_SPECIFIC_SESSION);
-  if (editableSessions.includes("London") && !editableSessions.includes("London 8:30")) {
-    editableSessions.splice(editableSessions.indexOf("London") + 1, 0, "London 8:30");
+  if (editableSessions.includes("London") && !editableSessions.includes("London Open")) {
+    editableSessions.splice(editableSessions.indexOf("London") + 1, 0, "London Open");
   }
   return normalizeSessions(editableSessions, []);
 }
