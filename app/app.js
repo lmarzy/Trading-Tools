@@ -4341,14 +4341,14 @@ function renderWizardValueBuilder({ key, label, placeholder, values, marketType 
   const marketAttribute = marketType ? ` data-wizard-market-type-value="${escapeHtml(marketType)}"` : "";
   return `
     <div class="wizard-value-builder" data-wizard-builder="${escapeHtml(key)}"${marketAttribute}>
-      <label class="wizard-add-row">
+      <div class="wizard-add-row">
         <span>${escapeHtml(label)}</span>
         <div class="${key === "symbols" ? "wizard-symbol-add-row" : ""}">
           <input type="text" placeholder="${escapeHtml(placeholder)}" data-wizard-add-input />
           ${key === "symbols" ? `<select data-wizard-new-symbol-market aria-label="Standard market"><option value="">Please select</option>${STANDARD_MARKETS.map((market) => `<option value="${escapeHtml(market)}">${escapeHtml(market)}</option>`).join("")}</select>` : ""}
           <button class="ghost-button" type="button" data-wizard-add-value ${key === "symbols" ? "disabled" : ""}>Add</button>
         </div>
-      </label>
+      </div>
       <div class="wizard-chip-list">
         ${
           values.length
@@ -4831,7 +4831,9 @@ function stashWizardStep() {
 function addWizardValue(builder, input) {
   const key = builder.dataset.wizardBuilder;
   const marketType = builder.dataset.wizardMarketTypeValue || "";
-  const values = parseWizardValues(input.value);
+  const values = key === "strategies"
+    ? normalizeStrategies(parseWizardValues(input.value), [])
+    : parseWizardValues(input.value);
   if (!values.length) {
     input.focus();
     return;
@@ -4859,7 +4861,9 @@ function addWizardValue(builder, input) {
       ...Object.fromEntries(values.map((symbol) => [symbol, builder.querySelector("[data-wizard-new-symbol-market]")?.value || suggestStandardMarket(symbol)])),
     };
   } else {
-    onboardingDraft[key] = normalizeOptions([...values, ...(onboardingDraft[key] || [])], []);
+    onboardingDraft[key] = key === "strategies"
+      ? normalizeStrategies([...values, ...(onboardingDraft[key] || [])], [])
+      : normalizeOptions([...values, ...(onboardingDraft[key] || [])], []);
     if (key === "accounts") {
       onboardingDraft.accountBalances = onboardingDraft[key].reduce(
         (balances, account) => ({ ...balances, [account]: onboardingDraft.accountBalances?.[account] || "" }),
@@ -4935,7 +4939,7 @@ function saveOnboardingWizard() {
 }
 
 function addConfigValue(key, value, marketType = "", options = {}) {
-  const nextValue = value.trim();
+  const nextValue = key === "strategies" ? normalizeStrategyName(value) : value.trim();
   if (key === "sessions" && (nextValue === NO_SPECIFIC_SESSION || nextValue.toLowerCase() === "no specific session")) {
     showToast("N/A is added automatically.", "warning");
     return;
@@ -4970,7 +4974,9 @@ function addConfigValue(key, value, marketType = "", options = {}) {
 
   appConfig[key] = key === "sessions"
     ? normalizeSessions([nextValue, ...appConfig[key]], [])
-    : [nextValue, ...appConfig[key]];
+    : key === "strategies"
+      ? normalizeStrategies([nextValue, ...appConfig[key]], [])
+      : [nextValue, ...appConfig[key]];
   if (key === "accounts") {
     appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
     appConfig.accountSettings = { ...appConfig.accountSettings, [nextValue]: { isProp: Boolean(options.isProp), startingBalance: "", dailyDrawdown: "", maxDrawdown: "", timeframeDays: "" } };
@@ -5943,10 +5949,14 @@ configGrid.addEventListener("click", (event) => {
   const key = button.dataset.configKey;
   if (button.dataset.configAction === "add") {
     const section = button.closest(".config-section");
-    const input = section.querySelector("input");
+    const input = button.closest(".config-add-row, .account-create-row")?.querySelector("input[type='text'], input:not([type]), input[type='number']") || section.querySelector("input[type='text'], input:not([type])");
     const isProp = section.querySelector("[data-new-account-type]")?.value === "prop";
+    if (!input) {
+      return;
+    }
     addConfigValue(key, input.value, button.dataset.marketType || "", { isProp });
     input.value = "";
+    input.focus();
   }
 
   if (button.dataset.configAction === "remove") {
