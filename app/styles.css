@@ -8414,6 +8414,7 @@ textarea,
     grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
+    z-index: 1;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -8430,6 +8431,7 @@ textarea,
 
   .header-route-nav a {
     flex: 0 0 auto;
+    z-index: 1;
     min-width: max-content;
     padding: 10px 14px;
     scroll-snap-align: start;
@@ -8444,6 +8446,8 @@ textarea,
   .user-menu {
     grid-column: 3;
     grid-row: 1;
+    position: relative;
+    z-index: 150;
     width: auto;
   }
 
@@ -8458,6 +8462,7 @@ textarea,
   .user-popover {
     position: absolute;
     right: 0;
+    z-index: 200;
     width: min(280px, calc(100vw - 28px));
   }
 }
