@@ -8386,3 +8386,78 @@ textarea,
   border-color: var(--line);
   background-color: var(--field-2);
 }
+
+@media (max-width: 720px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .brand-lockup {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .brand-lockup img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .topbar-actions {
+    display: contents;
+  }
+
+  .header-route-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .header-route-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-route-nav a {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 10px 14px;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  .news-alert-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .user-menu {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+  }
+
+  .news-alert-button,
+  .user-menu-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .user-popover {
+    position: absolute;
+    right: 0;
+    width: min(280px, calc(100vw - 28px));
+  }
+}
