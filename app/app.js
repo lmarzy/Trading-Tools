@@ -320,7 +320,7 @@ const PREDEFINED_SYMBOLS = {
     { symbol: "XAUUSD", market: "Gold" }, { symbol: "XAGUSD", market: "Silver" },
     { symbol: "UK100", market: "FTSE 100" }, { symbol: "GER40", market: "DAX" },
     { symbol: "USOIL", market: "Oil" }, { symbol: "EURUSD", market: "EUR/USD" },
-    { symbol: "GBPUSD", market: "GBP/USD" }, { symbol: "USDJPY", market: "USD/JPY" },
+    { symbol: "GBPUSD", market: "GBP/USD" }, { symbol: "GBPJPY", market: "GBP/JPY" }, { symbol: "USDJPY", market: "USD/JPY" },
     { symbol: "BTCUSD", market: "Bitcoin" },
   ],
   Futures: [
