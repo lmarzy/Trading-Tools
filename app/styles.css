@@ -3654,7 +3654,7 @@ tbody td:last-child {
 
 .account-create-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   align-items: end;
   min-width: 0;
@@ -3663,7 +3663,7 @@ tbody td:last-child {
 }
 
 .wizard-add-row > .account-create-row {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   padding: 0;
   margin: 0;
 }
@@ -3692,6 +3692,8 @@ tbody td:last-child {
 
 .account-create-submit,
 .account-create-row [data-wizard-add-value] {
+  grid-column: 1 / -1;
+  width: 100%;
   min-height: 42px;
   align-self: end;
 }
@@ -3851,10 +3853,6 @@ tbody td:last-child {
 }
 
 @media (max-width: 1050px) {
-  .account-create-row,
-  .wizard-add-row > .account-create-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .wizard-account-fields,
   .account-settings-fields {
     grid-template-columns: 1fr;
