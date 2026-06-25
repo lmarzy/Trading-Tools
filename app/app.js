@@ -31,6 +31,7 @@ const marketTypeField = document.querySelector("#marketTypeField");
 const sessionField = document.querySelector("#sessionField");
 const lotsField = document.querySelector("#lotsField");
 const contractsField = document.querySelector("#contractsField");
+const unitsField = document.querySelector("#unitsField");
 const notesDisclosure = document.querySelector("#notesDisclosure");
 const priceDetailsDisclosure = document.querySelector("#priceDetailsDisclosure");
 const pricePointsPreview = document.querySelector("#pricePointsPreview");
@@ -1544,6 +1545,35 @@ function normalizeMarketTypes(options) {
   return [...new Set(cleaned)];
 }
 
+const SIZE_TYPE_OPTIONS = ["lots", "units", "contracts"];
+const SIZE_TYPE_LABELS = {
+  lots: "Lots",
+  units: "Units",
+  contracts: "Contracts",
+};
+
+function normalizeSizeType(value, fallback = "lots") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (SIZE_TYPE_OPTIONS.includes(normalized)) {
+    return normalized;
+  }
+
+  return SIZE_TYPE_OPTIONS.includes(fallback) ? fallback : "lots";
+}
+
+function getDefaultSizeTypeForMarket(marketType = getDefaultMarketType()) {
+  return marketType === "Futures" ? "contracts" : "lots";
+}
+
+function getAccountSizeType(account, marketType = getDefaultMarketType()) {
+  return normalizeSizeType(appConfig.accountSettings?.[account]?.sizeType, getDefaultSizeTypeForMarket(marketType));
+}
+
+function renderSizeTypeOptions(selected = "lots") {
+  const normalized = normalizeSizeType(selected);
+  return SIZE_TYPE_OPTIONS.map((type) => `<option value="${type}" ${type === normalized ? "selected" : ""}>${SIZE_TYPE_LABELS[type]}</option>`).join("");
+}
+
 function normalizeSymbolsByMarket(symbolsByMarket = {}) {
   return MARKET_TYPE_OPTIONS.reduce((normalized, marketType) => {
     const allowed = (PREDEFINED_SYMBOLS[marketType] || []).map((item) => item.symbol);
@@ -1578,6 +1608,7 @@ function normalizeAccountSettings(settings = {}, accounts = [], balances = {}) {
     const source = settings?.[account] || {};
     normalized[account] = {
       isProp: Boolean(source.isProp),
+      sizeType: normalizeSizeType(source.sizeType, getDefaultSizeTypeForMarket(getDefaultMarketType())),
       startingBalance: String(source.startingBalance || balances?.[account] || ""),
       dailyDrawdown: String(source.dailyDrawdown || ""),
       maxDrawdown: String(source.maxDrawdown || ""),
@@ -1685,6 +1716,12 @@ function formatLots(value) {
   }).format(value);
 }
 
+function formatUnits(value) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatAmount(value) {
   if (!value) {
     return "-";
@@ -1704,23 +1741,23 @@ function formatSummaryAmount(value) {
 }
 
 function getTradeLots(trade) {
-  if (getTradeSizeType(trade) === "Contracts") {
-    return 0;
-  }
+  return getTradeSizeKey(trade) === "lots" ? parseNumber(trade.lots) * parseNumber(trade.lotMultiplier || "1") : 0;
+}
 
-  return parseNumber(trade.lots) * parseNumber(trade.lotMultiplier || "1");
+function getTradeUnits(trade) {
+  return getTradeSizeKey(trade) === "units" ? parseNumber(trade.units) : 0;
 }
 
 function getTradeContracts(trade) {
-  return getTradeSizeType(trade) === "Contracts" ? parseNumber(trade.contracts) : 0;
+  return getTradeSizeKey(trade) === "contracts" ? parseNumber(trade.contracts) : 0;
+}
+
+function getTradeSizeKey(trade) {
+  return normalizeSizeType(trade.sizeType, getDefaultSizeTypeForMarket(getTradeMarketType(trade)));
 }
 
 function getTradeSizeType(trade) {
-  if (trade.sizeType) {
-    return trade.sizeType === "contracts" ? "Contracts" : "Lots";
-  }
-
-  return getTradeMarketType(trade) === "Futures" ? "Contracts" : "Lots";
+  return SIZE_TYPE_LABELS[getTradeSizeKey(trade)] || "Lots";
 }
 
 function getTradeMarketType(trade) {
@@ -1728,8 +1765,12 @@ function getTradeMarketType(trade) {
 }
 
 function formatTradeSize(trade) {
-  if (getTradeSizeType(trade) === "Contracts") {
+  if (getTradeSizeKey(trade) === "contracts") {
     return String(getTradeContracts(trade));
+  }
+
+  if (getTradeSizeKey(trade) === "units") {
+    return formatUnits(getTradeUnits(trade));
   }
 
   return formatLots(getTradeLots(trade));
@@ -2059,8 +2100,7 @@ function getDashboardTrades() {
 
 function renderSummary() {
   const dashboardTrades = getDashboardTrades();
-  const totalLots = dashboardTrades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
-  const totalContracts = dashboardTrades.reduce((sum, trade) => sum + getTradeContracts(trade), 0);
+  const sizeTotals = getTradeSizeTotals(dashboardTrades);
   const wins = dashboardTrades.filter((trade) => trade.outcome === "Win").length;
   const losses = dashboardTrades.filter((trade) => trade.outcome === "Loss").length;
   const amount = dashboardTrades.reduce((sum, trade) => {
@@ -2083,7 +2123,7 @@ function renderSummary() {
     item.innerHTML = `${escapeHtml(symbol)} <em>${count}</em>`;
     summarySymbolSplit.appendChild(item);
   });
-  renderSizeSummaryTiles(totalLots, totalContracts);
+  renderSizeSummaryTiles(sizeTotals);
   winsTotalEl.textContent = String(wins);
   lossesTotalEl.textContent = String(losses);
   amountTotalEl.textContent = formatSummaryAmount(amount);
@@ -2091,9 +2131,40 @@ function renderSummary() {
   renderMarketSummaries();
 }
 
-function renderSizeSummaryTiles(totalLots, totalContracts) {
+function getConfiguredSizeTypes() {
+  const configured = new Set(appConfig.marketTypes.map((marketType) => getDefaultSizeTypeForMarket(marketType)));
+  Object.values(appConfig.accountSettings || {}).forEach((settings) => configured.add(normalizeSizeType(settings.sizeType)));
+
+  if (!configured.size) {
+    configured.add("lots");
+  }
+
+  return configured;
+}
+
+function getTradeSizeTotals(sourceTrades) {
+  return {
+    lots: sourceTrades.reduce((sum, trade) => sum + getTradeLots(trade), 0),
+    units: sourceTrades.reduce((sum, trade) => sum + getTradeUnits(trade), 0),
+    contracts: sourceTrades.reduce((sum, trade) => sum + getTradeContracts(trade), 0),
+  };
+}
+
+function formatSizeTotal(type, value) {
+  if (type === "contracts") {
+    return String(value);
+  }
+
+  if (type === "units") {
+    return formatUnits(value);
+  }
+
+  return formatLots(value);
+}
+
+function renderSizeSummaryTiles(sizeTotals) {
   const enabledSizeTypes = new Set(
-    appConfig.marketTypes.map((marketType) => (marketType === "Futures" ? "contracts" : "lots")),
+    [...getConfiguredSizeTypes(), ...SIZE_TYPE_OPTIONS.filter((type) => sizeTotals[type] > 0)],
   );
 
   if (!enabledSizeTypes.size) {
@@ -2105,19 +2176,16 @@ function renderSizeSummaryTiles(totalLots, totalContracts) {
     return;
   }
 
-  if (enabledSizeTypes.has("lots")) {
-    summarySizeTiles.insertAdjacentHTML(
-      "beforeend",
-      `<article class="summary-tile"><span>Total Size (lots)</span><strong>${formatLots(totalLots)}</strong></article>`,
-    );
-  }
+  SIZE_TYPE_OPTIONS.forEach((type) => {
+    if (!enabledSizeTypes.has(type)) {
+      return;
+    }
 
-  if (enabledSizeTypes.has("contracts")) {
     summarySizeTiles.insertAdjacentHTML(
       "beforeend",
-      `<article class="summary-tile"><span>Total Size (contracts)</span><strong>${totalContracts}</strong></article>`,
+      `<article class="summary-tile"><span>Total Size (${SIZE_TYPE_LABELS[type].toLowerCase()})</span><strong>${formatSizeTotal(type, sizeTotals[type] || 0)}</strong></article>`,
     );
-  }
+  });
 }
 
 function renderMarketSummaries() {
@@ -2132,11 +2200,9 @@ function renderMarketSummaries() {
     const marketTrades = getDashboardTrades().filter((trade) => getTradeMarketType(trade) === marketType);
     const wins = marketTrades.filter((trade) => trade.outcome === "Win").length;
     const losses = marketTrades.filter((trade) => trade.outcome === "Loss").length;
-    const lots = marketTrades.reduce((sum, trade) => sum + getTradeLots(trade), 0);
-    const contracts = marketTrades.reduce((sum, trade) => sum + getTradeContracts(trade), 0);
+    const sizeTotals = getTradeSizeTotals(marketTrades);
     const amount = marketTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
-    const sizeLabel = marketType === "Futures" ? "Contracts" : "Lots";
-    const sizeValue = marketType === "Futures" ? String(contracts) : formatLots(lots);
+    const sizeItems = SIZE_TYPE_OPTIONS.filter((type) => sizeTotals[type] > 0 || getConfiguredSizeTypes().has(type));
     const card = document.createElement("article");
     card.className = `market-summary-card ${amount > 0 ? "profit" : amount < 0 ? "loss" : "flat"}`;
     card.innerHTML = `
@@ -2145,7 +2211,7 @@ function renderMarketSummaries() {
         <strong>${marketTrades.length}</strong>
       </div>
       <dl>
-        <div><dt>${sizeLabel}</dt><dd>${sizeValue}</dd></div>
+        ${sizeItems.map((type) => `<div><dt>${SIZE_TYPE_LABELS[type]}</dt><dd>${formatSizeTotal(type, sizeTotals[type] || 0)}</dd></div>`).join("")}
         <div><dt>W/L</dt><dd>${wins}/${losses}</dd></div>
         <div><dt>Amount</dt><dd>${formatSummaryAmount(amount)}</dd></div>
       </dl>
@@ -4266,6 +4332,7 @@ function renderConfig() {
                     </div>
                     <div class="account-settings-fields ${appConfig.accountSettings?.[account]?.isProp ? "" : "regular"}">
                       <label><span>Starting balance</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.startingBalance || appConfig.accountBalances?.[account] || "")}" placeholder="0.00" data-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
+                      <label><span>Size type</span><select data-account-setting="sizeType" data-account="${escapeHtml(account)}">${renderSizeTypeOptions(appConfig.accountSettings?.[account]?.sizeType)}</select></label>
                       <label class="prop-only"><span>Daily drawdown</span><select data-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.dailyDrawdown)}</select></label>
                       <label class="prop-only"><span>Maximum drawdown</span><select data-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.maxDrawdown)}</select></label>
                       <label class="prop-only"><span>Timeframe to complete</span><div class="input-with-suffix"><input type="number" min="1" step="1" value="${escapeHtml(appConfig.accountSettings?.[account]?.timeframeDays || "")}" placeholder="Optional" data-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /><span>days</span></div></label>
@@ -4395,6 +4462,7 @@ function renderWizardAccountBuilder() {
                       <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-wizard-account-setting="isProp" data-account="${escapeHtml(account)}" ${onboardingDraft.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label></div>
                       <div class="wizard-account-fields ${onboardingDraft.accountSettings?.[account]?.isProp ? "" : "regular"}">
                         <label><span>Starting balance</span><input type="number" min="0" step="0.01" placeholder="0.00" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.startingBalance || onboardingDraft.accountBalances?.[account] || "")}" data-wizard-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
+                        <label><span>Size type</span><select data-wizard-account-setting="sizeType" data-account="${escapeHtml(account)}">${renderSizeTypeOptions(onboardingDraft.accountSettings?.[account]?.sizeType)}</select></label>
                         <label class="prop-only"><span>Daily drawdown</span><select data-wizard-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.dailyDrawdown)}</select></label>
                         <label class="prop-only"><span>Maximum drawdown</span><select data-wizard-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.maxDrawdown)}</select></label>
                         <label class="prop-only"><span>Timeframe</span><input type="number" min="1" step="1" placeholder="Days (optional)" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.timeframeDays || "")}" data-wizard-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /></label>
@@ -4872,7 +4940,11 @@ function addWizardValue(builder, input) {
       onboardingDraft.accountSettings = normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft[key], onboardingDraft.accountBalances);
       const isProp = builder.querySelector("[data-wizard-new-account-type]")?.value === "prop";
       values.forEach((account) => {
-        onboardingDraft.accountSettings[account] = { ...onboardingDraft.accountSettings[account], isProp };
+        onboardingDraft.accountSettings[account] = {
+          ...onboardingDraft.accountSettings[account],
+          isProp,
+          sizeType: normalizeSizeType(onboardingDraft.accountSettings?.[account]?.sizeType, getDefaultSizeTypeForMarket(onboardingDraft.marketTypes?.[0] || "")),
+        };
       });
     }
   }
@@ -4979,7 +5051,17 @@ function addConfigValue(key, value, marketType = "", options = {}) {
       : [nextValue, ...appConfig[key]];
   if (key === "accounts") {
     appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
-    appConfig.accountSettings = { ...appConfig.accountSettings, [nextValue]: { isProp: Boolean(options.isProp), startingBalance: "", dailyDrawdown: "", maxDrawdown: "", timeframeDays: "" } };
+    appConfig.accountSettings = {
+      ...appConfig.accountSettings,
+      [nextValue]: {
+        isProp: Boolean(options.isProp),
+        sizeType: getDefaultSizeTypeForMarket(getDefaultMarketType()),
+        startingBalance: "",
+        dailyDrawdown: "",
+        maxDrawdown: "",
+        timeframeDays: "",
+      },
+    };
     accountCreateOpen = false;
   }
   saveConfig();
@@ -5337,9 +5419,10 @@ async function resetCurrentUserPasscode() {
 }
 
 function syncSizeFields() {
-  const isContracts = marketTypeInput.value === "Futures";
-  lotsField.classList.toggle("hidden", isContracts);
-  contractsField.classList.toggle("hidden", !isContracts);
+  const sizeType = getAccountSizeType(form.account.value || getDefaultOption("accounts"), marketTypeInput.value || getDefaultMarketType());
+  lotsField.classList.toggle("hidden", sizeType !== "lots");
+  contractsField.classList.toggle("hidden", sizeType !== "contracts");
+  unitsField.classList.toggle("hidden", sizeType !== "units");
 }
 
 function syncMarketTypeField() {
@@ -5394,10 +5477,11 @@ function readForm() {
     entryTimeframe: isOrbStrategy(form.strategy.value) ? form.entryTimeframe.value : "",
     entryModel: isOrbStrategy(form.strategy.value) ? form.entryModel.value : "",
     marketType: form.marketType.value || getDefaultMarketType(),
-    sizeType: (form.marketType.value || getDefaultMarketType()) === "Futures" ? "contracts" : "lots",
+    sizeType: getAccountSizeType(form.account.value, form.marketType.value || getDefaultMarketType()),
     lots: form.lots.value,
     lotMultiplier: "1",
     contracts: form.contracts.value,
+    units: form.units.value,
     outcome: form.outcome.value,
     amount: form.amount.value,
     direction: form.direction.value,
@@ -5431,6 +5515,10 @@ function validateTrade(trade) {
 
   if (trade.sizeType === "contracts" && !trade.contracts) {
     return "Contracts are required.";
+  }
+
+  if (trade.sizeType === "units" && !trade.units) {
+    return "Units are required.";
   }
 
   if ((trade.sizeType || "lots") === "lots" && !trade.lots) {
@@ -5504,6 +5592,7 @@ function resetForm() {
   syncMarketTypeField();
   form.lots.value = "0.01";
   form.contracts.value = "1";
+  form.units.value = "";
   syncSizeFields();
   form.outcome.value = "Pending";
   form.amount.value = "";
@@ -5554,6 +5643,7 @@ function startEdit(id) {
   syncMarketTypeField();
   form.lots.value = formatLots(getTradeLots(trade));
   form.contracts.value = trade.contracts || "1";
+  form.units.value = trade.units || "";
   syncSizeFields();
   form.outcome.value = trade.outcome || "Pending";
   form.amount.value = trade.amount || "";
@@ -5614,7 +5704,9 @@ function exportCsv() {
       "Size Type",
       "Lots",
       "Contracts",
+      "Units",
       "Total Lots",
+      "Total Units",
       "Direction",
       "Entry",
       "Exit",
@@ -5651,7 +5743,9 @@ function exportCsv() {
         getTradeSizeType(trade),
         trade.lots,
         trade.contracts || "",
+        trade.units || "",
         formatLots(getTradeLots(trade)),
+        formatUnits(getTradeUnits(trade)),
         trade.direction || "",
         trade.entryPrice || "",
         trade.exitPrice || "",
@@ -5803,6 +5897,7 @@ confirmModal.addEventListener("click", (event) => {
   }
 });
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
+form.account.addEventListener("change", syncSizeFields);
 form.strategy.addEventListener("change", syncStrategyExecutionFields);
 tradeChallengeInput.addEventListener("change", () => syncTradeChallenge());
 form.tradeDate.addEventListener("change", () => syncTradeChallenge(tradeChallengeInput.value));
