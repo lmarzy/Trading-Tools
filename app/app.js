@@ -281,6 +281,7 @@ const DEFAULT_CONFIG = {
     Futures: [],
   },
   symbolMarketMap: {},
+  sizingRules: {},
   sessions: [],
   trackSessions: false,
   accounts: [],
@@ -1358,10 +1359,12 @@ async function hydrateUserStateFromSupabase({ includeConfig = true, includeTrade
     }
     const marketTypes = normalizeMarketTypes(remoteData.config?.marketTypes);
     const symbolsByMarket = normalizeSymbolsByMarket(remoteData.config?.symbolsByMarket);
+    const symbols = flattenSymbolsByMarket(symbolsByMarket);
     appConfig = {
-      symbols: flattenSymbolsByMarket(symbolsByMarket),
+      symbols,
       symbolsByMarket,
-      symbolMarketMap: normalizeSymbolMarketMap(remoteData.config?.symbolMarketMap, flattenSymbolsByMarket(symbolsByMarket)),
+      symbolMarketMap: normalizeSymbolMarketMap(remoteData.config?.symbolMarketMap, symbols),
+      sizingRules: normalizeSizingRules(remoteData.config?.sizingRules, remoteData.config?.accounts, symbols, symbolsByMarket),
       sessions: Boolean(remoteData.config?.trackSessions) ? ensureCurrentSessionOptions(remoteData.config?.sessions) : [],
       trackSessions: Boolean(remoteData.config?.trackSessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
@@ -1565,13 +1568,49 @@ function getDefaultSizeTypeForMarket(marketType = getDefaultMarketType()) {
   return marketType === "Futures" ? "contracts" : "lots";
 }
 
-function getAccountSizeType(account, marketType = getDefaultMarketType()) {
-  return normalizeSizeType(appConfig.accountSettings?.[account]?.sizeType, getDefaultSizeTypeForMarket(marketType));
+function getSymbolMarketType(symbol = "") {
+  return MARKET_TYPE_OPTIONS.find((marketType) => getSymbolsForMarket(marketType).includes(symbol)) || getDefaultMarketType();
+}
+
+function getSymbolMarketTypeFromMap(symbol = "", symbolsByMarket = appConfig.symbolsByMarket) {
+  return MARKET_TYPE_OPTIONS.find((marketType) => normalizeOptions(symbolsByMarket?.[marketType], []).includes(symbol)) || getDefaultMarketType();
+}
+
+function getDefaultSizeTypeForSymbol(symbol = "", marketType = getSymbolMarketType(symbol)) {
+  if (marketType === "Futures") {
+    return "contracts";
+  }
+
+  const upperSymbol = String(symbol).toUpperCase();
+  if (/^(XAU|XAG|EUR|GBP|USD|AUD|CAD|JPY)/.test(upperSymbol)) {
+    return "lots";
+  }
+
+  return "units";
+}
+
+function getSizingRuleKey(account = "", symbol = "") {
+  return `${account}::${symbol}`;
+}
+
+function getTradeSizingRule(account = "", symbol = "", marketType = getSymbolMarketType(symbol)) {
+  return normalizeSizeType(appConfig.sizingRules?.[getSizingRuleKey(account, symbol)], getDefaultSizeTypeForSymbol(symbol, marketType));
 }
 
 function renderSizeTypeOptions(selected = "lots") {
   const normalized = normalizeSizeType(selected);
   return SIZE_TYPE_OPTIONS.map((type) => `<option value="${type}" ${type === normalized ? "selected" : ""}>${SIZE_TYPE_LABELS[type]}</option>`).join("");
+}
+
+function normalizeSizingRules(rules = {}, accounts = [], symbols = [], symbolsByMarket = appConfig.symbolsByMarket) {
+  const normalized = {};
+  normalizeOptions(accounts, []).forEach((account) => {
+    normalizeOptions(symbols, []).forEach((symbol) => {
+      const key = getSizingRuleKey(account, symbol);
+      normalized[key] = normalizeSizeType(rules?.[key], getDefaultSizeTypeForSymbol(symbol, getSymbolMarketTypeFromMap(symbol, symbolsByMarket)));
+    });
+  });
+  return normalized;
 }
 
 function normalizeSymbolsByMarket(symbolsByMarket = {}) {
@@ -1608,7 +1647,6 @@ function normalizeAccountSettings(settings = {}, accounts = [], balances = {}) {
     const source = settings?.[account] || {};
     normalized[account] = {
       isProp: Boolean(source.isProp),
-      sizeType: normalizeSizeType(source.sizeType, getDefaultSizeTypeForMarket(getDefaultMarketType())),
       startingBalance: String(source.startingBalance || balances?.[account] || ""),
       dailyDrawdown: String(source.dailyDrawdown || ""),
       maxDrawdown: String(source.maxDrawdown || ""),
@@ -2132,8 +2170,9 @@ function renderSummary() {
 }
 
 function getConfiguredSizeTypes() {
-  const configured = new Set(appConfig.marketTypes.map((marketType) => getDefaultSizeTypeForMarket(marketType)));
-  Object.values(appConfig.accountSettings || {}).forEach((settings) => configured.add(normalizeSizeType(settings.sizeType)));
+  const configured = new Set();
+  appConfig.symbols.forEach((symbol) => configured.add(getDefaultSizeTypeForSymbol(symbol, getSymbolMarketType(symbol))));
+  Object.values(appConfig.sizingRules || {}).forEach((sizeType) => configured.add(normalizeSizeType(sizeType)));
 
   if (!configured.size) {
     configured.add("lots");
@@ -4082,6 +4121,7 @@ function closeWeeklyReview() {
 
 function renderConfig() {
   appConfig.accountSettings = normalizeAccountSettings(appConfig.accountSettings, appConfig.accounts, appConfig.accountBalances);
+  appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
   configGrid.innerHTML = "";
 
   const marketSection = document.createElement("section");
@@ -4332,7 +4372,6 @@ function renderConfig() {
                     </div>
                     <div class="account-settings-fields ${appConfig.accountSettings?.[account]?.isProp ? "" : "regular"}">
                       <label><span>Starting balance</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.startingBalance || appConfig.accountBalances?.[account] || "")}" placeholder="0.00" data-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
-                      <label><span>Size type</span><select data-account-setting="sizeType" data-account="${escapeHtml(account)}">${renderSizeTypeOptions(appConfig.accountSettings?.[account]?.sizeType)}</select></label>
                       <label class="prop-only"><span>Daily drawdown</span><select data-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.dailyDrawdown)}</select></label>
                       <label class="prop-only"><span>Maximum drawdown</span><select data-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.maxDrawdown)}</select></label>
                       <label class="prop-only"><span>Timeframe to complete</span><div class="input-with-suffix"><input type="number" min="1" step="1" value="${escapeHtml(appConfig.accountSettings?.[account]?.timeframeDays || "")}" placeholder="Optional" data-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /><span>days</span></div></label>
@@ -4345,6 +4384,36 @@ function renderConfig() {
     </div>
   `;
   configGrid.appendChild(balanceSection);
+
+  const sizingSection = document.createElement("section");
+  sizingSection.className = "config-section sizing-rules-section";
+  sizingSection.dataset.configPanel = "accounts";
+  const sizingRows = appConfig.accounts.flatMap((account) => appConfig.symbols.map((symbol) => ({ account, symbol })));
+  sizingSection.innerHTML = `
+    <div class="config-section-heading">
+      <div>
+        <h3>Sizing Rule(s)</h3>
+        <p class="config-note">Choose how each account records each symbol. Defaults are filled in automatically and can be changed here.</p>
+      </div>
+    </div>
+    <div class="sizing-rules-list">
+      ${
+        sizingRows.length
+          ? sizingRows.map(({ account, symbol }) => {
+              const key = getSizingRuleKey(account, symbol);
+              const marketType = getSymbolMarketType(symbol);
+              return `
+                <label class="sizing-rule-row">
+                  <span><strong>${escapeHtml(account)}</strong><small>${escapeHtml(symbol)} · ${escapeHtml(marketType)}</small></span>
+                  <select data-sizing-rule="${escapeHtml(key)}" data-sizing-account="${escapeHtml(account)}" data-sizing-symbol="${escapeHtml(symbol)}">${renderSizeTypeOptions(appConfig.sizingRules?.[key] || getDefaultSizeTypeForSymbol(symbol, marketType))}</select>
+                </label>
+              `;
+            }).join("")
+          : '<span class="muted">Add at least one account and one symbol to set sizing rules.</span>'
+      }
+    </div>
+  `;
+  configGrid.appendChild(sizingSection);
   showConfigTab(activeConfigTab);
 }
 
@@ -4462,7 +4531,6 @@ function renderWizardAccountBuilder() {
                       <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-wizard-account-setting="isProp" data-account="${escapeHtml(account)}" ${onboardingDraft.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label></div>
                       <div class="wizard-account-fields ${onboardingDraft.accountSettings?.[account]?.isProp ? "" : "regular"}">
                         <label><span>Starting balance</span><input type="number" min="0" step="0.01" placeholder="0.00" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.startingBalance || onboardingDraft.accountBalances?.[account] || "")}" data-wizard-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
-                        <label><span>Size type</span><select data-wizard-account-setting="sizeType" data-account="${escapeHtml(account)}">${renderSizeTypeOptions(onboardingDraft.accountSettings?.[account]?.sizeType)}</select></label>
                         <label class="prop-only"><span>Daily drawdown</span><select data-wizard-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.dailyDrawdown)}</select></label>
                         <label class="prop-only"><span>Maximum drawdown</span><select data-wizard-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.maxDrawdown)}</select></label>
                         <label class="prop-only"><span>Timeframe</span><input type="number" min="1" step="1" placeholder="Days (optional)" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.timeframeDays || "")}" data-wizard-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /></label>
@@ -4943,7 +5011,6 @@ function addWizardValue(builder, input) {
         onboardingDraft.accountSettings[account] = {
           ...onboardingDraft.accountSettings[account],
           isProp,
-          sizeType: normalizeSizeType(onboardingDraft.accountSettings?.[account]?.sizeType, getDefaultSizeTypeForMarket(onboardingDraft.marketTypes?.[0] || "")),
         };
       });
     }
@@ -4988,6 +5055,7 @@ function saveOnboardingWizard() {
     symbols: flattenSymbolsByMarket(symbolsByMarket),
     symbolsByMarket,
     symbolMarketMap: normalizeSymbolMarketMap(onboardingDraft.symbolMarketMap, flattenSymbolsByMarket(symbolsByMarket)),
+    sizingRules: normalizeSizingRules(onboardingDraft.sizingRules, onboardingDraft.accounts, flattenSymbolsByMarket(symbolsByMarket), symbolsByMarket),
     sessions: onboardingDraft.trackSessions ? normalizeSessions(onboardingDraft.sessions, []) : [],
     trackSessions: Boolean(onboardingDraft.trackSessions),
     accounts: normalizeOptions(onboardingDraft.accounts, []),
@@ -5031,6 +5099,7 @@ function addConfigValue(key, value, marketType = "", options = {}) {
     };
     appConfig.symbols = getAllSymbols();
     appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [nextValue]: suggestStandardMarket(nextValue) };
+    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     saveConfig();
     syncConfiguredInputs();
     renderConfig();
@@ -5055,13 +5124,13 @@ function addConfigValue(key, value, marketType = "", options = {}) {
       ...appConfig.accountSettings,
       [nextValue]: {
         isProp: Boolean(options.isProp),
-        sizeType: getDefaultSizeTypeForMarket(getDefaultMarketType()),
         startingBalance: "",
         dailyDrawdown: "",
         maxDrawdown: "",
         timeframeDays: "",
       },
     };
+    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     accountCreateOpen = false;
   }
   saveConfig();
@@ -5096,6 +5165,7 @@ async function removeConfigValue(key, value, marketType = "") {
     };
     appConfig.symbols = getAllSymbols();
     delete appConfig.symbolMarketMap[value];
+    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     saveConfig();
     syncConfiguredInputs();
     renderConfig();
@@ -5126,6 +5196,7 @@ async function removeConfigValue(key, value, marketType = "") {
     appConfig.accountBalances = remainingBalances;
     const { [value]: _removedSettings, ...remainingSettings } = appConfig.accountSettings;
     appConfig.accountSettings = remainingSettings;
+    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
   }
   saveConfig();
   syncConfiguredInputs();
@@ -5418,8 +5489,15 @@ async function resetCurrentUserPasscode() {
   }
 }
 
-function syncSizeFields() {
-  const sizeType = getAccountSizeType(form.account.value || getDefaultOption("accounts"), marketTypeInput.value || getDefaultMarketType());
+function syncSizeFields(sizeTypeOverride = "") {
+  const sizeType = normalizeSizeType(
+    sizeTypeOverride,
+    getTradeSizingRule(
+      form.account.value || getDefaultOption("accounts"),
+      form.symbol.value || getDefaultOption("symbols"),
+      marketTypeInput.value || getDefaultMarketType(),
+    ),
+  );
   lotsField.classList.toggle("hidden", sizeType !== "lots");
   contractsField.classList.toggle("hidden", sizeType !== "contracts");
   unitsField.classList.toggle("hidden", sizeType !== "units");
@@ -5477,7 +5555,7 @@ function readForm() {
     entryTimeframe: isOrbStrategy(form.strategy.value) ? form.entryTimeframe.value : "",
     entryModel: isOrbStrategy(form.strategy.value) ? form.entryModel.value : "",
     marketType: form.marketType.value || getDefaultMarketType(),
-    sizeType: getAccountSizeType(form.account.value, form.marketType.value || getDefaultMarketType()),
+    sizeType: getTradeSizingRule(form.account.value, form.symbol.value, form.marketType.value || getDefaultMarketType()),
     lots: form.lots.value,
     lotMultiplier: "1",
     contracts: form.contracts.value,
@@ -5644,7 +5722,7 @@ function startEdit(id) {
   form.lots.value = formatLots(getTradeLots(trade));
   form.contracts.value = trade.contracts || "1";
   form.units.value = trade.units || "";
-  syncSizeFields();
+  syncSizeFields(getTradeSizeKey(trade));
   form.outcome.value = trade.outcome || "Pending";
   form.amount.value = trade.amount || "";
   form.direction.value = trade.direction === "Sell" ? "Sell" : "Buy";
@@ -5897,7 +5975,8 @@ confirmModal.addEventListener("click", (event) => {
   }
 });
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
-form.account.addEventListener("change", syncSizeFields);
+form.account.addEventListener("change", () => syncSizeFields());
+form.symbol.addEventListener("change", () => syncSizeFields());
 form.strategy.addEventListener("change", syncStrategyExecutionFields);
 tradeChallengeInput.addEventListener("change", () => syncTradeChallenge());
 form.tradeDate.addEventListener("change", () => syncTradeChallenge(tradeChallengeInput.value));
@@ -6066,6 +6145,7 @@ configGrid.addEventListener("change", (event) => {
     appConfig.symbolsByMarket = { ...appConfig.symbolsByMarket, [marketType]: selected };
     appConfig.symbols = getAllSymbols();
     appConfig.symbolMarketMap = normalizeSymbolMarketMap(SYMBOL_MARKET_MAP, appConfig.symbols);
+    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     saveConfig();
     syncConfiguredInputs();
     resetForm();
@@ -6076,6 +6156,17 @@ configGrid.addEventListener("change", (event) => {
     appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [event.target.dataset.symbolMarket]: event.target.value };
     saveConfig();
     showToast("Symbol market updated");
+    return;
+  }
+  if (event.target.matches("[data-sizing-rule]")) {
+    appConfig.sizingRules = {
+      ...appConfig.sizingRules,
+      [event.target.dataset.sizingRule]: normalizeSizeType(event.target.value),
+    };
+    saveConfig();
+    resetForm();
+    render();
+    showToast("Sizing rule saved");
     return;
   }
   if (event.target.matches("[data-predefined-strategy]")) {
@@ -6144,6 +6235,7 @@ configGrid.addEventListener("change", (event) => {
   appConfig.marketTypes = normalizeMarketTypes(selected);
   appConfig.symbolsByMarket = normalizeSymbolsByMarket(appConfig.symbolsByMarket);
   appConfig.symbols = getAllSymbols();
+  appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
   saveConfig();
   syncConfiguredInputs();
   resetForm();
