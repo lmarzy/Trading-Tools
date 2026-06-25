@@ -3652,6 +3652,50 @@ tbody td:last-child {
   margin: 0;
 }
 
+.account-create-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.wizard-add-row > .account-create-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+  margin: 0;
+}
+
+.account-create-row label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.account-create-row label > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-create-row input,
+.account-create-row select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+}
+
+.account-create-submit,
+.account-create-row [data-wizard-add-value] {
+  min-height: 42px;
+  align-self: end;
+}
+
 .account-settings-card {
   display: grid;
   gap: 12px;
@@ -3806,25 +3850,23 @@ tbody td:last-child {
   background: var(--lime);
 }
 
-.account-create-row {
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) auto !important;
-  min-width: 0;
-}
-
-.account-create-row select {
-  width: 100%;
-  min-height: 42px;
-}
-
 @media (max-width: 1050px) {
-  .account-create-row {
-    grid-template-columns: 1fr !important;
+  .account-create-row,
+  .wizard-add-row > .account-create-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .wizard-account-fields,
   .account-settings-fields {
     grid-template-columns: 1fr;
   }
 
+}
+
+@media (max-width: 700px) {
+  .account-create-row,
+  .wizard-add-row > .account-create-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .market-type-config {

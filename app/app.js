@@ -1640,6 +1640,84 @@ function renderCfdSizeModeOptions(selected = "both") {
   return CFD_SIZE_MODE_OPTIONS.map((mode) => `<option value="${mode}" ${mode === normalized ? "selected" : ""}>${CFD_SIZE_MODE_LABELS[mode]}</option>`).join("");
 }
 
+function renderNewAccountFields(prefix, marketTypes = appConfig.marketTypes) {
+  const normalizedMarketTypes = normalizeMarketTypes(marketTypes);
+  const showPropMarket = normalizedMarketTypes.length > 1;
+  return `
+    <label>
+      <span>Account name</span>
+      <input type="text" placeholder="Example: Vantage" aria-label="Account name" data-${prefix}-account-name ${prefix === "wizard-new" ? "data-wizard-add-input" : ""} />
+    </label>
+    <label>
+      <span>Account type</span>
+      <select data-${prefix}-account-type aria-label="Account type">${renderAccountTypeOptions(getDefaultAccountType(normalizedMarketTypes), normalizedMarketTypes)}</select>
+    </label>
+    <label>
+      <span>Starting balance</span>
+      <input type="number" min="0" step="0.01" placeholder="0.00" aria-label="Starting balance" data-${prefix}-account-balance />
+    </label>
+    <label data-${prefix}-account-cfd-field>
+      <span>Size mode</span>
+      <select data-${prefix}-account-size-mode aria-label="Size mode">${renderCfdSizeModeOptions("both")}</select>
+    </label>
+    <label class="${showPropMarket ? "" : "hidden"}" data-${prefix}-account-prop-field>
+      <span>Prop market</span>
+      <select data-${prefix}-account-prop-market aria-label="Prop market">${renderPropMarketOptions(getDefaultPropMarketType(normalizedMarketTypes), normalizedMarketTypes)}</select>
+    </label>
+    <label data-${prefix}-account-prop-field>
+      <span>Daily drawdown</span>
+      <select data-${prefix}-account-daily-drawdown aria-label="Daily drawdown">${renderDrawdownOptions("")}</select>
+    </label>
+    <label data-${prefix}-account-prop-field>
+      <span>Maximum drawdown</span>
+      <select data-${prefix}-account-max-drawdown aria-label="Maximum drawdown">${renderDrawdownOptions("")}</select>
+    </label>
+    <label data-${prefix}-account-prop-field>
+      <span>Timeframe</span>
+      <div class="input-with-suffix">
+        <input type="number" min="1" step="1" placeholder="Optional" aria-label="Timeframe to complete" data-${prefix}-account-timeframe />
+        <span>days</span>
+      </div>
+    </label>
+  `;
+}
+
+function syncNewAccountFields(container, prefix, marketTypes = appConfig.marketTypes) {
+  const normalizedMarketTypes = normalizeMarketTypes(marketTypes);
+  const typeSelect = container?.querySelector(`[data-${prefix}-account-type]`);
+  if (!typeSelect) return;
+  const accountType = normalizeAccountType(typeSelect.value, getDefaultAccountType(normalizedMarketTypes));
+  const propMarketSelect = container.querySelector(`[data-${prefix}-account-prop-market]`);
+  const propMarketType = MARKET_TYPE_OPTIONS.includes(propMarketSelect?.value)
+    ? propMarketSelect.value
+    : getDefaultPropMarketType(normalizedMarketTypes);
+  const usesCfdSizing = accountType === "CFD" || (accountType === "Prop" && propMarketType === "CFD");
+  container.querySelectorAll(`[data-${prefix}-account-prop-field]`).forEach((field) => {
+    field.classList.toggle("hidden", accountType !== "Prop");
+  });
+  container.querySelectorAll(`[data-${prefix}-account-cfd-field]`).forEach((field) => {
+    field.classList.toggle("hidden", !usesCfdSizing);
+  });
+}
+
+function collectNewAccountOptions(container, prefix, marketTypes = appConfig.marketTypes) {
+  const normalizedMarketTypes = normalizeMarketTypes(marketTypes);
+  const accountType = normalizeAccountType(container?.querySelector(`[data-${prefix}-account-type]`)?.value, getDefaultAccountType(normalizedMarketTypes));
+  const selectedPropMarket = container?.querySelector(`[data-${prefix}-account-prop-market]`)?.value;
+  const propMarketType = accountType === "Prop"
+    ? (MARKET_TYPE_OPTIONS.includes(selectedPropMarket) ? selectedPropMarket : getDefaultPropMarketType(normalizedMarketTypes))
+    : accountType;
+  return {
+    accountType,
+    propMarketType,
+    startingBalance: container?.querySelector(`[data-${prefix}-account-balance]`)?.value.trim() || "",
+    sizeMode: container?.querySelector(`[data-${prefix}-account-size-mode]`)?.value || "both",
+    dailyDrawdown: accountType === "Prop" ? container?.querySelector(`[data-${prefix}-account-daily-drawdown]`)?.value || "" : "",
+    maxDrawdown: accountType === "Prop" ? container?.querySelector(`[data-${prefix}-account-max-drawdown]`)?.value || "" : "",
+    timeframeDays: accountType === "Prop" ? container?.querySelector(`[data-${prefix}-account-timeframe]`)?.value.trim() || "" : "",
+  };
+}
+
 function getAccountSettings(account = "") {
   return appConfig.accountSettings?.[account] || {};
 }
@@ -4429,9 +4507,8 @@ function renderConfig() {
     </div>
     <div class="account-create-panel ${accountCreateOpen ? "" : "hidden"}">
       <div class="config-add-row account-create-row">
-        <input type="text" placeholder="Account name" aria-label="Add Account" />
-        <select data-new-account-type aria-label="Account type">${renderAccountTypeOptions()}</select>
-        <button class="primary-button" type="button" data-config-action="add" data-config-key="accounts">Add account</button>
+        ${renderNewAccountFields("new")}
+        <button class="primary-button account-create-submit" type="button" data-config-action="add" data-config-key="accounts">Add account</button>
       </div>
     </div>
     <div class="account-settings-groups">
@@ -4473,6 +4550,7 @@ function renderConfig() {
     </div>
   `;
   configGrid.appendChild(balanceSection);
+  syncNewAccountFields(configGrid, "new");
   showConfigTab(activeConfigTab);
 }
 
@@ -4572,10 +4650,7 @@ function renderWizardAccountBuilder() {
       <label class="wizard-add-row">
         <span>Account</span>
         <div class="account-create-row">
-          <input type="text" placeholder="Example: Vantage" data-wizard-add-input />
-          <select data-wizard-new-account-type aria-label="Account type">
-            ${renderAccountTypeOptions(getDefaultAccountType(onboardingDraft.marketTypes), onboardingDraft.marketTypes)}
-          </select>
+          ${renderNewAccountFields("wizard-new", onboardingDraft.marketTypes)}
           <button class="ghost-button" type="button" data-wizard-add-value>Add</button>
         </div>
       </label>
@@ -4893,6 +4968,7 @@ function renderOnboardingWizard() {
       <div class="wizard-main">${stepContent}</div>
     </div>
   `;
+  syncNewAccountFields(wizardContent, "wizard-new", onboardingDraft.marketTypes);
   updateWizardNextState();
 }
 
@@ -5073,15 +5149,19 @@ function addWizardValue(builder, input) {
         {},
       );
       onboardingDraft.accountSettings = normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft[key], onboardingDraft.accountBalances);
-      const accountType = normalizeAccountType(builder.querySelector("[data-wizard-new-account-type]")?.value, getDefaultAccountType(onboardingDraft.marketTypes));
-      const propMarketType = accountType === "Prop" ? getDefaultPropMarketType(onboardingDraft.marketTypes) : accountType;
+      const accountOptions = collectNewAccountOptions(builder, "wizard-new", onboardingDraft.marketTypes);
       values.forEach((account) => {
+        onboardingDraft.accountBalances[account] = accountOptions.startingBalance;
         onboardingDraft.accountSettings[account] = {
           ...onboardingDraft.accountSettings[account],
-          accountType,
-          isProp: accountType === "Prop",
-          propMarketType,
-          sizeMode: "both",
+          accountType: accountOptions.accountType,
+          isProp: accountOptions.accountType === "Prop",
+          propMarketType: accountOptions.propMarketType,
+          sizeMode: normalizeCfdSizeMode(accountOptions.sizeMode, "both"),
+          startingBalance: accountOptions.startingBalance,
+          dailyDrawdown: accountOptions.dailyDrawdown,
+          maxDrawdown: accountOptions.maxDrawdown,
+          timeframeDays: accountOptions.timeframeDays,
         };
       });
     }
@@ -5189,19 +5269,22 @@ function addConfigValue(key, value, marketType = "", options = {}) {
       : [nextValue, ...appConfig[key]];
   if (key === "accounts") {
     const accountType = normalizeAccountType(options.accountType, getDefaultAccountType());
-    const propMarketType = accountType === "Prop" ? getDefaultPropMarketType() : accountType;
-    appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
+    const propMarketType = accountType === "Prop"
+      ? (MARKET_TYPE_OPTIONS.includes(options.propMarketType) ? options.propMarketType : getDefaultPropMarketType())
+      : accountType;
+    const startingBalance = String(options.startingBalance || "");
+    appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: startingBalance };
     appConfig.accountSettings = {
       ...appConfig.accountSettings,
       [nextValue]: {
         accountType,
         isProp: accountType === "Prop",
         propMarketType,
-        sizeMode: "both",
-        startingBalance: "",
-        dailyDrawdown: "",
-        maxDrawdown: "",
-        timeframeDays: "",
+        sizeMode: normalizeCfdSizeMode(options.sizeMode, "both"),
+        startingBalance,
+        dailyDrawdown: accountType === "Prop" ? String(options.dailyDrawdown || "") : "",
+        maxDrawdown: accountType === "Prop" ? String(options.maxDrawdown || "") : "",
+        timeframeDays: accountType === "Prop" ? String(options.timeframeDays || "") : "",
       },
     };
     accountCreateOpen = false;
@@ -6206,12 +6289,18 @@ configGrid.addEventListener("click", (event) => {
   const key = button.dataset.configKey;
   if (button.dataset.configAction === "add") {
     const section = button.closest(".config-section");
+    if (key === "accounts") {
+      const panel = button.closest(".account-create-panel");
+      const nameInput = panel?.querySelector("[data-new-account-name]");
+      if (!nameInput) return;
+      addConfigValue(key, nameInput.value, "", collectNewAccountOptions(panel, "new"));
+      return;
+    }
     const input = button.closest(".config-add-row, .account-create-row")?.querySelector("input[type='text'], input:not([type]), input[type='number']") || section.querySelector("input[type='text'], input:not([type])");
-    const accountType = section.querySelector("[data-new-account-type]")?.value || getDefaultAccountType();
     if (!input) {
       return;
     }
-    addConfigValue(key, input.value, button.dataset.marketType || "", { accountType });
+    addConfigValue(key, input.value, button.dataset.marketType || "");
     input.value = "";
     input.focus();
   }
@@ -6222,6 +6311,10 @@ configGrid.addEventListener("click", (event) => {
 });
 
 configGrid.addEventListener("change", (event) => {
+  if (event.target.matches("[data-new-account-type], [data-new-account-prop-market]")) {
+    syncNewAccountFields(configGrid, "new");
+    return;
+  }
   if (event.target.matches("[data-config-symbol-choice]")) {
     const marketType = event.target.dataset.marketType;
     const selected = [...configGrid.querySelectorAll(`[data-config-symbol-choice][data-market-type="${marketType}"]:checked`)].map((input) => input.value);
@@ -6323,8 +6416,11 @@ configGrid.addEventListener("keydown", (event) => {
   if (!section?.dataset.configKey) {
     return;
   }
-  const accountType = section.querySelector("[data-new-account-type]")?.value || getDefaultAccountType();
-  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "", { accountType });
+  if (section.dataset.configKey === "accounts") {
+    event.target.closest(".account-create-panel")?.querySelector('[data-config-action="add"][data-config-key="accounts"]')?.click();
+    return;
+  }
+  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "");
   event.target.value = "";
 });
 
@@ -6806,6 +6902,10 @@ wizardContent.addEventListener("click", (event) => {
 });
 
 wizardContent.addEventListener("change", (event) => {
+  if (event.target.matches("[data-wizard-new-account-type], [data-wizard-new-account-prop-market]")) {
+    syncNewAccountFields(wizardContent, "wizard-new", onboardingDraft.marketTypes);
+    return;
+  }
   if (event.target.matches("[data-wizard-symbol-choice]")) {
     const marketType = event.target.dataset.marketType;
     const selected = [...wizardContent.querySelectorAll(`[data-wizard-symbol-choice][data-market-type="${marketType}"]:checked`)].map((input) => input.value);
