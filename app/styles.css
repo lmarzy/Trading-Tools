@@ -2568,7 +2568,9 @@ tbody td:last-child {
   gap: 16px;
   max-height: min(940px, calc(100vh - 36px));
   padding: 30px;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: clip;
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 24px;
   background: var(--panel);
@@ -3455,6 +3457,7 @@ tbody td:last-child {
 
 .config-form {
   width: min(980px, 100%);
+  min-width: 0;
 }
 
 .config-tabs {
@@ -3599,6 +3602,7 @@ tbody td:last-child {
 .account-settings-groups {
   display: grid;
   gap: 20px;
+  min-width: 0;
 }
 
 .account-settings-group {
@@ -3634,6 +3638,7 @@ tbody td:last-child {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  min-width: 0;
 }
 
 .account-create-panel {
@@ -3650,6 +3655,7 @@ tbody td:last-child {
 .account-settings-card {
   display: grid;
   gap: 12px;
+  min-width: 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -3661,16 +3667,20 @@ tbody td:last-child {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .account-settings-head strong {
+  min-width: 0;
   color: var(--ink);
   font-size: 0.84rem;
+  overflow-wrap: anywhere;
 }
 
 .account-settings-actions {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 10px;
 }
 
@@ -3695,11 +3705,12 @@ tbody td:last-child {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 .account-settings-fields.regular {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 320px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: none;
 }
 
 .account-settings-fields.regular .prop-only {
@@ -3709,6 +3720,7 @@ tbody td:last-child {
 .account-settings-fields label {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .account-settings-fields label > span {
@@ -3718,14 +3730,18 @@ tbody td:last-child {
 }
 
 .account-settings-fields input {
+  box-sizing: border-box;
   width: 100%;
   min-height: 42px;
+  min-width: 0;
 }
 
 .account-settings-fields select,
 .wizard-account-fields select {
+  box-sizing: border-box;
   width: 100%;
   min-height: 42px;
+  min-width: 0;
 }
 
 .prop-account-toggle {
