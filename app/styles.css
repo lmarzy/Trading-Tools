@@ -3744,57 +3744,19 @@ tbody td:last-child {
   min-width: 0;
 }
 
-.sizing-rules-section {
-  gap: 14px;
-}
-
-.sizing-rules-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 0;
-}
-
-.sizing-rule-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 150px);
+.account-type-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 12px;
+  min-height: 28px;
+  padding: 5px 9px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--field-2);
-}
-
-.sizing-rule-row > span {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.sizing-rule-row strong,
-.sizing-rule-row small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sizing-rule-row strong {
-  color: var(--ink);
-  font-size: 0.78rem;
-}
-
-.sizing-rule-row small {
-  color: var(--muted);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--muted-strong);
   font-size: 0.68rem;
-  font-weight: 800;
-}
-
-.sizing-rule-row select {
-  width: 100%;
-  min-width: 0;
-  min-height: 42px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .prop-account-toggle {
@@ -3863,10 +3825,6 @@ tbody td:last-child {
     grid-template-columns: 1fr;
   }
 
-  .sizing-rules-list,
-  .sizing-rule-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 .market-type-config {

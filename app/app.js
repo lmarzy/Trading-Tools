@@ -281,7 +281,6 @@ const DEFAULT_CONFIG = {
     Futures: [],
   },
   symbolMarketMap: {},
-  sizingRules: {},
   sessions: [],
   trackSessions: false,
   accounts: [],
@@ -361,8 +360,15 @@ const CONFIG_FIELDS = [
 
 const MARKET_TYPE_OPTIONS = ["CFD", "Futures"];
 const MARKET_TYPE_DETAILS = {
-  CFD: "Use lots in the trade tracker and position size calculator.",
+  CFD: "Use lots, units, or both depending on the account.",
   Futures: "Use contracts in the trade tracker and position size calculator.",
+};
+const ACCOUNT_TYPE_OPTIONS = ["CFD", "Futures", "Prop"];
+const CFD_SIZE_MODE_OPTIONS = ["lots", "units", "both"];
+const CFD_SIZE_MODE_LABELS = {
+  lots: "Lots",
+  units: "Units",
+  both: "Lots + Units",
 };
 const SESSION_DEFINITIONS = {
   Sydney: { timeZone: "Australia/Sydney", start: 8, end: 17 },
@@ -1364,7 +1370,6 @@ async function hydrateUserStateFromSupabase({ includeConfig = true, includeTrade
       symbols,
       symbolsByMarket,
       symbolMarketMap: normalizeSymbolMarketMap(remoteData.config?.symbolMarketMap, symbols),
-      sizingRules: normalizeSizingRules(remoteData.config?.sizingRules, remoteData.config?.accounts, symbols, symbolsByMarket),
       sessions: Boolean(remoteData.config?.trackSessions) ? ensureCurrentSessionOptions(remoteData.config?.sessions) : [],
       trackSessions: Boolean(remoteData.config?.trackSessions),
       accounts: normalizeOptions(remoteData.config?.accounts, DEFAULT_CONFIG.accounts),
@@ -1572,10 +1577,6 @@ function getSymbolMarketType(symbol = "") {
   return MARKET_TYPE_OPTIONS.find((marketType) => getSymbolsForMarket(marketType).includes(symbol)) || getDefaultMarketType();
 }
 
-function getSymbolMarketTypeFromMap(symbol = "", symbolsByMarket = appConfig.symbolsByMarket) {
-  return MARKET_TYPE_OPTIONS.find((marketType) => normalizeOptions(symbolsByMarket?.[marketType], []).includes(symbol)) || getDefaultMarketType();
-}
-
 function getDefaultSizeTypeForSymbol(symbol = "", marketType = getSymbolMarketType(symbol)) {
   if (marketType === "Futures") {
     return "contracts";
@@ -1589,28 +1590,94 @@ function getDefaultSizeTypeForSymbol(symbol = "", marketType = getSymbolMarketTy
   return "units";
 }
 
-function getSizingRuleKey(account = "", symbol = "") {
-  return `${account}::${symbol}`;
-}
-
-function getTradeSizingRule(account = "", symbol = "", marketType = getSymbolMarketType(symbol)) {
-  return normalizeSizeType(appConfig.sizingRules?.[getSizingRuleKey(account, symbol)], getDefaultSizeTypeForSymbol(symbol, marketType));
-}
-
 function renderSizeTypeOptions(selected = "lots") {
   const normalized = normalizeSizeType(selected);
   return SIZE_TYPE_OPTIONS.map((type) => `<option value="${type}" ${type === normalized ? "selected" : ""}>${SIZE_TYPE_LABELS[type]}</option>`).join("");
 }
 
-function normalizeSizingRules(rules = {}, accounts = [], symbols = [], symbolsByMarket = appConfig.symbolsByMarket) {
-  const normalized = {};
-  normalizeOptions(accounts, []).forEach((account) => {
-    normalizeOptions(symbols, []).forEach((symbol) => {
-      const key = getSizingRuleKey(account, symbol);
-      normalized[key] = normalizeSizeType(rules?.[key], getDefaultSizeTypeForSymbol(symbol, getSymbolMarketTypeFromMap(symbol, symbolsByMarket)));
-    });
-  });
-  return normalized;
+function normalizeAccountType(value, fallback = getDefaultAccountType()) {
+  const normalized = ACCOUNT_TYPE_OPTIONS.find((option) => option.toLowerCase() === String(value || "").toLowerCase());
+  return normalized || fallback;
+}
+
+function normalizeCfdSizeMode(value, fallback = "both") {
+  const normalized = String(value || "").trim().toLowerCase();
+  return CFD_SIZE_MODE_OPTIONS.includes(normalized) ? normalized : fallback;
+}
+
+function getAvailableAccountTypes(marketTypes = appConfig.marketTypes) {
+  const types = [];
+  if (marketTypes.includes("CFD")) types.push("CFD");
+  if (marketTypes.includes("Futures")) types.push("Futures");
+  types.push("Prop");
+  return types;
+}
+
+function getDefaultAccountType(marketTypes = appConfig.marketTypes) {
+  if (marketTypes.includes("CFD")) return "CFD";
+  if (marketTypes.includes("Futures")) return "Futures";
+  return "CFD";
+}
+
+function getDefaultPropMarketType(marketTypes = appConfig.marketTypes) {
+  if (marketTypes.includes("CFD")) return "CFD";
+  if (marketTypes.includes("Futures")) return "Futures";
+  return "CFD";
+}
+
+function renderAccountTypeOptions(selected = getDefaultAccountType(), marketTypes = appConfig.marketTypes) {
+  const normalized = normalizeAccountType(selected);
+  return getAvailableAccountTypes(marketTypes).map((type) => `<option value="${type}" ${type === normalized ? "selected" : ""}>${type}</option>`).join("");
+}
+
+function renderPropMarketOptions(selected = getDefaultPropMarketType(), marketTypes = appConfig.marketTypes) {
+  const normalized = MARKET_TYPE_OPTIONS.includes(selected) ? selected : getDefaultPropMarketType(marketTypes);
+  return marketTypes.map((type) => `<option value="${type}" ${type === normalized ? "selected" : ""}>${type}</option>`).join("");
+}
+
+function renderCfdSizeModeOptions(selected = "both") {
+  const normalized = normalizeCfdSizeMode(selected);
+  return CFD_SIZE_MODE_OPTIONS.map((mode) => `<option value="${mode}" ${mode === normalized ? "selected" : ""}>${CFD_SIZE_MODE_LABELS[mode]}</option>`).join("");
+}
+
+function getAccountSettings(account = "") {
+  return appConfig.accountSettings?.[account] || {};
+}
+
+function getAccountType(account = "") {
+  const settings = getAccountSettings(account);
+  return normalizeAccountType(settings.accountType, settings.isProp ? "Prop" : getDefaultAccountType());
+}
+
+function getAccountTradeMarketType(account = "") {
+  const settings = getAccountSettings(account);
+  const accountType = getAccountType(account);
+  if (accountType === "Futures") return "Futures";
+  if (accountType === "Prop") return MARKET_TYPE_OPTIONS.includes(settings.propMarketType) ? settings.propMarketType : getDefaultPropMarketType();
+  return "CFD";
+}
+
+function accountUsesCfdSizing(account = "") {
+  return getAccountTradeMarketType(account) === "CFD";
+}
+
+function getAccountSizeMode(account = "") {
+  const settings = getAccountSettings(account);
+  if (settings.sizeMode) return normalizeCfdSizeMode(settings.sizeMode);
+  if (settings.sizeType === "lots") return "lots";
+  if (settings.sizeType === "units") return "units";
+  return "both";
+}
+
+function getTradeSizingRule(account = "", symbol = "", marketType = getAccountTradeMarketType(account)) {
+  if (marketType === "Futures") {
+    return "contracts";
+  }
+  const sizeMode = getAccountSizeMode(account);
+  if (sizeMode === "lots" || sizeMode === "units") {
+    return sizeMode;
+  }
+  return normalizeSizeType(getDefaultSizeTypeForSymbol(symbol, marketType), "units");
 }
 
 function normalizeSymbolsByMarket(symbolsByMarket = {}) {
@@ -1645,8 +1712,13 @@ function normalizeAccountBalances(balances = {}, accounts = []) {
 function normalizeAccountSettings(settings = {}, accounts = [], balances = {}) {
   return normalizeOptions(accounts, DEFAULT_CONFIG.accounts).reduce((normalized, account) => {
     const source = settings?.[account] || {};
+    const accountType = normalizeAccountType(source.accountType, source.isProp ? "Prop" : getDefaultAccountType());
+    const propMarketType = MARKET_TYPE_OPTIONS.includes(source.propMarketType) ? source.propMarketType : getDefaultPropMarketType();
     normalized[account] = {
-      isProp: Boolean(source.isProp),
+      accountType,
+      isProp: accountType === "Prop",
+      propMarketType,
+      sizeMode: normalizeCfdSizeMode(source.sizeMode || source.sizeType, "both"),
       startingBalance: String(source.startingBalance || balances?.[account] || ""),
       dailyDrawdown: String(source.dailyDrawdown || ""),
       maxDrawdown: String(source.maxDrawdown || ""),
@@ -2171,8 +2243,19 @@ function renderSummary() {
 
 function getConfiguredSizeTypes() {
   const configured = new Set();
-  appConfig.symbols.forEach((symbol) => configured.add(getDefaultSizeTypeForSymbol(symbol, getSymbolMarketType(symbol))));
-  Object.values(appConfig.sizingRules || {}).forEach((sizeType) => configured.add(normalizeSizeType(sizeType)));
+  appConfig.accounts.forEach((account) => {
+    if (getAccountTradeMarketType(account) === "Futures") {
+      configured.add("contracts");
+      return;
+    }
+    const sizeMode = getAccountSizeMode(account);
+    if (sizeMode === "both") {
+      configured.add("lots");
+      configured.add("units");
+      return;
+    }
+    configured.add(sizeMode);
+  });
 
   if (!configured.size) {
     configured.add("lots");
@@ -4121,7 +4204,6 @@ function closeWeeklyReview() {
 
 function renderConfig() {
   appConfig.accountSettings = normalizeAccountSettings(appConfig.accountSettings, appConfig.accounts, appConfig.accountBalances);
-  appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
   configGrid.innerHTML = "";
 
   const marketSection = document.createElement("section");
@@ -4228,9 +4310,8 @@ function renderConfig() {
     section.innerHTML = `
       <div class="config-section-heading">
         <h3>${escapeHtml(field.label)}(s)</h3>
-        <div class="config-add-row ${field.key === "accounts" ? "account-create-row" : ""}">
+        <div class="config-add-row">
           <input type="text" placeholder="Add ${escapeHtml(field.label.toLowerCase())}" aria-label="Add ${escapeHtml(field.label)}" />
-          ${field.key === "accounts" ? `<select data-new-account-type aria-label="Account type"><option value="regular">Regular account</option><option value="prop">Prop account</option></select>` : ""}
           <button class="ghost-button" type="button" data-config-action="add" data-config-key="${field.key}">Add</button>
         </div>
       </div>
@@ -4349,71 +4430,49 @@ function renderConfig() {
     <div class="account-create-panel ${accountCreateOpen ? "" : "hidden"}">
       <div class="config-add-row account-create-row">
         <input type="text" placeholder="Account name" aria-label="Add Account" />
-        <select data-new-account-type aria-label="Account type"><option value="regular">Regular account</option><option value="prop">Prop account</option></select>
+        <select data-new-account-type aria-label="Account type">${renderAccountTypeOptions()}</select>
         <button class="primary-button" type="button" data-config-action="add" data-config-key="accounts">Add account</button>
       </div>
     </div>
     <div class="account-settings-groups">
       ${[
-        { label: "Regular Accounts", accounts: appConfig.accounts.filter((account) => !appConfig.accountSettings?.[account]?.isProp) },
-        { label: "Prop Accounts", accounts: appConfig.accounts.filter((account) => appConfig.accountSettings?.[account]?.isProp) },
+        { label: "CFD Accounts", accounts: appConfig.accounts.filter((account) => getAccountType(account) === "CFD") },
+        { label: "Futures Accounts", accounts: appConfig.accounts.filter((account) => getAccountType(account) === "Futures") },
+        { label: "Prop Accounts", accounts: appConfig.accounts.filter((account) => getAccountType(account) === "Prop") },
       ].map((group) => `
         <section class="account-settings-group">
           <div class="account-settings-group-heading"><h4>${group.label}</h4><span>${group.accounts.length}</span></div>
           <div class="account-settings-list">
-            ${group.accounts.length ? group.accounts.map((account) => `
+            ${group.accounts.length ? group.accounts.map((account) => {
+              const accountType = getAccountType(account);
+              const accountMarketType = getAccountTradeMarketType(account);
+              return `
                   <article class="account-settings-card">
                     <div class="account-settings-head">
                       <strong>${escapeHtml(account)}</strong>
                       <div class="account-settings-actions">
-                        <label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-account-setting="isProp" data-account="${escapeHtml(account)}" ${appConfig.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label>
+                        <span class="account-type-pill">${escapeHtml(accountMarketType === "Futures" ? "Contracts" : accountType)}</span>
                         <button class="account-remove-button" type="button" aria-label="Remove ${escapeHtml(account)}" title="Remove account" data-config-action="remove" data-config-key="accounts" data-config-value="${escapeHtml(account)}">×</button>
                       </div>
                     </div>
-                    <div class="account-settings-fields ${appConfig.accountSettings?.[account]?.isProp ? "" : "regular"}">
+                    <div class="account-settings-fields ${accountType === "Prop" ? "" : "regular"}">
+                      <label><span>Account type</span><select data-account-setting="accountType" data-account="${escapeHtml(account)}">${renderAccountTypeOptions(accountType)}</select></label>
+                      ${accountType === "Prop" && appConfig.marketTypes.length > 1 ? `<label><span>Prop market</span><select data-account-setting="propMarketType" data-account="${escapeHtml(account)}">${renderPropMarketOptions(accountMarketType)}</select></label>` : ""}
+                      ${accountUsesCfdSizing(account) ? `<label><span>Size mode</span><select data-account-setting="sizeMode" data-account="${escapeHtml(account)}">${renderCfdSizeModeOptions(appConfig.accountSettings?.[account]?.sizeMode)}</select></label>` : ""}
                       <label><span>Starting balance</span><input type="number" min="0" step="0.01" value="${escapeHtml(appConfig.accountSettings?.[account]?.startingBalance || appConfig.accountBalances?.[account] || "")}" placeholder="0.00" data-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
                       <label class="prop-only"><span>Daily drawdown</span><select data-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.dailyDrawdown)}</select></label>
                       <label class="prop-only"><span>Maximum drawdown</span><select data-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(appConfig.accountSettings?.[account]?.maxDrawdown)}</select></label>
                       <label class="prop-only"><span>Timeframe to complete</span><div class="input-with-suffix"><input type="number" min="1" step="1" value="${escapeHtml(appConfig.accountSettings?.[account]?.timeframeDays || "")}" placeholder="Optional" data-account-setting="timeframeDays" data-account="${escapeHtml(account)}" /><span>days</span></div></label>
                     </div>
                   </article>
-                `).join("") : `<span class="muted">No ${group.label.toLowerCase()} added.</span>`}
+                `;
+            }).join("") : `<span class="muted">No ${group.label.toLowerCase()} added.</span>`}
           </div>
         </section>
       `).join("")}
     </div>
   `;
   configGrid.appendChild(balanceSection);
-
-  const sizingSection = document.createElement("section");
-  sizingSection.className = "config-section sizing-rules-section";
-  sizingSection.dataset.configPanel = "accounts";
-  const sizingRows = appConfig.accounts.flatMap((account) => appConfig.symbols.map((symbol) => ({ account, symbol })));
-  sizingSection.innerHTML = `
-    <div class="config-section-heading">
-      <div>
-        <h3>Sizing Rule(s)</h3>
-        <p class="config-note">Choose how each account records each symbol. Defaults are filled in automatically and can be changed here.</p>
-      </div>
-    </div>
-    <div class="sizing-rules-list">
-      ${
-        sizingRows.length
-          ? sizingRows.map(({ account, symbol }) => {
-              const key = getSizingRuleKey(account, symbol);
-              const marketType = getSymbolMarketType(symbol);
-              return `
-                <label class="sizing-rule-row">
-                  <span><strong>${escapeHtml(account)}</strong><small>${escapeHtml(symbol)} · ${escapeHtml(marketType)}</small></span>
-                  <select data-sizing-rule="${escapeHtml(key)}" data-sizing-account="${escapeHtml(account)}" data-sizing-symbol="${escapeHtml(symbol)}">${renderSizeTypeOptions(appConfig.sizingRules?.[key] || getDefaultSizeTypeForSymbol(symbol, marketType))}</select>
-                </label>
-              `;
-            }).join("")
-          : '<span class="muted">Add at least one account and one symbol to set sizing rules.</span>'
-      }
-    </div>
-  `;
-  configGrid.appendChild(sizingSection);
   showConfigTab(activeConfigTab);
 }
 
@@ -4515,8 +4574,7 @@ function renderWizardAccountBuilder() {
         <div class="account-create-row">
           <input type="text" placeholder="Example: Vantage" data-wizard-add-input />
           <select data-wizard-new-account-type aria-label="Account type">
-            <option value="regular">Regular account</option>
-            <option value="prop">Prop account</option>
+            ${renderAccountTypeOptions(getDefaultAccountType(onboardingDraft.marketTypes), onboardingDraft.marketTypes)}
           </select>
           <button class="ghost-button" type="button" data-wizard-add-value>Add</button>
         </div>
@@ -4526,10 +4584,18 @@ function renderWizardAccountBuilder() {
           accounts.length
             ? accounts
                 .map(
-                  (account) => `
+                  (account) => {
+                    const settings = onboardingDraft.accountSettings?.[account] || {};
+                    const accountType = normalizeAccountType(settings.accountType, settings.isProp ? "Prop" : getDefaultAccountType(onboardingDraft.marketTypes));
+                    const propMarketType = MARKET_TYPE_OPTIONS.includes(settings.propMarketType) ? settings.propMarketType : getDefaultPropMarketType(onboardingDraft.marketTypes);
+                    const usesCfdSizing = accountType === "CFD" || (accountType === "Prop" && propMarketType === "CFD");
+                    return `
                     <div class="wizard-account-row">
-                      <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><label class="prop-account-toggle"><span>Prop account</span><input type="checkbox" data-wizard-account-setting="isProp" data-account="${escapeHtml(account)}" ${onboardingDraft.accountSettings?.[account]?.isProp ? "checked" : ""} /><i></i></label></div>
-                      <div class="wizard-account-fields ${onboardingDraft.accountSettings?.[account]?.isProp ? "" : "regular"}">
+                      <div class="wizard-account-head"><strong>${escapeHtml(account)}</strong><span class="account-type-pill">${escapeHtml(accountType === "Futures" || propMarketType === "Futures" ? "Contracts" : accountType)}</span></div>
+                      <div class="wizard-account-fields ${accountType === "Prop" ? "" : "regular"}">
+                        <label><span>Account type</span><select data-wizard-account-setting="accountType" data-account="${escapeHtml(account)}">${renderAccountTypeOptions(accountType, onboardingDraft.marketTypes)}</select></label>
+                        ${accountType === "Prop" && onboardingDraft.marketTypes.length > 1 ? `<label><span>Prop market</span><select data-wizard-account-setting="propMarketType" data-account="${escapeHtml(account)}">${renderPropMarketOptions(propMarketType, onboardingDraft.marketTypes)}</select></label>` : ""}
+                        ${usesCfdSizing ? `<label><span>Size mode</span><select data-wizard-account-setting="sizeMode" data-account="${escapeHtml(account)}">${renderCfdSizeModeOptions(settings.sizeMode)}</select></label>` : ""}
                         <label><span>Starting balance</span><input type="number" min="0" step="0.01" placeholder="0.00" value="${escapeHtml(onboardingDraft.accountSettings?.[account]?.startingBalance || onboardingDraft.accountBalances?.[account] || "")}" data-wizard-account-setting="startingBalance" data-account="${escapeHtml(account)}" /></label>
                         <label class="prop-only"><span>Daily drawdown</span><select data-wizard-account-setting="dailyDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.dailyDrawdown)}</select></label>
                         <label class="prop-only"><span>Maximum drawdown</span><select data-wizard-account-setting="maxDrawdown" data-account="${escapeHtml(account)}">${renderDrawdownOptions(onboardingDraft.accountSettings?.[account]?.maxDrawdown)}</select></label>
@@ -4537,7 +4603,8 @@ function renderWizardAccountBuilder() {
                       </div>
                       <button type="button" aria-label="Remove ${escapeHtml(account)}" data-wizard-remove-value="${escapeHtml(account)}">x</button>
                     </div>
-                  `,
+                  `;
+                  },
                 )
                 .join("")
             : '<span class="muted">No accounts yet.</span>'
@@ -5006,11 +5073,15 @@ function addWizardValue(builder, input) {
         {},
       );
       onboardingDraft.accountSettings = normalizeAccountSettings(onboardingDraft.accountSettings, onboardingDraft[key], onboardingDraft.accountBalances);
-      const isProp = builder.querySelector("[data-wizard-new-account-type]")?.value === "prop";
+      const accountType = normalizeAccountType(builder.querySelector("[data-wizard-new-account-type]")?.value, getDefaultAccountType(onboardingDraft.marketTypes));
+      const propMarketType = accountType === "Prop" ? getDefaultPropMarketType(onboardingDraft.marketTypes) : accountType;
       values.forEach((account) => {
         onboardingDraft.accountSettings[account] = {
           ...onboardingDraft.accountSettings[account],
-          isProp,
+          accountType,
+          isProp: accountType === "Prop",
+          propMarketType,
+          sizeMode: "both",
         };
       });
     }
@@ -5055,7 +5126,6 @@ function saveOnboardingWizard() {
     symbols: flattenSymbolsByMarket(symbolsByMarket),
     symbolsByMarket,
     symbolMarketMap: normalizeSymbolMarketMap(onboardingDraft.symbolMarketMap, flattenSymbolsByMarket(symbolsByMarket)),
-    sizingRules: normalizeSizingRules(onboardingDraft.sizingRules, onboardingDraft.accounts, flattenSymbolsByMarket(symbolsByMarket), symbolsByMarket),
     sessions: onboardingDraft.trackSessions ? normalizeSessions(onboardingDraft.sessions, []) : [],
     trackSessions: Boolean(onboardingDraft.trackSessions),
     accounts: normalizeOptions(onboardingDraft.accounts, []),
@@ -5099,7 +5169,6 @@ function addConfigValue(key, value, marketType = "", options = {}) {
     };
     appConfig.symbols = getAllSymbols();
     appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [nextValue]: suggestStandardMarket(nextValue) };
-    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     saveConfig();
     syncConfiguredInputs();
     renderConfig();
@@ -5119,18 +5188,22 @@ function addConfigValue(key, value, marketType = "", options = {}) {
       ? normalizeStrategies([nextValue, ...appConfig[key]], [])
       : [nextValue, ...appConfig[key]];
   if (key === "accounts") {
+    const accountType = normalizeAccountType(options.accountType, getDefaultAccountType());
+    const propMarketType = accountType === "Prop" ? getDefaultPropMarketType() : accountType;
     appConfig.accountBalances = { ...appConfig.accountBalances, [nextValue]: "" };
     appConfig.accountSettings = {
       ...appConfig.accountSettings,
       [nextValue]: {
-        isProp: Boolean(options.isProp),
+        accountType,
+        isProp: accountType === "Prop",
+        propMarketType,
+        sizeMode: "both",
         startingBalance: "",
         dailyDrawdown: "",
         maxDrawdown: "",
         timeframeDays: "",
       },
     };
-    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     accountCreateOpen = false;
   }
   saveConfig();
@@ -5165,7 +5238,6 @@ async function removeConfigValue(key, value, marketType = "") {
     };
     appConfig.symbols = getAllSymbols();
     delete appConfig.symbolMarketMap[value];
-    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     saveConfig();
     syncConfiguredInputs();
     renderConfig();
@@ -5196,7 +5268,6 @@ async function removeConfigValue(key, value, marketType = "") {
     appConfig.accountBalances = remainingBalances;
     const { [value]: _removedSettings, ...remainingSettings } = appConfig.accountSettings;
     appConfig.accountSettings = remainingSettings;
-    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
   }
   saveConfig();
   syncConfiguredInputs();
@@ -5511,6 +5582,14 @@ function syncMarketTypeField() {
   }
 }
 
+function syncMarketTypeFromAccount() {
+  const accountMarketType = getAccountTradeMarketType(form.account.value || getDefaultOption("accounts"));
+  if (appConfig.marketTypes.includes(accountMarketType)) {
+    marketTypeInput.value = accountMarketType;
+  }
+  syncSizeFromMarket();
+}
+
 function syncSymbolFromMarket(preferredSymbol = "") {
   const symbols = getSymbolsForMarket(marketTypeInput.value || getDefaultMarketType());
   const nextSymbol = preferredSymbol || form.symbol.value;
@@ -5521,6 +5600,10 @@ function syncSymbolFromMarket(preferredSymbol = "") {
 }
 
 function syncSizeFromMarket() {
+  const accountMarketType = getAccountTradeMarketType(form.account.value || getDefaultOption("accounts"));
+  if (appConfig.marketTypes.includes(accountMarketType)) {
+    marketTypeInput.value = accountMarketType;
+  }
   syncSymbolFromMarket();
   syncSizeFields();
 }
@@ -5650,12 +5733,13 @@ function resetForm() {
   editingTradeId = "";
   tradeIdInput.value = "";
   form.tradeDate.value = new Date().toISOString().slice(0, 10);
+  form.account.value = getDefaultOption("accounts");
   form.marketType.value = getDefaultMarketType();
-  syncSymbolFromMarket();
+  syncMarketTypeField();
+  syncMarketTypeFromAccount();
   if (appConfig.trackSessions) {
     form.session.value = getDefaultOption("sessions");
   }
-  form.account.value = getDefaultOption("accounts");
   form.strategy.value = getDefaultOption("strategies");
   form.session.disabled = false;
   form.strategy.disabled = false;
@@ -5667,7 +5751,6 @@ function resetForm() {
   form.entryTimeframe.value = "";
   form.entryModel.value = "";
   syncStrategyExecutionFields();
-  syncMarketTypeField();
   form.lots.value = "0.01";
   form.contracts.value = "1";
   form.units.value = "";
@@ -5975,7 +6058,7 @@ confirmModal.addEventListener("click", (event) => {
   }
 });
 marketTypeInput.addEventListener("change", syncSizeFromMarket);
-form.account.addEventListener("change", () => syncSizeFields());
+form.account.addEventListener("change", syncMarketTypeFromAccount);
 form.symbol.addEventListener("change", () => syncSizeFields());
 form.strategy.addEventListener("change", syncStrategyExecutionFields);
 tradeChallengeInput.addEventListener("change", () => syncTradeChallenge());
@@ -6124,11 +6207,11 @@ configGrid.addEventListener("click", (event) => {
   if (button.dataset.configAction === "add") {
     const section = button.closest(".config-section");
     const input = button.closest(".config-add-row, .account-create-row")?.querySelector("input[type='text'], input:not([type]), input[type='number']") || section.querySelector("input[type='text'], input:not([type])");
-    const isProp = section.querySelector("[data-new-account-type]")?.value === "prop";
+    const accountType = section.querySelector("[data-new-account-type]")?.value || getDefaultAccountType();
     if (!input) {
       return;
     }
-    addConfigValue(key, input.value, button.dataset.marketType || "", { isProp });
+    addConfigValue(key, input.value, button.dataset.marketType || "", { accountType });
     input.value = "";
     input.focus();
   }
@@ -6145,7 +6228,6 @@ configGrid.addEventListener("change", (event) => {
     appConfig.symbolsByMarket = { ...appConfig.symbolsByMarket, [marketType]: selected };
     appConfig.symbols = getAllSymbols();
     appConfig.symbolMarketMap = normalizeSymbolMarketMap(SYMBOL_MARKET_MAP, appConfig.symbols);
-    appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
     saveConfig();
     syncConfiguredInputs();
     resetForm();
@@ -6156,17 +6238,6 @@ configGrid.addEventListener("change", (event) => {
     appConfig.symbolMarketMap = { ...appConfig.symbolMarketMap, [event.target.dataset.symbolMarket]: event.target.value };
     saveConfig();
     showToast("Symbol market updated");
-    return;
-  }
-  if (event.target.matches("[data-sizing-rule]")) {
-    appConfig.sizingRules = {
-      ...appConfig.sizingRules,
-      [event.target.dataset.sizingRule]: normalizeSizeType(event.target.value),
-    };
-    saveConfig();
-    resetForm();
-    render();
-    showToast("Sizing rule saved");
     return;
   }
   if (event.target.matches("[data-predefined-strategy]")) {
@@ -6235,7 +6306,6 @@ configGrid.addEventListener("change", (event) => {
   appConfig.marketTypes = normalizeMarketTypes(selected);
   appConfig.symbolsByMarket = normalizeSymbolsByMarket(appConfig.symbolsByMarket);
   appConfig.symbols = getAllSymbols();
-  appConfig.sizingRules = normalizeSizingRules(appConfig.sizingRules, appConfig.accounts, appConfig.symbols, appConfig.symbolsByMarket);
   saveConfig();
   syncConfiguredInputs();
   resetForm();
@@ -6253,8 +6323,8 @@ configGrid.addEventListener("keydown", (event) => {
   if (!section?.dataset.configKey) {
     return;
   }
-  const isProp = section.querySelector("[data-new-account-type]")?.value === "prop";
-  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "", { isProp });
+  const accountType = section.querySelector("[data-new-account-type]")?.value || getDefaultAccountType();
+  addConfigValue(section.dataset.configKey, event.target.value, section.dataset.marketType || "", { accountType });
   event.target.value = "";
 });
 
@@ -6279,11 +6349,21 @@ configGrid.addEventListener("change", (event) => {
   const account = event.target.dataset.account;
   const setting = event.target.dataset.accountSetting;
   if (!account || !setting || event.target.type === "checkbox") return;
+  const value = setting === "accountType" ? normalizeAccountType(event.target.value) : event.target.value;
   appConfig.accountSettings = {
     ...appConfig.accountSettings,
-    [account]: { ...(appConfig.accountSettings?.[account] || {}), [setting]: event.target.value },
+    [account]: {
+      ...(appConfig.accountSettings?.[account] || {}),
+      [setting]: value,
+      ...(setting === "accountType" ? { isProp: value === "Prop", propMarketType: value === "Futures" ? "Futures" : getDefaultPropMarketType() } : {}),
+    },
   };
   saveConfig();
+  if (["accountType", "propMarketType", "sizeMode"].includes(setting)) {
+    resetForm();
+    renderConfig();
+    render();
+  }
 });
 
 tradingRulesOptions.addEventListener("change", updateTradingRulesSummary);
@@ -6795,10 +6875,18 @@ wizardContent.addEventListener("change", (event) => {
   const account = event.target.dataset.account;
   const setting = event.target.dataset.wizardAccountSetting;
   if (!account || !setting || event.target.type === "checkbox") return;
+  const value = setting === "accountType" ? normalizeAccountType(event.target.value, getDefaultAccountType(onboardingDraft.marketTypes)) : event.target.value;
   onboardingDraft.accountSettings = {
     ...onboardingDraft.accountSettings,
-    [account]: { ...(onboardingDraft.accountSettings?.[account] || {}), [setting]: event.target.value },
+    [account]: {
+      ...(onboardingDraft.accountSettings?.[account] || {}),
+      [setting]: value,
+      ...(setting === "accountType" ? { isProp: value === "Prop", propMarketType: value === "Futures" ? "Futures" : getDefaultPropMarketType(onboardingDraft.marketTypes) } : {}),
+    },
   };
+  if (["accountType", "propMarketType", "sizeMode"].includes(setting)) {
+    renderOnboardingWizard();
+  }
 });
 
 analyticsTabButtons.forEach((button) => {
