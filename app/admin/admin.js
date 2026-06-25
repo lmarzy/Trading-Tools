@@ -13,6 +13,8 @@ const roleInput = document.querySelector("#roleInput");
 const statusInput = document.querySelector("#statusInput");
 const trialDurationField = document.querySelector("#trialDurationField");
 const trialWeeksInput = document.querySelector("#trialWeeksInput");
+const sendInviteEmailInput = document.querySelector("#sendInviteEmailInput");
+const inviteMessageInput = document.querySelector("#inviteMessageInput");
 const newUserFeatureInputs = document.querySelectorAll("[data-new-user-feature]");
 const FEATURE_KEYS = ["journal", "backtesting", "calculator", "training", "challenges"];
 
@@ -514,6 +516,8 @@ function resetAddUserModal() {
   roleInput.value = "user";
   statusInput.value = "active";
   trialWeeksInput.value = "2";
+  sendInviteEmailInput.checked = true;
+  inviteMessageInput.value = "Welcome to Traders Hub. Your access code is below.";
   trialDurationField.classList.add("hidden");
   newUserFeatureInputs.forEach((input) => { input.checked = ["journal", "calculator"].includes(input.value); });
   generatedUserCodeDisplay.textContent = "";
@@ -864,6 +868,10 @@ generateUserCodeButton.addEventListener("click", async () => {
       trialWeeks,
       active: newUserStatus !== "inactive",
       featureAccess: getNewUserFeatureAccess(role),
+      inviteEmail: {
+        send: sendInviteEmailInput.checked,
+        message: inviteMessageInput.value.trim(),
+      },
     });
     adminConfig.passcodes.unshift({
       id: result.user.id,
@@ -890,7 +898,13 @@ generateUserCodeButton.addEventListener("click", async () => {
     addUserResultStep.classList.remove("hidden");
     renderPasscodes();
     renderActivity();
-    showToast("User created");
+    if (sendInviteEmailInput.checked && result.email?.sent) {
+      showToast("User created and invite email sent");
+    } else if (sendInviteEmailInput.checked) {
+      showToast(result.email?.error || "User created, but invite email was not sent", "warning");
+    } else {
+      showToast("User created");
+    }
   } catch {
     showToast("Could not create that user. Try generating another code.", "warning");
   } finally {

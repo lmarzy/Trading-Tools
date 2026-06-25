@@ -192,6 +192,11 @@
               <label><input type="checkbox" value="training" data-new-user-feature><span>Training</span></label>
               <label><input type="checkbox" value="challenges" data-new-user-feature><span>Challenges</span></label>
             </fieldset>
+            <fieldset class="admin-invite-email">
+              <legend>Invite email</legend>
+              <label class="admin-invite-toggle"><input id="sendInviteEmailInput" type="checkbox" checked><span>Send access code by email</span></label>
+              <textarea id="inviteMessageInput" rows="3" placeholder="Add a short message">Welcome to Traders Hub. Your access code is below.</textarea>
+            </fieldset>
             <button class="primary-button" type="button" id="generateUserCodeButton">Generate code</button>
           </div>
         </div>

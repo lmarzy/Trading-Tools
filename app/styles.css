@@ -93,6 +93,16 @@ textarea,
   border-radius: 8px;
 }
 
+.admin-invite-email {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 .admin-feature-access legend {
   padding: 0 5px;
   color: var(--muted);
@@ -101,8 +111,17 @@ textarea,
   text-transform: uppercase;
 }
 
+.admin-invite-email legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .admin-feature-access label,
-.admin-user-feature-access dd label {
+.admin-user-feature-access dd label,
+.admin-invite-toggle {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -115,11 +134,17 @@ textarea,
 }
 
 .admin-feature-access input,
-.admin-user-feature-access input {
+.admin-user-feature-access input,
+.admin-invite-toggle input {
   width: 15px;
   height: 15px;
   margin: 0;
   accent-color: var(--accent);
+}
+
+.admin-invite-email textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 .admin-user-feature-access {
