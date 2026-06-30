@@ -374,6 +374,10 @@
                 <span>Date</span>
                 <input id="tradeDate" name="tradeDate" type="date" required />
               </label>
+              <label>
+                <span>Account</span>
+                <select id="account" name="account"></select>
+              </label>
               <label id="marketTypeField">
                 <span>Market type</span>
                 <select id="marketType" name="marketType">
@@ -381,19 +385,15 @@
                   <option value="Futures">Futures</option>
                 </select>
               </label>
-              <label id="sessionField">
-                <span>Session</span>
-                <select id="session" name="session"></select>
-              </label>
             </div>
             <div class="field-row compact-three">
               <label>
                 <span>Symbol</span>
                 <select id="symbol" name="symbol" required></select>
               </label>
-              <label>
-                <span>Account</span>
-                <select id="account" name="account"></select>
+              <label id="sessionField">
+                <span>Session</span>
+                <select id="session" name="session"></select>
               </label>
               <label>
                 <span>Strategy</span>
