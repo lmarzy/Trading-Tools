@@ -7949,6 +7949,35 @@ select,
     width: 100%;
   }
 
+  #trackerView .view-actions {
+    display: grid;
+    grid-template-columns: 1fr 46px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+  }
+
+  #trackerView .dashboard-filter {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #trackerView .dashboard-filter select {
+    width: 100%;
+  }
+
+  #trackerView .view-actions .config-button {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    border-radius: 14px;
+  }
+
+  #trackerView .view-actions .top-action {
+    grid-column: 1 / -1;
+  }
+
   .view-header {
     margin-top: 0;
   }
