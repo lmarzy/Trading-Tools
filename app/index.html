@@ -93,13 +93,26 @@
         <div class="hub-command-grid">
           <div class="hub-command-main">
             <section class="hub-panel">
-              <div class="hub-panel-heading"><div><span>Trading Overview</span><h2>This Week</h2></div><a href="index.html?view=tracker">Open Journal →</a></div>
-              <div class="hub-stat-grid">
-                <article><span>Trades</span><strong id="hubTrades">0</strong></article>
-                <article><span>Wins</span><strong id="hubWins">0</strong></article>
-                <article><span>Losses</span><strong id="hubLosses">0</strong></article>
-                <article><span>Win Rate</span><strong id="hubWinRate">0%</strong></article>
-                <article class="hub-amount-stat"><span>Amount</span><strong id="hubWeekAmount">0.00</strong></article>
+              <div class="hub-panel-heading"><div><span>Trading Overview</span><h2>Results</h2></div><a href="index.html?view=tracker">Open Journal →</a></div>
+              <div class="hub-results-stack">
+                <section class="hub-result-group" aria-label="All time trading results">
+                  <div class="hub-result-heading"><span>All Time</span><strong id="hubAllTimeAmount">0.00</strong></div>
+                  <div class="hub-stat-grid">
+                    <article><span>Trades</span><strong id="hubAllTimeTrades">0</strong></article>
+                    <article><span>Wins</span><strong id="hubAllTimeWins">0</strong></article>
+                    <article><span>Losses</span><strong id="hubAllTimeLosses">0</strong></article>
+                    <article><span>Win Rate</span><strong id="hubAllTimeWinRate">0%</strong></article>
+                  </div>
+                </section>
+                <section class="hub-result-group" aria-label="This week trading results">
+                  <div class="hub-result-heading"><span>This Week</span><strong id="hubWeekAmount">0.00</strong></div>
+                  <div class="hub-stat-grid">
+                    <article><span>Trades</span><strong id="hubTrades">0</strong></article>
+                    <article><span>Wins</span><strong id="hubWins">0</strong></article>
+                    <article><span>Losses</span><strong id="hubLosses">0</strong></article>
+                    <article><span>Win Rate</span><strong id="hubWinRate">0%</strong></article>
+                  </div>
+                </section>
               </div>
             </section>
             <section class="hub-panel hub-challenges-panel hidden" id="hubChallengesPanel">

@@ -103,6 +103,11 @@ const hubTrades = document.querySelector("#hubTrades");
 const hubWins = document.querySelector("#hubWins");
 const hubLosses = document.querySelector("#hubLosses");
 const hubWinRate = document.querySelector("#hubWinRate");
+const hubAllTimeAmount = document.querySelector("#hubAllTimeAmount");
+const hubAllTimeTrades = document.querySelector("#hubAllTimeTrades");
+const hubAllTimeWins = document.querySelector("#hubAllTimeWins");
+const hubAllTimeLosses = document.querySelector("#hubAllTimeLosses");
+const hubAllTimeWinRate = document.querySelector("#hubAllTimeWinRate");
 const hubTrainingProgress = document.querySelector("#hubTrainingProgress");
 const hubTrainingProgressBar = document.querySelector("#hubTrainingProgressBar");
 const hubTrainingDetail = document.querySelector("#hubTrainingDetail");
@@ -3608,19 +3613,47 @@ function render() {
   renderHubDashboard();
 }
 
+function getHubStats(tradeSet = []) {
+  const wins = tradeSet.filter((trade) => trade.outcome === "Win").length;
+  const losses = tradeSet.filter((trade) => trade.outcome === "Loss").length;
+  return {
+    trades: tradeSet.length,
+    wins,
+    losses,
+    winRate: wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0,
+    amount: tradeSet.reduce((total, trade) => total + getTradeAmount(trade), 0),
+  };
+}
+
+function renderHubStats(stats, elements) {
+  if (!elements.amount) return;
+  elements.trades.textContent = String(stats.trades);
+  elements.wins.textContent = String(stats.wins);
+  elements.losses.textContent = String(stats.losses);
+  elements.winRate.textContent = `${stats.winRate}%`;
+  elements.amount.textContent = formatSummaryAmount(stats.amount);
+  elements.amount.className = stats.amount > 0 ? "amount-win" : stats.amount < 0 ? "amount-loss" : "amount-flat";
+}
+
 function renderHubDashboard() {
   if (!hubWeekAmount) return;
   const weekKeys = new Set(getWeekdays().map((day) => day.key));
-  const weekTrades = trades.filter((trade) => weekKeys.has(trade.tradeDate));
-  const amount = weekTrades.reduce((total, trade) => total + getTradeAmount(trade), 0);
-  const wins = weekTrades.filter((trade) => trade.outcome === "Win").length;
-  const losses = weekTrades.filter((trade) => trade.outcome === "Loss").length;
-  hubWeekAmount.textContent = formatSummaryAmount(amount);
-  hubWeekAmount.className = amount > 0 ? "amount-win" : amount < 0 ? "amount-loss" : "";
-  hubTrades.textContent = String(weekTrades.length);
-  hubWins.textContent = String(wins);
-  hubLosses.textContent = String(losses);
-  hubWinRate.textContent = `${wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0}%`;
+  const dashboardTrades = getDashboardTrades();
+  const weekTrades = dashboardTrades.filter((trade) => weekKeys.has(trade.tradeDate));
+  renderHubStats(getHubStats(dashboardTrades), {
+    amount: hubAllTimeAmount,
+    trades: hubAllTimeTrades,
+    wins: hubAllTimeWins,
+    losses: hubAllTimeLosses,
+    winRate: hubAllTimeWinRate,
+  });
+  renderHubStats(getHubStats(weekTrades), {
+    amount: hubWeekAmount,
+    trades: hubTrades,
+    wins: hubWins,
+    losses: hubLosses,
+    winRate: hubWinRate,
+  });
   const completed = TRAINING_CHAPTERS.filter((chapter) => getTrainingProgress(chapter.id).completed).length;
   const trainingPercent = Math.round((completed / TRAINING_CHAPTERS.length) * 100);
   hubTrainingProgress.textContent = `${trainingPercent}%`;
