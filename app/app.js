@@ -2858,6 +2858,10 @@ function renderPerformanceCalendar() {
   renderWeeklySummary();
 }
 
+function shouldUseCompactMonthlyView() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
 function renderWeeklySummary() {
   const isLastWeek = performancePeriodSelect.value === "last";
   const weekdays = getWeekdays(new Date(), isLastWeek ? -1 : 0);
@@ -2920,6 +2924,59 @@ function renderMonthlyView() {
   performanceTotalTrades.textContent = String(monthTrades.length);
   performanceTotalWinLoss.textContent = `${monthWins}/${monthLosses}`;
   performanceGrid.innerHTML = "";
+
+  if (shouldUseCompactMonthlyView()) {
+    performanceGrid.className = "mobile-monthly-list";
+    month.days.forEach((_, index) => {
+      if (index % 7 !== 0) return;
+      const weekDays = month.days.slice(index, index + 7);
+      const weekKeys = new Set(weekDays.filter(Boolean).map((day) => day.key));
+      const weekTrades = dashboardTrades.filter((trade) => weekKeys.has(trade.tradeDate));
+      const weekWins = weekTrades.filter((trade) => trade.outcome === "Win").length;
+      const weekLosses = weekTrades.filter((trade) => trade.outcome === "Loss").length;
+      const weekAmount = weekTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+      const weekClass = weekAmount > 0 ? "profit" : weekAmount < 0 ? "loss" : "flat";
+      const populatedDays = weekDays.filter(Boolean);
+      const rangeLabel = populatedDays.length
+        ? `${formatShortDate(populatedDays[0].date)} - ${formatShortDate(populatedDays[populatedDays.length - 1].date)}`
+        : "Week";
+
+      const weekCard = document.createElement("article");
+      weekCard.className = `mobile-month-week ${weekClass}`;
+      weekCard.innerHTML = `
+        <div class="mobile-month-week-summary">
+          <div>
+            <span>${rangeLabel}</span>
+            <strong>${formatSummaryAmount(weekAmount)}</strong>
+          </div>
+          <dl>
+            <div><dt>Trades</dt><dd>${weekTrades.length}</dd></div>
+            <div><dt>W/L</dt><dd>${weekWins}/${weekLosses}</dd></div>
+          </dl>
+        </div>
+        <div class="mobile-month-days">
+          ${weekDays
+            .map((day) => {
+              if (!day) return '<span class="mobile-month-day empty" aria-hidden="true"></span>';
+              const dayTrades = dashboardTrades.filter((trade) => trade.tradeDate === day.key);
+              const amount = dayTrades.reduce((sum, trade) => sum + getTradeAmount(trade), 0);
+              const dayClass = amount > 0 ? "profit" : amount < 0 ? "loss" : "flat";
+              const weekdayLabel = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(day.date);
+              return `
+                <span class="mobile-month-day ${dayClass}" title="${escapeHtml(formatShortDate(day.date))}: ${formatSummaryAmount(amount)}">
+                  <b>${escapeHtml(weekdayLabel)}</b>
+                  <em>${day.day}</em>
+                  <strong>${dayTrades.length ? formatSummaryAmount(amount) : "-"}</strong>
+                </span>
+              `;
+            })
+            .join("")}
+        </div>
+      `;
+      performanceGrid.appendChild(weekCard);
+    });
+    return;
+  }
 
   for (let index = 0; index < month.days.length; index += 7) {
     const weekDays = month.days.slice(index, index + 7);
@@ -6227,6 +6284,11 @@ performanceMonthMode.addEventListener("click", () => {
   renderPerformanceCalendar();
 });
 performancePeriodSelect.addEventListener("change", renderPerformanceCalendar);
+window.addEventListener("resize", () => {
+  if (performanceMode === "month" && document.querySelector("#trackerView")?.classList.contains("active")) {
+    renderPerformanceCalendar();
+  }
+});
 cancelEditButton.addEventListener("click", resetForm);
 openTradeModalButton.addEventListener("click", startAddTradeFlow);
 emptyAddTradeButton.addEventListener("click", startAddTradeFlow);

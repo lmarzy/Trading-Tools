@@ -2004,6 +2004,157 @@ h2 {
   font-weight: 900;
 }
 
+.mobile-monthly-list,
+.mobile-month-week,
+.mobile-month-days {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-month-week {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.mobile-month-week.profit {
+  border-color: rgba(200, 255, 79, 0.54);
+}
+
+.mobile-month-week.loss {
+  border-color: rgba(255, 122, 122, 0.54);
+}
+
+.mobile-month-week-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.mobile-month-week-summary span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-month-week-summary strong {
+  color: var(--muted-strong);
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.mobile-month-week.profit .mobile-month-week-summary strong {
+  color: var(--lime);
+}
+
+.mobile-month-week.loss .mobile-month-week-summary strong {
+  color: var(--loss);
+}
+
+.mobile-month-week-summary dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(74px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.mobile-month-week-summary dl div {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--field);
+}
+
+.mobile-month-week-summary dt,
+.mobile-month-week-summary dd {
+  margin: 0;
+}
+
+.mobile-month-week-summary dt {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-month-week-summary dd {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.mobile-month-days {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mobile-month-day {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field);
+  text-align: center;
+}
+
+.mobile-month-day.empty {
+  visibility: hidden;
+}
+
+.mobile-month-day.profit {
+  border-color: rgba(200, 255, 79, 0.45);
+}
+
+.mobile-month-day.loss {
+  border-color: rgba(255, 122, 122, 0.45);
+}
+
+.mobile-month-day b,
+.mobile-month-day em,
+.mobile-month-day strong {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-month-day b {
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mobile-month-day em {
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.mobile-month-day strong {
+  color: var(--muted-strong);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.mobile-month-day.profit strong {
+  color: var(--lime);
+}
+
+.mobile-month-day.loss strong {
+  color: var(--loss);
+}
+
 .strategy-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -7874,6 +8025,23 @@ select,
 
   .monthly-weekdays,
   .monthly-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .performance-panel .monthly-weekdays {
+    display: none;
+  }
+
+  .performance-panel .weekly-total-card {
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .performance-panel .weekly-total-card strong {
+    font-size: 2.15rem;
+  }
+
+  .performance-panel .weekly-total-card dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
