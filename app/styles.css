@@ -8045,6 +8045,40 @@ select,
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .mobile-month-week-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-month-week-summary dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-month-days {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-month-day {
+    grid-template-columns: 64px 42px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  .mobile-month-day.empty {
+    display: none;
+  }
+
+  .mobile-month-day b,
+  .mobile-month-day em,
+  .mobile-month-day strong {
+    font-size: 0.82rem;
+  }
+
+  .mobile-month-day strong {
+    text-align: right;
+  }
+
   .equity-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
